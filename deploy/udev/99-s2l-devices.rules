@@ -1,0 +1,10 @@
+# Доступ к железу выдаётся группе, а не через запуск сервиса от root.
+# idVendor/idProduct подставляются по результатам `lsusb` на Фазе 0.
+
+# Весовая плата (USB-serial). Постоянное имя, чтобы .env не зависел от порядка перечисления.
+SUBSYSTEM=="tty", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", \
+  SYMLINK+="s2l-scale", GROUP="dialout", MODE="0660"
+
+# Принтер этикеток.
+SUBSYSTEM=="usbmisc", KERNEL=="lp[0-9]*", ATTRS{idVendor}=="XXXX", ATTRS{idProduct}=="YYYY", \
+  SYMLINK+="s2l-printer", GROUP="lp", MODE="0660"

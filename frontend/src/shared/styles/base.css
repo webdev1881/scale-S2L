@@ -1,0 +1,35 @@
+:root {
+  --s2l-bg: #f2f4f7;
+  --s2l-panel: #ffffff;
+  --s2l-ink: #1d2129;
+  --s2l-muted: #7a8494;
+  --s2l-accent: #1f7a4d;
+  --s2l-accent-dark: #17603c;
+  --s2l-warn: #d97706;
+  --s2l-danger: #c0392b;
+  --s2l-radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#app {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  color: var(--s2l-ink);
+  background: var(--s2l-bg);
+}
+
+/* Киоск: тач-экран без мыши. Ничего не выделяем и не подсвечиваем по hover. */
+.kiosk,
+.kiosk * {
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}

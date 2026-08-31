@@ -1,0 +1,23 @@
+[Unit]
+Description=Aurora S2L backend (FastAPI)
+After=network.target
+
+[Service]
+Type=simple
+User=s2l
+Group=s2l
+WorkingDirectory=/opt/s2l/backend
+EnvironmentFile=/opt/s2l/backend/.env
+ExecStart=/opt/s2l/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+Restart=always
+RestartSec=2
+
+# Служба не должна иметь прав больше, чем ей нужно для порта и двух устройств.
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/s2l/backend/data
+
+[Install]
+WantedBy=multi-user.target

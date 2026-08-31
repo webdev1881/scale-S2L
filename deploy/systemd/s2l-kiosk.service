@@ -1,0 +1,30 @@
+[Unit]
+Description=Aurora S2L kiosk (cage + chromium)
+After=s2l-backend.service systemd-user-sessions.service
+Wants=s2l-backend.service
+
+[Service]
+Type=simple
+User=s2l
+Group=s2l
+PAMName=login
+TTYPath=/dev/tty7
+Environment=XDG_RUNTIME_DIR=/run/user/1000
+Environment=WLR_LIBINPUT_NO_DEVICES=1
+
+# cage — вейланд-композитор ровно на одно окно: ни рабочего стола, ни панели,
+# ни возможности свернуть киоск. Легче связки X11 + WM.
+ExecStart=/usr/bin/cage -- /usr/bin/chromium \
+  --kiosk \
+  --app=http://127.0.0.1:8000/ \
+  --noerrdialogs \
+  --disable-infobars \
+  --disable-pinch \
+  --overscroll-history-navigation=0 \
+  --disable-features=TranslateUI \
+  --check-for-update-interval=31536000
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=graphical.target
