@@ -68,6 +68,20 @@ const visibleProducts = computed(() => {
   })
 })
 
+/**
+ * Заголовок каталога один и тот же во всех трёх состояниях — список групп,
+ * открытая группа, результаты поиска, — поэтому покупатель всегда видит, где он.
+ */
+const catalogTitle = computed(() => {
+  if (searching.value) return t('kiosk.searchResults')
+  if (openedCategory.value) return openedCategory.value.name
+  return t('kiosk.chooseGroup')
+})
+
+const catalogCount = computed(() =>
+  showCategories.value ? categories.value.length : visibleProducts.value.length,
+)
+
 /** Что листаем — зависит от того, показываем группы или товары. */
 const pageCount = computed(() => {
   const length = showCategories.value ? categories.value.length : visibleProducts.value.length
@@ -221,10 +235,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
     <div class="kiosk">
       <header class="topbar">
-        <button v-if="!showCategories" class="back" @click="backToCategories">
-          <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
-        </button>
-        <div v-else class="crumb">{{ t('kiosk.chooseGroup') }}</div>
+        <div class="nav-slot">
+          <button v-if="!showCategories" class="back" @click="backToCategories">
+            <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
+          </button>
+        </div>
 
         <div class="status">
           <span class="dot" :class="{ ok: weight.connected }"></span>
@@ -255,6 +270,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         </aside>
 
         <section class="catalog">
+          <div class="catalog-head">
+            <h1 class="catalog-title">{{ catalogTitle }}</h1>
+            <span class="catalog-count">{{ t('kiosk.itemsCount', { count: catalogCount }) }}</span>
+          </div>
+
           <div class="search-row">
             <input
               v-model="search"
@@ -360,10 +380,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   border-radius: var(--s2l-radius);
 }
 
-.crumb {
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--s2l-muted);
+/* Пустой слот сохраняет место кнопки возврата, чтобы статус не прыгал вправо-влево */
+.nav-slot {
+  display: flex;
+  min-height: 52px;
+  align-items: center;
 }
 
 .back {
@@ -440,10 +461,31 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .catalog {
   display: grid;
-  /* поиск / сетка / пагинация — пейджер занимает строку только когда он есть */
-  grid-template-rows: auto 1fr auto;
+  /* заголовок / поиск / сетка / пагинация — пейджер занимает строку только когда он есть */
+  grid-template-rows: auto auto 1fr auto;
   gap: 12px;
   min-height: 0;
+}
+
+.catalog-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 0 4px;
+}
+
+.catalog-title {
+  margin: 0;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.catalog-count {
+  font-size: 15px;
+  color: var(--s2l-muted);
+  white-space: nowrap;
 }
 
 .search-row {
