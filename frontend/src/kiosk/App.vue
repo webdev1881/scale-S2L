@@ -152,19 +152,47 @@ function selectProduct(product: Product) {
 
 const SEARCH_MAX_LENGTH = 40
 
+/** Состояние экрана до начала набора — к нему возвращаемся, если поиск бросили. */
+let beforeSearch: { search: string; category: Category | null; page: number } | null = null
+
 function keyPress(char: string) {
   if (search.value.length >= SEARCH_MAX_LENGTH) return
   search.value += char
 }
 
 function openKeyboard() {
+  if (!keyboardOpen.value) {
+    beforeSearch = { search: search.value, category: openedCategory.value, page: page.value }
+  }
   keyboardOpen.value = true
   showNumpad.value = false
 }
 
+/** Набор завершён осознанно — результаты остаются на экране. */
 function closeKeyboard() {
   keyboardOpen.value = false
+  beforeSearch = null
   searchInput.value?.blur()
+}
+
+/** Поиск брошен — возвращаем экран туда, откуда покупатель начал набирать. */
+function cancelKeyboard() {
+  if (beforeSearch) {
+    search.value = beforeSearch.search
+    openedCategory.value = beforeSearch.category
+    page.value = beforeSearch.page
+  }
+  closeKeyboard()
+}
+
+function onPointerDown(event: PointerEvent) {
+  if (!keyboardOpen.value) return
+  const target = event.target as HTMLElement | null
+  if (!target) return
+  if (target.closest('.keyboard') || target.closest('.search-field')) return
+  // Касание самих результатов — это продолжение поиска, а не отказ от него.
+  if (target.closest('.catalog')) return closeKeyboard()
+  cancelKeyboard()
 }
 
 function findByPlu() {
@@ -230,6 +258,7 @@ onMounted(async () => {
   await loadCatalog()
   clockTimer = window.setInterval(() => (clock.value = new Date()), 1000)
   window.addEventListener('pointerdown', bumpIdle)
+  window.addEventListener('pointerdown', onPointerDown, true)
   bumpIdle()
 })
 
@@ -239,6 +268,7 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.removeEventListener('pointerdown', bumpIdle)
+  window.removeEventListener('pointerdown', onPointerDown, true)
 })
 
 watch([search, openedCategory, selected], bumpIdle)
