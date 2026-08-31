@@ -22,7 +22,6 @@ defineEmits<{ open: [category: Category] }>()
       </div>
       <div class="body">
         <span class="name">{{ category.name }}</span>
-        <span class="count">{{ t('kiosk.itemsCount', { count: category.count }) }}</span>
       </div>
     </button>
 
@@ -87,11 +86,6 @@ defineEmits<{ open: [category: Category] }>()
   font-size: 20px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.count {
-  font-size: 14px;
-  color: var(--s2l-muted);
 }
 
 .empty {

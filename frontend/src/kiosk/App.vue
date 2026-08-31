@@ -10,6 +10,7 @@ import type { Category, DeviceSettings, Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
 import CategoryGrid from './components/CategoryGrid.vue'
+import Keyboard from './components/Keyboard.vue'
 import Numpad from './components/Numpad.vue'
 import Pager from './components/Pager.vue'
 import ProductGrid from './components/ProductGrid.vue'
@@ -31,6 +32,8 @@ const page = ref(0)
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
+const keyboardOpen = ref(false)
+const searchInput = ref<HTMLInputElement | null>(null)
 
 const printing = ref(false)
 const labelUrl = ref<string | null>(null)
@@ -47,7 +50,13 @@ const requireStable = computed(() => settings.value?.require_stable ?? true)
 
 const cols = computed(() => settings.value?.grid_cols ?? 4)
 const rows = computed(() => settings.value?.grid_rows ?? 3)
-const pageSize = computed(() => cols.value * rows.value)
+/**
+ * Открытая клавиатура забирает нижнюю половину экрана. Если оставить прежнее число
+ * строк, карточки сожмутся до нечитаемых полосок, поэтому во время набора показываем
+ * один ряд — остальное доступно листанием или после «Готово».
+ */
+const visibleRows = computed(() => (keyboardOpen.value ? 1 : rows.value))
+const pageSize = computed(() => cols.value * visibleRows.value)
 
 const searching = computed(() => search.value.trim().length > 0)
 /** Группы показываются, пока покупатель не провалился внутрь и не начал искать. */
@@ -69,18 +78,14 @@ const visibleProducts = computed(() => {
 })
 
 /**
- * Заголовок каталога один и тот же во всех трёх состояниях — список групп,
- * открытая группа, результаты поиска, — поэтому покупатель всегда видит, где он.
+ * Заголовок показывается только там, где он что-то сообщает. На экране групп
+ * карточки говорят сами за себя, и подпись над ними — лишний шум.
  */
 const catalogTitle = computed(() => {
   if (searching.value) return t('kiosk.searchResults')
   if (openedCategory.value) return openedCategory.value.name
-  return t('kiosk.chooseGroup')
+  return ''
 })
-
-const catalogCount = computed(() =>
-  showCategories.value ? categories.value.length : visibleProducts.value.length,
-)
 
 /** Что листаем — зависит от того, показываем группы или товары. */
 const pageCount = computed(() => {
@@ -142,6 +147,24 @@ function backToCategories() {
 function selectProduct(product: Product) {
   selected.value = product
   showNumpad.value = false
+  closeKeyboard()
+}
+
+const SEARCH_MAX_LENGTH = 40
+
+function keyPress(char: string) {
+  if (search.value.length >= SEARCH_MAX_LENGTH) return
+  search.value += char
+}
+
+function openKeyboard() {
+  keyboardOpen.value = true
+  showNumpad.value = false
+}
+
+function closeKeyboard() {
+  keyboardOpen.value = false
+  searchInput.value?.blur()
 }
 
 function findByPlu() {
@@ -191,6 +214,7 @@ function reset() {
   page.value = 0
   pluInput.value = ''
   showNumpad.value = false
+  keyboardOpen.value = false
 }
 
 function bumpIdle() {
@@ -233,7 +257,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" @done="booting = false" />
 
-    <div class="kiosk">
+    <div class="kiosk" :class="{ 'kb-open': keyboardOpen }">
       <header class="topbar">
         <div class="nav-slot">
           <button v-if="!showCategories" class="back" @click="backToCategories">
@@ -270,20 +294,30 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         </aside>
 
         <section class="catalog">
-          <div class="catalog-head">
-            <h1 class="catalog-title">{{ catalogTitle }}</h1>
-            <span class="catalog-count">{{ t('kiosk.itemsCount', { count: catalogCount }) }}</span>
-          </div>
+          <h1 v-if="catalogTitle" class="catalog-title">{{ catalogTitle }}</h1>
 
           <div class="search-row">
-            <input
-              v-model="search"
-              class="search"
-              type="text"
-              :placeholder="t('kiosk.searchPlaceholder')"
-              autocomplete="off"
-            />
-            <button class="toggle" :class="{ on: showNumpad }" @click="showNumpad = !showNumpad">
+            <div class="search-field" :class="{ focused: keyboardOpen }">
+              <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M16.5 16.5 21 21" />
+              </svg>
+              <input
+                ref="searchInput"
+                v-model="search"
+                class="search"
+                type="text"
+                :placeholder="t('kiosk.searchPlaceholder')"
+                autocomplete="off"
+                @focus="openKeyboard"
+              />
+              <button v-if="search" class="clear" @click="search = ''">×</button>
+            </div>
+            <button
+              class="toggle"
+              :class="{ on: showNumpad }"
+              @click="((showNumpad = !showNumpad), (keyboardOpen = false))"
+            >
               123
             </button>
           </div>
@@ -292,7 +326,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             v-if="showCategories"
             :categories="pagedCategories"
             :cols="cols"
-            :rows="rows"
+            :rows="visibleRows"
             @open="openCategory"
           />
           <ProductGrid
@@ -301,7 +335,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             :selected-id="selected?.id ?? null"
             :currency="currency"
             :cols="cols"
-            :rows="rows"
+            :rows="visibleRows"
             @select="selectProduct"
           />
 
@@ -355,6 +389,18 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           </el-button>
         </template>
       </el-dialog>
+
+      <Transition name="kb">
+        <Keyboard
+          v-if="keyboardOpen"
+          class="kb"
+          :has-text="search.length > 0"
+          @key="keyPress"
+          @backspace="search = search.slice(0, -1)"
+          @clear="search = ''"
+          @done="closeKeyboard"
+        />
+      </Transition>
     </div>
   </el-config-provider>
 </template>
@@ -366,8 +412,15 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   height: 100%;
   gap: 12px;
   padding: 12px;
+  /* Клавиатура не накрывает интерфейс, а поджимает его: сетка ужимается,
+     но все карточки страницы остаются на виду. */
+  transition: padding-bottom 0.22s ease;
   /* Киоск не прокручивается целиком: скроллится только сетка карточек */
   overflow: hidden;
+}
+
+.kiosk.kb-open {
+  padding-bottom: calc(12px + var(--s2l-kb-height));
 }
 
 .topbar {
@@ -461,31 +514,18 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .catalog {
   display: grid;
-  /* заголовок / поиск / сетка / пагинация — пейджер занимает строку только когда он есть */
+  /* заголовок / поиск / сетка / пагинация — пустые строки схлопываются */
   grid-template-rows: auto auto 1fr auto;
   gap: 12px;
   min-height: 0;
 }
 
-.catalog-head {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 0 4px;
-}
-
 .catalog-title {
   margin: 0;
+  padding: 0 4px;
   font-size: 26px;
   font-weight: 700;
   line-height: 1.2;
-}
-
-.catalog-count {
-  font-size: 15px;
-  color: var(--s2l-muted);
-  white-space: nowrap;
 }
 
 .search-row {
@@ -493,19 +533,78 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   gap: 10px;
 }
 
+/* Поиск — главный элемент экрана после весов, поэтому он крупный,
+   с иконкой и заметной подсветкой фокуса. */
+.search-field {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  flex: 1;
+  height: 76px;
+  padding: 0 20px;
+  background: var(--s2l-panel);
+  border: 3px solid transparent;
+  border-radius: 16px;
+  box-shadow: 0 2px 10px rgb(29 33 41 / 6%);
+  transition:
+    border-color 0.15s,
+    box-shadow 0.15s;
+}
+
+.search-field.focused {
+  border-color: var(--s2l-accent);
+  box-shadow: 0 4px 18px rgb(31 122 77 / 18%);
+}
+
+.search-icon {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  fill: none;
+  stroke: var(--s2l-muted);
+  stroke-width: 2.2;
+  stroke-linecap: round;
+}
+
+.search-field.focused .search-icon {
+  stroke: var(--s2l-accent);
+}
+
 .search {
   flex: 1;
-  height: 62px;
-  padding: 0 18px;
-  font-size: 20px;
+  min-width: 0;
+  height: 100%;
+  font-size: 24px;
+  color: var(--s2l-ink);
+  background: transparent;
   border: none;
-  border-radius: 12px;
-  background: var(--s2l-panel);
   outline: none;
+}
+
+.search::placeholder {
+  color: #9aa5b1;
+}
+
+.clear {
+  flex: none;
+  width: 52px;
+  height: 52px;
+  font-size: 30px;
+  line-height: 1;
+  color: var(--s2l-muted);
+  background: #eef1f5;
+  border: none;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.clear:active {
+  background: #dfe4ea;
 }
 
 .toggle {
   width: 76px;
+  height: 76px;
   font-size: 19px;
   font-weight: 700;
   border: none;
@@ -590,5 +689,23 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .label-note {
   text-align: center;
   color: var(--s2l-muted);
+}
+
+.kb {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  z-index: 2000;
+}
+
+.kb-enter-active,
+.kb-leave-active {
+  transition: transform 0.22s ease;
+}
+
+.kb-enter-from,
+.kb-leave-to {
+  transform: translateY(100%);
 }
 </style>

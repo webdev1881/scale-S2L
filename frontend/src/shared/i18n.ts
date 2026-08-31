@@ -19,13 +19,11 @@ const messages = {
     kiosk: {
       connected: 'Ваги підключено',
       disconnected: 'Немає зв’язку',
-      searchPlaceholder: 'Пошук товару або PLU',
+      searchPlaceholder: 'Знайдіть товар за назвою або PLU',
       allCategories: 'Усі',
-      chooseGroup: 'Оберіть групу товарів',
       searchResults: 'Результати пошуку',
       allGroups: 'Усі групи',
       pageOf: '{page} / {pages}',
-      itemsCount: 'позицій: {count}',
       nothingFound: 'Нічого не знайдено',
       noProduct: 'Товар не обрано',
       total: 'До сплати',
@@ -52,6 +50,11 @@ const messages = {
     },
     numpad: {
       find: 'Знайти за PLU',
+    },
+    keyboard: {
+      space: 'Пробіл',
+      clear: 'Очистити',
+      done: 'Готово',
     },
     blocked: {
       selectProduct: 'Оберіть товар',
@@ -189,13 +192,11 @@ const messages = {
     kiosk: {
       connected: 'Весы подключены',
       disconnected: 'Нет связи',
-      searchPlaceholder: 'Поиск товара или PLU',
+      searchPlaceholder: 'Найдите товар по названию или PLU',
       allCategories: 'Все',
-      chooseGroup: 'Выберите группу товаров',
       searchResults: 'Результаты поиска',
       allGroups: 'Все группы',
       pageOf: '{page} / {pages}',
-      itemsCount: 'позиций: {count}',
       nothingFound: 'Ничего не найдено',
       noProduct: 'Товар не выбран',
       total: 'К оплате',
@@ -222,6 +223,11 @@ const messages = {
     },
     numpad: {
       find: 'Найти по PLU',
+    },
+    keyboard: {
+      space: 'Пробел',
+      clear: 'Очистить',
+      done: 'Готово',
     },
     blocked: {
       selectProduct: 'Выберите товар',
