@@ -11,7 +11,15 @@ export interface Product {
   shelf_life_days: number
   composition: string
   emoji: string
+  /** Имя файла в /products; пусто — карточка покажет значок */
+  image: string
   active: number
+}
+
+export interface Category {
+  name: string
+  image: string
+  count: number
 }
 
 export interface WeightReading {

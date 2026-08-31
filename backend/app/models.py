@@ -26,6 +26,8 @@ class Product(Base):
     shelf_life_days: Mapped[int] = mapped_column(Integer, default=0)
     composition: Mapped[str] = mapped_column(Text, default="")
     emoji: Mapped[str] = mapped_column(String(8), default="")
+    # Имя файла в frontend/public/products; пусто — карточка покажет значок
+    image: Mapped[str] = mapped_column(String(120), default="")
     active: Mapped[int] = mapped_column(Integer, default=1)
 
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="product")

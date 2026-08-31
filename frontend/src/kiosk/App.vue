@@ -6,22 +6,26 @@ import { useI18n } from 'vue-i18n'
 import { api, ApiError } from '@/shared/api'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
-import type { DeviceSettings, Product } from '@/shared/types'
+import type { Category, DeviceSettings, Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
+import CategoryGrid from './components/CategoryGrid.vue'
 import Numpad from './components/Numpad.vue'
 import ProductGrid from './components/ProductGrid.vue'
+import SplashScreen from './components/SplashScreen.vue'
 import WeightPanel from './components/WeightPanel.vue'
 
 const { t, locale } = useI18n()
 const weight = useWeightStore()
 
+const booting = ref(true)
+
 const products = ref<Product[]>([])
-const categories = ref<string[]>([])
+const categories = ref<Category[]>([])
 const settings = ref<DeviceSettings | null>(null)
 
 const search = ref('')
-const activeCategory = ref('')
+const openedCategory = ref<Category | null>(null)
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -39,10 +43,20 @@ const currency = computed(() => settings.value?.currency ?? '₴')
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 
+const searching = computed(() => search.value.trim().length > 0)
+/** Группы показываются, пока покупатель не провалился внутрь и не начал искать. */
+const showCategories = computed(() => !searching.value && openedCategory.value === null)
+
 const visibleProducts = computed(() => {
   const needle = search.value.trim().toLowerCase()
   return products.value.filter((product) => {
-    if (activeCategory.value && product.category !== activeCategory.value) return false
+    if (
+      !searching.value &&
+      openedCategory.value &&
+      product.category !== openedCategory.value.name
+    ) {
+      return false
+    }
     if (!needle) return true
     return product.name.toLowerCase().includes(needle) || String(product.plu).startsWith(needle)
   })
@@ -78,6 +92,17 @@ async function loadCatalog() {
   setLocale(cfg.language)
 }
 
+function openCategory(category: Category) {
+  openedCategory.value = category
+  selected.value = null
+}
+
+function backToCategories() {
+  openedCategory.value = null
+  selected.value = null
+  search.value = ''
+}
+
 function selectProduct(product: Product) {
   selected.value = product
   showNumpad.value = false
@@ -90,6 +115,9 @@ function findByPlu() {
     ElMessage.warning(t('kiosk.pluNotFound', { plu: pluInput.value }))
     return
   }
+  // Проваливаемся в группу найденного товара, чтобы покупатель понимал, где он.
+  openedCategory.value =
+    categories.value.find((category) => category.name === found.category) ?? null
   selectProduct(found)
   pluInput.value = ''
 }
@@ -122,7 +150,7 @@ function closeLabel() {
 function reset() {
   selected.value = null
   search.value = ''
-  activeCategory.value = ''
+  openedCategory.value = null
   pluInput.value = ''
   showNumpad.value = false
 }
@@ -151,7 +179,7 @@ onUnmounted(() => {
   window.removeEventListener('pointerdown', bumpIdle)
 })
 
-watch([search, activeCategory, selected], bumpIdle)
+watch([search, openedCategory, selected], bumpIdle)
 
 // Заголовок вкладки — тоже часть интерфейса, он меняется вместе с языком.
 watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
@@ -159,116 +187,110 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 <template>
   <el-config-provider :locale="elementLocale(locale)">
+    <SplashScreen v-if="booting" @done="booting = false" />
+
     <div class="kiosk">
-    <header class="topbar">
-      <div class="brand">{{ settings?.store_name ?? 'Aurora S2L' }}</div>
-      <div class="right">
-        <span class="dot" :class="{ ok: weight.connected }"></span>
-        <span class="conn">{{
-          weight.connected ? t('kiosk.connected') : t('kiosk.disconnected')
-        }}</span>
-        <span class="clock">{{ clock.toLocaleTimeString(localeTag()) }}</span>
-      </div>
-    </header>
+      <header class="topbar">
+        <button v-if="!showCategories" class="back" @click="backToCategories">
+          <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
+        </button>
+        <div v-else class="crumb">{{ t('kiosk.chooseGroup') }}</div>
 
-    <main class="body">
-      <aside class="left">
-        <WeightPanel
-          :reading="weight.reading"
-          :connected="weight.connected"
-          @tare="api.tare()"
-          @zero="api.zero()"
-        />
-        <Numpad
-          v-if="showNumpad"
-          v-model:value="pluInput"
-          class="numpad-block"
-          @submit="findByPlu"
-        />
-      </aside>
+        <div class="status">
+          <span class="dot" :class="{ ok: weight.connected }"></span>
+          <span class="conn">{{
+            weight.connected ? t('kiosk.connected') : t('kiosk.disconnected')
+          }}</span>
+          <span class="clock">{{ clock.toLocaleTimeString(localeTag()) }}</span>
+        </div>
+      </header>
 
-      <section class="right">
-        <div class="search-row">
-          <input
-            v-model="search"
-            class="search"
-            type="text"
-            :placeholder="t('kiosk.searchPlaceholder')"
-            autocomplete="off"
+      <main class="body">
+        <aside class="left">
+          <WeightPanel
+            :reading="weight.reading"
+            :connected="weight.connected"
+            @tare="api.tare()"
+            @zero="api.zero()"
           />
-          <button class="toggle" :class="{ on: showNumpad }" @click="showNumpad = !showNumpad">
-            123
-          </button>
-        </div>
+          <Numpad
+            v-if="showNumpad"
+            v-model:value="pluInput"
+            class="numpad-block"
+            @submit="findByPlu"
+          />
+        </aside>
 
-        <div class="chips">
-          <button :class="{ on: !activeCategory }" @click="activeCategory = ''">
-            {{ t('kiosk.allCategories') }}
-          </button>
-          <button
-            v-for="category in categories"
-            :key="category"
-            :class="{ on: activeCategory === category }"
-            @click="activeCategory = category"
-          >
-            {{ category }}
-          </button>
-        </div>
-
-        <ProductGrid
-          :products="visibleProducts"
-          :selected-id="selected?.id ?? null"
-          :currency="currency"
-          @select="selectProduct"
-        />
-      </section>
-    </main>
-
-    <footer class="bottom">
-      <div class="pick">
-        <template v-if="selected">
-          <div class="pick-name">{{ selected.emoji }} {{ selected.name }}</div>
-          <div class="pick-meta">
-            {{ formatMoney(selected.price) }} {{ currency }}/{{
-              selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-            }}
-            <template v-if="selected.unit === 'weight'">
-              · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
-            </template>
-            <template v-if="selected.tare_g">
-              · {{ t('kiosk.tare') }} {{ selected.tare_g }} г
-            </template>
+        <section class="catalog">
+          <div class="search-row">
+            <input
+              v-model="search"
+              class="search"
+              type="text"
+              :placeholder="t('kiosk.searchPlaceholder')"
+              autocomplete="off"
+            />
+            <button class="toggle" :class="{ on: showNumpad }" @click="showNumpad = !showNumpad">
+              123
+            </button>
           </div>
+
+          <CategoryGrid v-if="showCategories" :categories="categories" @open="openCategory" />
+          <ProductGrid
+            v-else
+            :products="visibleProducts"
+            :selected-id="selected?.id ?? null"
+            :currency="currency"
+            @select="selectProduct"
+          />
+        </section>
+      </main>
+
+      <footer class="bottom">
+        <div class="pick">
+          <template v-if="selected">
+            <div class="pick-name">{{ selected.name }}</div>
+            <div class="pick-meta">
+              {{ formatMoney(selected.price) }} {{ currency }}/{{
+                selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+              }}
+              <template v-if="selected.unit === 'weight'">
+                · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
+              </template>
+              <template v-if="selected.tare_g">
+                · {{ t('kiosk.tare') }} {{ selected.tare_g }} г
+              </template>
+            </div>
+          </template>
+          <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
+        </div>
+
+        <div class="sum">
+          <span class="sum-label">{{ t('kiosk.total') }}</span>
+          <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
+        </div>
+
+        <button class="print" :disabled="!!printBlockReason || printing" @click="print">
+          <template v-if="printing">{{ t('kiosk.printing') }}</template>
+          <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
+          <template v-else>{{ t('kiosk.print') }}</template>
+        </button>
+      </footer>
+
+      <el-dialog
+        v-model="labelVisible"
+        :title="t('kiosk.takeLabel')"
+        width="560px"
+        align-center
+        @close="closeLabel"
+      >
+        <img v-if="labelUrl" :src="labelUrl" class="label-img" alt="" />
+        <p v-else class="label-note">{{ t('kiosk.sentToPrinter') }}</p>
+        <template #footer>
+          <el-button type="primary" size="large" @click="closeLabel">
+            {{ t('kiosk.done') }}
+          </el-button>
         </template>
-        <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
-      </div>
-
-      <div class="sum">
-        <span class="sum-label">{{ t('kiosk.total') }}</span>
-        <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
-      </div>
-
-      <button class="print" :disabled="!!printBlockReason || printing" @click="print">
-        <template v-if="printing">{{ t('kiosk.printing') }}</template>
-        <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
-        <template v-else>{{ t('kiosk.print') }}</template>
-      </button>
-    </footer>
-
-    <el-dialog
-      v-model="labelVisible"
-      :title="t('kiosk.takeLabel')"
-      width="560px"
-      align-center
-      @close="closeLabel"
-    >
-      <img v-if="labelUrl" :src="labelUrl" class="label-img" alt="Этикетка" />
-      <p v-else class="label-note">{{ t('kiosk.sentToPrinter') }}</p>
-      <template #footer>
-        <el-button type="primary" size="large" @click="closeLabel">
-          {{ t('kiosk.done') }}
-        </el-button>
-      </template>
       </el-dialog>
     </div>
   </el-config-provider>
@@ -281,7 +303,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   height: 100%;
   gap: 12px;
   padding: 12px;
-  /* Киоск не прокручивается целиком: скроллится только сетка товаров */
+  /* Киоск не прокручивается целиком: скроллится только сетка карточек */
   overflow: hidden;
 }
 
@@ -289,25 +311,54 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 10px 18px;
+  gap: 16px;
+  padding: 8px 14px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
 }
 
-.brand {
-  font-size: 21px;
-  font-weight: 700;
+.crumb {
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--s2l-muted);
 }
 
-.right {
+.back {
   display: flex;
   align-items: center;
   gap: 10px;
-  color: var(--s2l-muted);
+  min-height: 52px;
+  padding: 0 20px;
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--s2l-ink);
+  background: #eef1f5;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+}
+
+.back:active {
+  background: #dfe4ea;
+}
+
+.arrow {
+  font-size: 22px;
+  line-height: 1;
+}
+
+/* Индикатор, подпись и часы — одной строкой */
+.status {
+  display: flex;
+  align-items: center;
+  gap: 12px;
   font-size: 15px;
+  color: var(--s2l-muted);
+  white-space: nowrap;
 }
 
 .dot {
+  flex: none;
   width: 10px;
   height: 10px;
   border-radius: 50%;
@@ -326,7 +377,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .body {
   display: grid;
-  grid-template-columns: minmax(320px, 34%) 1fr;
+  grid-template-columns: minmax(300px, 32%) 1fr;
   gap: 12px;
   min-height: 0;
 }
@@ -344,9 +395,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding: 14px;
 }
 
-.right {
+.catalog {
   display: grid;
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   gap: 12px;
   min-height: 0;
 }
@@ -378,27 +429,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .toggle.on {
-  background: var(--s2l-accent);
-  color: #fff;
-}
-
-.chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.chips button {
-  min-height: 46px;
-  padding: 0 18px;
-  font-size: 16px;
-  border: none;
-  border-radius: 23px;
-  background: var(--s2l-panel);
-  cursor: pointer;
-}
-
-.chips button.on {
   background: var(--s2l-accent);
   color: #fff;
 }

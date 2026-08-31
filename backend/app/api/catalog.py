@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from ..db import get_db
 from ..models import Product, Transaction
-from ..schemas import ProductIn, ProductOut, TransactionOut
+from ..schemas import CategoryOut, ProductIn, ProductOut, TransactionOut
 from ..services.settings_store import DeviceSettings, load_settings, save_settings
 
 router = APIRouter(prefix="/api", tags=["catalog"])
@@ -36,10 +36,28 @@ def list_products(
     return products
 
 
-@router.get("/products/categories", response_model=list[str])
-def list_categories(db: Session = Depends(get_db)) -> list[str]:
-    rows = db.scalars(select(Product.category).where(Product.active == 1).distinct())
-    return sorted({r for r in rows if r})
+@router.get("/products/categories", response_model=list[CategoryOut])
+def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
+    """Категории собираются из товаров: отдельной таблицы групп нет.
+
+    Обложка группы — фото первого товара в ней, чтобы не заводить второй набор
+    картинок и не поддерживать его в актуальном состоянии вручную.
+    """
+    products = list(db.scalars(select(Product).where(Product.active == 1).order_by(Product.plu)))
+    groups: dict[str, CategoryOut] = {}
+    for product in products:
+        if not product.category:
+            continue
+        group = groups.get(product.category)
+        if group is None:
+            groups[product.category] = CategoryOut(
+                name=product.category, image=product.image, count=1
+            )
+        else:
+            group.count += 1
+            if not group.image:
+                group.image = product.image
+    return sorted(groups.values(), key=lambda g: g.name)
 
 
 @router.post("/products", response_model=ProductOut, status_code=201)

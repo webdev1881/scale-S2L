@@ -15,12 +15,19 @@ class ProductIn(BaseModel):
     shelf_life_days: int = Field(default=0, ge=0)
     composition: str = ""
     emoji: str = ""
+    image: str = ""
     active: int = 1
 
 
 class ProductOut(ProductIn):
     model_config = ConfigDict(from_attributes=True)
     id: int
+
+
+class CategoryOut(BaseModel):
+    name: str
+    image: str
+    count: int
 
 
 class WeightOut(BaseModel):

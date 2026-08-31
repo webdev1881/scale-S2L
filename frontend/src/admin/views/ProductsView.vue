@@ -29,6 +29,7 @@ const emptyForm = (): ProductForm => ({
   shelf_life_days: 0,
   composition: '',
   emoji: '',
+  image: '',
   active: 1,
 })
 
@@ -132,7 +133,9 @@ onMounted(load)
       <el-table-column prop="plu" label="PLU" width="90" sortable />
       <el-table-column :label="t('admin.products.name')" min-width="240">
         <template #default="{ row }">
-          <span class="emoji">{{ row.emoji }}</span> {{ row.name }}
+          <img v-if="row.image" :src="`/products/${row.image}`" class="row-thumb" alt="" />
+          <span v-else class="emoji">{{ row.emoji }}</span>
+          {{ row.name }}
           <el-tag v-if="!row.active" type="info" size="small">
             {{ t('admin.products.hidden') }}
           </el-tag>
@@ -210,6 +213,11 @@ onMounted(load)
         <el-form-item :label="t('admin.products.emoji')">
           <el-input v-model="form.emoji" maxlength="4" style="width: 100px" />
         </el-form-item>
+        <el-form-item :label="t('admin.products.image')">
+          <el-input v-model="form.image" maxlength="120" placeholder="tomato-cherry.jpg" />
+          <div class="hint">{{ t('admin.products.imageHint') }}</div>
+          <img v-if="form.image" :src="`/products/${form.image}`" class="thumb" alt="" />
+        </el-form-item>
         <el-form-item :label="t('admin.products.composition')">
           <el-input v-model="form.composition" type="textarea" :rows="2" />
         </el-form-item>
@@ -244,5 +252,28 @@ onMounted(load)
 
 .emoji {
   margin-right: 4px;
+}
+
+.row-thumb {
+  width: 34px;
+  height: 26px;
+  object-fit: cover;
+  border-radius: 4px;
+  vertical-align: middle;
+  margin-right: 6px;
+}
+
+.thumb {
+  display: block;
+  width: 160px;
+  margin-top: 8px;
+  border-radius: 6px;
+}
+
+.hint {
+  width: 100%;
+  margin-top: 4px;
+  font-size: 12px;
+  color: var(--s2l-muted);
 }
 </style>

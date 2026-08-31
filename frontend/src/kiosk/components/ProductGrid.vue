@@ -19,14 +19,20 @@ defineEmits<{ select: [product: Product] }>()
       :class="{ active: product.id === selectedId }"
       @click="$emit('select', product)"
     >
-      <span class="emoji">{{ product.emoji || '🏷️' }}</span>
-      <span class="name">{{ product.name }}</span>
-      <span class="price">
-        {{ formatMoney(product.price) }} {{ currency }}/{{
-          product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-        }}
-      </span>
-      <span class="plu">PLU {{ product.plu }}</span>
+      <div class="photo">
+        <img v-if="product.image" :src="`/products/${product.image}`" :alt="product.name" />
+        <span v-else class="emoji">{{ product.emoji || '🏷️' }}</span>
+      </div>
+
+      <div class="body">
+        <span class="name">{{ product.name }}</span>
+        <span class="price">
+          {{ formatMoney(product.price) }} {{ currency }}/{{
+            product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+          }}
+        </span>
+        <span class="plu">PLU {{ product.plu }}</span>
+      </div>
     </button>
 
     <p v-if="!products.length" class="empty">{{ t('kiosk.nothingFound') }}</p>
@@ -36,8 +42,8 @@ defineEmits<{ select: [product: Product] }>()
 <style scoped>
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
-  gap: 14px;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 16px;
   /* min-height:0 обязателен: без него grid-элемент растёт по контенту
      и перекрывает поиск и нижнюю панель вместо того, чтобы прокручиваться */
   min-height: 0;
@@ -50,36 +56,58 @@ defineEmits<{ select: [product: Product] }>()
 .card {
   display: flex;
   flex-direction: column;
-  align-items: flex-start;
-  gap: 4px;
-  /* Цель касания заведомо больше пальца: на киоске промах дороже лишнего места */
-  min-height: 150px;
-  padding: 14px;
+  padding: 0;
+  overflow: hidden;
   text-align: left;
   background: var(--s2l-panel);
-  border: 3px solid transparent;
+  /* Рамка есть всегда: у выбранной карточки она лишь меняет цвет, поэтому
+     соседние карточки не сдвигаются в момент выбора. */
+  border: 3px solid #e3e8ef;
   border-radius: var(--s2l-radius);
   cursor: pointer;
+  transition: border-color 0.15s;
 }
 
 .card.active {
   border-color: var(--s2l-accent);
-  background: #f0faf4;
+  background: #f2fbf6;
+}
+
+.photo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  aspect-ratio: 4 / 3;
+  background: #eef1f5;
+}
+
+.photo img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
 }
 
 .emoji {
-  font-size: 34px;
+  font-size: 52px;
   line-height: 1;
 }
 
+.body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 10px 12px 12px;
+}
+
 .name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 600;
   line-height: 1.25;
 }
 
 .price {
-  margin-top: auto;
+  margin-top: 4px;
   font-size: 17px;
   font-weight: 700;
   color: var(--s2l-accent);

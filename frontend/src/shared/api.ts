@@ -1,4 +1,5 @@
 import type {
+  Category,
   DeviceSettings,
   PrintResult,
   Product,
@@ -44,7 +45,7 @@ export const api = {
     if (params.only_active === false) query.set('only_active', 'false')
     return request<Product[]>(`/api/products?${query.toString()}`)
   },
-  categories: () => request<string[]>('/api/products/categories'),
+  categories: () => request<Category[]>('/api/products/categories'),
   createProduct: (payload: Omit<Product, 'id'>) =>
     request<Product>('/api/products', { method: 'POST', body: JSON.stringify(payload) }),
   updateProduct: (id: number, payload: Omit<Product, 'id'>) =>
