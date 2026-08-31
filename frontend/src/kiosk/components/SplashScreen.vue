@@ -18,7 +18,10 @@ const TEXT = 'SMK'
 const INK = '#1747c9'
 const FLY_MS = 1050 // сборка надписи
 const HOLD_MS = 450 // пауза, чтобы надпись успели прочитать
-const MAX_PARTICLES = 4200
+// Чем больше частиц, тем мельче «зерно» надписи. Шаг сетки считается от реального
+// числа закрашенных пикселей, поэтому количество не скачет вслед за разрешением.
+const MAX_PARTICLES = 14000
+const MIN_STEP = 3
 
 interface Particle {
   x: number
@@ -56,8 +59,13 @@ function buildParticles(width: number, height: number): Particle[] {
   pen.fillText(TEXT, width / 2, height / 2)
 
   const data = pen.getImageData(0, 0, width, height).data
-  // Шаг подбирается так, чтобы число частиц не зависело от разрешения экрана.
-  let step = Math.max(3, Math.round(Math.sqrt((width * height) / MAX_PARTICLES / 6)))
+
+  let ink = 0
+  for (let i = 3; i < data.length; i += 4) {
+    if (data[i] >= 128) ink++
+  }
+  const step = Math.max(MIN_STEP, Math.round(Math.sqrt(ink / MAX_PARTICLES)))
+
   const points: Particle[] = []
 
   for (let y = 0; y < height; y += step) {
@@ -90,7 +98,7 @@ function buildParticles(width: number, height: number): Particle[] {
         ty: y,
         // Небольшой разброс задержек — надпись «собирается», а не появляется рывком.
         delay: Math.random() * 0.28,
-        size: step - 1,
+        size: Math.max(step - 1, 2),
       })
     }
   }
