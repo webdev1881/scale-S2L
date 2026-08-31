@@ -11,6 +11,7 @@ import { useWeightStore } from '@/shared/weight'
 
 import CategoryGrid from './components/CategoryGrid.vue'
 import Numpad from './components/Numpad.vue'
+import Pager from './components/Pager.vue'
 import ProductGrid from './components/ProductGrid.vue'
 import SplashScreen from './components/SplashScreen.vue'
 import WeightPanel from './components/WeightPanel.vue'
@@ -26,6 +27,7 @@ const settings = ref<DeviceSettings | null>(null)
 
 const search = ref('')
 const openedCategory = ref<Category | null>(null)
+const page = ref(0)
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -42,6 +44,10 @@ let labelTimer: number | undefined
 const currency = computed(() => settings.value?.currency ?? '₴')
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
+
+const cols = computed(() => settings.value?.grid_cols ?? 4)
+const rows = computed(() => settings.value?.grid_rows ?? 3)
+const pageSize = computed(() => cols.value * rows.value)
 
 const searching = computed(() => search.value.trim().length > 0)
 /** Группы показываются, пока покупатель не провалился внутрь и не начал искать. */
@@ -61,6 +67,20 @@ const visibleProducts = computed(() => {
     return product.name.toLowerCase().includes(needle) || String(product.plu).startsWith(needle)
   })
 })
+
+/** Что листаем — зависит от того, показываем группы или товары. */
+const pageCount = computed(() => {
+  const length = showCategories.value ? categories.value.length : visibleProducts.value.length
+  return Math.max(1, Math.ceil(length / pageSize.value))
+})
+
+const pagedCategories = computed(() =>
+  categories.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value),
+)
+
+const pagedProducts = computed(() =>
+  visibleProducts.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value),
+)
 
 const netG = computed(() => {
   const tare = selected.value?.tare_g ?? 0
@@ -95,12 +115,14 @@ async function loadCatalog() {
 function openCategory(category: Category) {
   openedCategory.value = category
   selected.value = null
+  page.value = 0
 }
 
 function backToCategories() {
   openedCategory.value = null
   selected.value = null
   search.value = ''
+  page.value = 0
 }
 
 function selectProduct(product: Product) {
@@ -118,6 +140,7 @@ function findByPlu() {
   // Проваливаемся в группу найденного товара, чтобы покупатель понимал, где он.
   openedCategory.value =
     categories.value.find((category) => category.name === found.category) ?? null
+  page.value = 0
   selectProduct(found)
   pluInput.value = ''
 }
@@ -151,6 +174,7 @@ function reset() {
   selected.value = null
   search.value = ''
   openedCategory.value = null
+  page.value = 0
   pluInput.value = ''
   showNumpad.value = false
 }
@@ -181,6 +205,12 @@ onUnmounted(() => {
 
 watch([search, openedCategory, selected], bumpIdle)
 
+// Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
+watch([search, pageSize], () => (page.value = 0))
+watch(pageCount, (count) => {
+  if (page.value > count - 1) page.value = count - 1
+})
+
 // Заголовок вкладки — тоже часть интерфейса, он меняется вместе с языком.
 watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 </script>
@@ -210,6 +240,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           <WeightPanel
             :reading="weight.reading"
             :connected="weight.connected"
+            :currency="currency"
+            :product="selected"
+            :total="total"
             @tare="api.tare()"
             @zero="api.zero()"
           />
@@ -235,14 +268,24 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             </button>
           </div>
 
-          <CategoryGrid v-if="showCategories" :categories="categories" @open="openCategory" />
+          <CategoryGrid
+            v-if="showCategories"
+            :categories="pagedCategories"
+            :cols="cols"
+            :rows="rows"
+            @open="openCategory"
+          />
           <ProductGrid
             v-else
-            :products="visibleProducts"
+            :products="pagedProducts"
             :selected-id="selected?.id ?? null"
             :currency="currency"
+            :cols="cols"
+            :rows="rows"
             @select="selectProduct"
           />
+
+          <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
         </section>
       </main>
 
@@ -397,7 +440,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .catalog {
   display: grid;
-  grid-template-rows: auto 1fr;
+  /* поиск / сетка / пагинация — пейджер занимает строку только когда он есть */
+  grid-template-rows: auto 1fr auto;
   gap: 12px;
   min-height: 0;
 }

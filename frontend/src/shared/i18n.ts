@@ -23,6 +23,7 @@ const messages = {
       allCategories: 'Усі',
       chooseGroup: 'Оберіть групу товарів',
       allGroups: 'Усі групи',
+      pageOf: '{page} / {pages}',
       itemsCount: 'позицій: {count}',
       nothingFound: 'Нічого не знайдено',
       noProduct: 'Товар не обрано',
@@ -43,6 +44,8 @@ const messages = {
       zero: 'Нуль',
       tareValue: 'Тара: {value} кг',
       putGoods: 'Покладіть товар на платформу',
+      price: 'Ціна',
+      cost: 'Вартість',
       weighing: 'Зважування…',
       stable: 'Вага стабільна',
     },
@@ -166,6 +169,9 @@ const messages = {
         requireStableHint:
           'Вимикати лише для налагодження: етикетка з «тремтячою» вагою бреше покупцеві.',
         idleReset: 'Скидання екрана, с',
+        grid: 'Сітка каталогу (стовпців × рядків)',
+        gridHint:
+          'Карток на сторінці: {count}. Решта переноситься на наступні сторінки — обрізаних рядів не буває.',
         save: 'Зберегти',
         reset: 'Скасувати зміни',
         saved: 'Налаштування збережено',
@@ -186,6 +192,7 @@ const messages = {
       allCategories: 'Все',
       chooseGroup: 'Выберите группу товаров',
       allGroups: 'Все группы',
+      pageOf: '{page} / {pages}',
       itemsCount: 'позиций: {count}',
       nothingFound: 'Ничего не найдено',
       noProduct: 'Товар не выбран',
@@ -206,6 +213,8 @@ const messages = {
       zero: 'Ноль',
       tareValue: 'Тара: {value} кг',
       putGoods: 'Положите товар на платформу',
+      price: 'Цена',
+      cost: 'Стоимость',
       weighing: 'Взвешивание…',
       stable: 'Вес стабилен',
     },
@@ -329,6 +338,9 @@ const messages = {
         requireStableHint:
           'Отключать только для отладки: этикетка с «дрожащим» весом врёт покупателю.',
         idleReset: 'Сброс экрана, с',
+        grid: 'Сетка каталога (столбцов × строк)',
+        gridHint:
+          'Карточек на странице: {count}. Остальные переносятся на следующие страницы — обрезанных рядов не бывает.',
         save: 'Сохранить',
         reset: 'Отменить изменения',
         saved: 'Настройки сохранены',

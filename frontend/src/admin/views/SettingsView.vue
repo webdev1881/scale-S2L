@@ -95,6 +95,14 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.idleReset')">
           <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
         </el-form-item>
+        <el-form-item :label="t('admin.settings.grid')">
+          <el-input-number v-model="form.grid_cols" :min="2" :max="6" />
+          <span class="times">×</span>
+          <el-input-number v-model="form.grid_rows" :min="1" :max="5" />
+          <div class="hint">
+            {{ t('admin.settings.gridHint', { count: form.grid_cols * form.grid_rows }) }}
+          </div>
+        </el-form-item>
       </el-form>
     </el-card>
 

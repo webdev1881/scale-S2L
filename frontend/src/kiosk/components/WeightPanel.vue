@@ -2,16 +2,34 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
-import { formatKg } from '@/shared/format'
+import { formatKg, formatMoney } from '@/shared/format'
 import { translateError } from '@/shared/i18n'
-import type { WeightReading } from '@/shared/types'
+import type { Product, WeightReading } from '@/shared/types'
 
-const props = defineProps<{ reading: WeightReading; connected: boolean }>()
+const props = defineProps<{
+  reading: WeightReading
+  connected: boolean
+  currency: string
+  product: Product | null
+  total: number
+}>()
 defineEmits<{ tare: []; zero: [] }>()
 
 const { t } = useI18n()
 
 const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
+
+const priceText = computed(() => {
+  if (!props.product) return '—'
+  const per = props.product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+  return `${formatMoney(props.product.price)} ${props.currency}/${per}`
+})
+
+// Стоимость пересчитывается на каждый отсчёт весов — покупатель видит сумму
+// ещё до печати, а не узнаёт её из этикетки.
+const costText = computed(() =>
+  props.product ? `${formatMoney(props.total)} ${props.currency}` : '—',
+)
 
 const state = computed(() => {
   if (!props.connected) return { text: translateError('scale.no_link'), tone: 'error' as const }
@@ -36,6 +54,17 @@ const state = computed(() => {
     <div v-if="reading.tare_g > 0" class="tare">
       {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
     </div>
+
+    <dl class="figures">
+      <div class="figure">
+        <dt>{{ t('weight.price') }}</dt>
+        <dd>{{ priceText }}</dd>
+      </div>
+      <div class="figure cost">
+        <dt>{{ t('weight.cost') }}</dt>
+        <dd>{{ costText }}</dd>
+      </div>
+    </dl>
 
     <div class="actions">
       <button class="btn" @click="$emit('tare')">{{ t('weight.tare') }}</button>
@@ -109,6 +138,44 @@ const state = computed(() => {
   text-align: center;
   font-size: 15px;
   color: var(--s2l-muted);
+}
+
+.figures {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 4px 0 0;
+}
+
+.figure {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  background: #f5f7fa;
+  border-radius: 12px;
+}
+
+.figure dt {
+  font-size: 15px;
+  color: var(--s2l-muted);
+}
+
+.figure dd {
+  margin: 0;
+  font-size: 22px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.figure.cost {
+  background: #eef7f1;
+}
+
+.figure.cost dd {
+  font-size: 30px;
+  color: var(--s2l-accent);
 }
 
 .actions {

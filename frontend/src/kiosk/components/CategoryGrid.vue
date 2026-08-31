@@ -5,12 +5,12 @@ import type { Category } from '@/shared/types'
 
 const { t } = useI18n()
 
-defineProps<{ categories: Category[] }>()
+const props = defineProps<{ categories: Category[]; cols: number; rows: number }>()
 defineEmits<{ open: [category: Category] }>()
 </script>
 
 <template>
-  <div class="grid">
+  <div class="grid" :style="{ '--cols': props.cols, '--rows': props.rows }">
     <button
       v-for="category in categories"
       :key="category.name"
@@ -33,18 +33,21 @@ defineEmits<{ open: [category: Category] }>()
 <style scoped>
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
+  /* Страница фиксирована по столбцам и строкам: неполный ряд не обрезается краем
+     области, вместо прокрутки — пагинация. */
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
   gap: 16px;
   min-height: 0;
   height: 100%;
-  overflow-y: auto;
   padding: 4px;
-  align-content: start;
+  overflow: hidden;
 }
 
 .card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   text-align: left;
@@ -60,7 +63,9 @@ defineEmits<{ open: [category: Category] }>()
 }
 
 .photo {
-  aspect-ratio: 4 / 3;
+  /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
+  flex: 1;
+  min-height: 0;
   background: #eef1f5;
 }
 

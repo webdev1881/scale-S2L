@@ -6,12 +6,18 @@ import type { Product } from '@/shared/types'
 
 const { t } = useI18n()
 
-defineProps<{ products: Product[]; selectedId: number | null; currency: string }>()
+const props = defineProps<{
+  products: Product[]
+  selectedId: number | null
+  currency: string
+  cols: number
+  rows: number
+}>()
 defineEmits<{ select: [product: Product] }>()
 </script>
 
 <template>
-  <div class="grid">
+  <div class="grid" :style="{ '--cols': props.cols, '--rows': props.rows }">
     <button
       v-for="product in products"
       :key="product.id"
@@ -42,20 +48,21 @@ defineEmits<{ select: [product: Product] }>()
 <style scoped>
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  /* Страница фиксирована по столбцам и строкам: неполный ряд не обрезается краем
+     области, вместо прокрутки — пагинация. */
+  grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
+  grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
   gap: 16px;
-  /* min-height:0 обязателен: без него grid-элемент растёт по контенту
-     и перекрывает поиск и нижнюю панель вместо того, чтобы прокручиваться */
   min-height: 0;
   height: 100%;
-  overflow-y: auto;
   padding: 4px;
-  align-content: start;
+  overflow: hidden;
 }
 
 .card {
   display: flex;
   flex-direction: column;
+  min-height: 0;
   padding: 0;
   overflow: hidden;
   text-align: left;
@@ -77,7 +84,9 @@ defineEmits<{ select: [product: Product] }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  aspect-ratio: 4 / 3;
+  /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
+  flex: 1;
+  min-height: 0;
   background: #eef1f5;
 }
 

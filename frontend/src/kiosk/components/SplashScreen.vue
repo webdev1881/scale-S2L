@@ -32,6 +32,7 @@ interface Particle {
 }
 
 let raf = 0
+let guard = 0
 let finished = false
 
 function easeOutCubic(t: number): number {
@@ -135,11 +136,16 @@ function run() {
   }
 
   raf = requestAnimationFrame(frame)
+  // Страховка: в фоновой вкладке requestAnimationFrame не вызывается, и без этого
+  // таймера заставка осталась бы висеть поверх киоска навсегда.
+  guard = window.setTimeout(finish, FLY_MS + HOLD_MS + 500)
 }
 
 function finish() {
   if (finished) return
   finished = true
+  window.clearTimeout(guard)
+  cancelAnimationFrame(raf)
   leaving.value = true
   // Ждём затухание оверлея, иначе киоск «выпрыгивает» из-под заставки.
   window.setTimeout(() => emit('done'), 320)
@@ -155,7 +161,10 @@ onMounted(() => {
   run()
 })
 
-onUnmounted(() => cancelAnimationFrame(raf))
+onUnmounted(() => {
+  cancelAnimationFrame(raf)
+  window.clearTimeout(guard)
+})
 </script>
 
 <template>

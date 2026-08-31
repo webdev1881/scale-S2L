@@ -26,6 +26,10 @@ class DeviceSettings(BaseModel):
     require_stable: bool = True
     # Сколько секунд бездействия до сброса экрана киоска
     kiosk_idle_reset_s: int = 45
+    # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
+    # поэтому вынесено в настройки, а не зашито в вёрстку.
+    grid_cols: int = Field(default=4, ge=2, le=6)
+    grid_rows: int = Field(default=3, ge=1, le=5)
 
 
 def load_settings(db: Session) -> DeviceSettings:
