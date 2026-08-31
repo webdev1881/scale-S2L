@@ -24,6 +24,16 @@ class Settings(BaseSettings):
     scale_baudrate: int = 9600
     printer_device: str = "/dev/usb/lp0"
 
+    # Параметры весоизмерительной части Aurora S2 (6/15 кг, класс III): наибольший
+    # предел, цена деления в двух диапазонах и наименьшая навеска. Сознательно живут
+    # в конфиге устройства, а не в админке: это свойства прибора, и оператор торговой
+    # точки менять их не должен.
+    scale_capacity_g: int = 15000
+    scale_division_g: int = 5  # выше scale_fine_range_g
+    scale_fine_division_g: int = 2  # до scale_fine_range_g
+    scale_fine_range_g: int = 6000
+    scale_min_weight_g: int = 40
+
     db_url: str = f"sqlite:///{(DATA_DIR / 's2l.db').as_posix()}"
     host: str = "0.0.0.0"
     port: int = 8000

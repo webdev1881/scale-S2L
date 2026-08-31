@@ -150,6 +150,7 @@ const messages = {
         tare: 'Тара',
         zero: 'Скидання в нуль',
         unavailable: 'Симулятор недоступний на реальному обладнанні',
+        limits: 'НПВ {capacity} кг · вище — перевантаження',
       },
       settings: {
         device: 'Пристрій',
@@ -158,6 +159,7 @@ const messages = {
         storeName: 'Назва магазину',
         currency: 'Валюта',
         labelSize: 'Розмір етикетки, мм',
+        labelSizeHint: 'Друкуючий вузол Aurora S2 приймає стрічку шириною не більше 56 мм.',
         barcode: 'Штрихкод',
         template: 'Шаблон EAN-13',
         templateHint:
@@ -323,6 +325,7 @@ const messages = {
         tare: 'Тара',
         zero: 'Сброс в ноль',
         unavailable: 'Симулятор недоступен на реальном железе',
+        limits: 'НПВ {capacity} кг · выше — перегрузка',
       },
       settings: {
         device: 'Устройство',
@@ -331,6 +334,7 @@ const messages = {
         storeName: 'Название магазина',
         currency: 'Валюта',
         labelSize: 'Размер этикетки, мм',
+        labelSizeHint: 'Печатающий узел Aurora S2 принимает ленту шириной не более 56 мм.',
         barcode: 'Штрихкод',
         template: 'Шаблон EAN-13',
         templateHint:

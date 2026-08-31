@@ -32,7 +32,16 @@ def build_devices(settings: Settings) -> Devices:
             printer=UsbRawPrinter(settings.printer_device),
             backend="real",
         )
-    return Devices(scale=FakeScale(), printer=FakePrinter(), backend="fake")
+    return Devices(
+        scale=FakeScale(
+            capacity_g=settings.scale_capacity_g,
+            division_g=settings.scale_division_g,
+            fine_division_g=settings.scale_fine_division_g,
+            fine_range_g=settings.scale_fine_range_g,
+        ),
+        printer=FakePrinter(),
+        backend="fake",
+    )
 
 
 def set_devices(devices: Devices) -> None:

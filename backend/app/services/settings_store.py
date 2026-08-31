@@ -16,20 +16,24 @@ class DeviceSettings(BaseModel):
     language: str = Field(default="uk", pattern="^(uk|ru)$")
     store_name: str = "Маркет «Весна»"
     currency: str = "₴"
-    label_width_mm: float = 60
-    label_height_mm: float = 40
+    # Печатающий узел Aurora S2 берёт ленту шириной не более 56 мм
+    label_width_mm: float = Field(default=56, ge=20, le=56)
+    label_height_mm: float = Field(default=40, ge=20, le=120)
     # Шаблон весового EAN-13: P — цифра PLU, W — цифра значения
     barcode_template: str = "22PPPPPWWWWW"
     # weight — в штрихкод уходит масса в граммах, total — сумма в копейках
     barcode_value: str = Field(default="weight", pattern="^(weight|total)$")
-    min_print_weight_g: int = 5
+    # Наименьшая навеска прибора — 40 г, ниже взвешивать нельзя
+    min_print_weight_g: int = 40
     require_stable: bool = True
     # Сколько секунд бездействия до сброса экрана киоска
     kiosk_idle_reset_s: int = 45
     # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
     # поэтому вынесено в настройки, а не зашито в вёрстку.
+    # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка
+    # сжимается до 131 px и фото товара перестаёт читаться.
     grid_cols: int = Field(default=4, ge=2, le=6)
-    grid_rows: int = Field(default=3, ge=1, le=5)
+    grid_rows: int = Field(default=2, ge=1, le=5)
 
 
 def load_settings(db: Session) -> DeviceSettings:
@@ -37,7 +41,12 @@ def load_settings(db: Session) -> DeviceSettings:
     if row is None or not row.value:
         return DeviceSettings()
     try:
-        return DeviceSettings.model_validate(json.loads(row.value))
+        data = json.loads(row.value)
+        # Ширина этикетки могла быть сохранена до того, как появился предел принтера.
+        # Подрезаем её, а не роняем всю запись в дефолты.
+        if isinstance(data, dict) and isinstance(data.get("label_width_mm"), (int, float)):
+            data["label_width_mm"] = min(float(data["label_width_mm"]), 56)
+        return DeviceSettings.model_validate(data)
     except (ValueError, json.JSONDecodeError):
         # Битая запись не должна ронять киоск — откатываемся на значения по умолчанию.
         return DeviceSettings()

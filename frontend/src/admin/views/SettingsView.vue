@@ -55,9 +55,10 @@ onMounted(load)
           <el-input v-model="form.currency" maxlength="4" style="width: 100px" />
         </el-form-item>
         <el-form-item :label="t('admin.settings.labelSize')">
-          <el-input-number v-model="form.label_width_mm" :min="20" :max="120" />
+          <el-input-number v-model="form.label_width_mm" :min="20" :max="56" />
           <span class="times">×</span>
           <el-input-number v-model="form.label_height_mm" :min="20" :max="120" />
+          <div class="hint">{{ t('admin.settings.labelSizeHint') }}</div>
         </el-form-item>
       </el-form>
     </el-card>

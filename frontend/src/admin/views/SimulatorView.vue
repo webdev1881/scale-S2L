@@ -20,7 +20,11 @@ const previewId = ref<number | null>(null)
 const previewSrc = ref<string | null>(null)
 const isFake = ref(true)
 
-const QUICK = [0, 150, 320, 500, 850, 1200, 2500]
+const QUICK = [0, 150, 850, 2500, 6000, 12000, 15100]
+
+// Пределы берём у самого прибора, а не зашиваем: у 6/15 и 15/30 кг они разные.
+const capacity = ref(15000)
+const division = ref(5)
 
 const netKg = computed(() => formatKg(Math.max(weight.reading.net_g, 0)))
 
@@ -64,6 +68,10 @@ onMounted(async () => {
   // Ползунок должен показывать то, что уже лежит на платформе, а не ноль.
   const target = status.scale.detail.target_g
   if (typeof target === 'number') grams.value = Math.round(target)
+  const cap = status.scale.detail.capacity_g
+  if (typeof cap === 'number') capacity.value = cap
+  const div = status.scale.detail.division_g
+  if (typeof div === 'number') division.value = div
 })
 
 onUnmounted(() => {
@@ -102,12 +110,14 @@ onUnmounted(() => {
           <el-slider
             v-model="grams"
             :min="0"
-            :max="5000"
-            :step="10"
+            :max="capacity + 10 * division"
+            :step="division"
             :disabled="!isFake"
             show-input
             @change="put(grams)"
           />
+
+          <div class="limits">{{ t('admin.simulator.limits', { capacity: capacity / 1000 }) }}</div>
 
           <div class="quick">
             <el-button
@@ -185,6 +195,12 @@ onUnmounted(() => {
 }
 
 .unit {
+  color: var(--s2l-muted);
+}
+
+.limits {
+  margin-top: 6px;
+  font-size: 13px;
   color: var(--s2l-muted);
 }
 

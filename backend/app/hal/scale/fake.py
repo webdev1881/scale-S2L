@@ -19,8 +19,17 @@ SAMPLE_PERIOD_S = 0.05
 
 
 class FakeScale(ScaleDevice):
-    def __init__(self, capacity_g: int = 15000) -> None:
+    def __init__(
+        self,
+        capacity_g: int = 15000,
+        division_g: int = 5,
+        fine_division_g: int = 2,
+        fine_range_g: int = 6000,
+    ) -> None:
         self.capacity_g = capacity_g
+        self.division_g = division_g
+        self.fine_division_g = fine_division_g
+        self.fine_range_g = fine_range_g
         self._target_g = 0.0  # «что лежит на платформе» — задаётся из симулятора в админке
         self._current_g = 0.0
         self._tare_g = 0
@@ -60,12 +69,20 @@ class FakeScale(ScaleDevice):
                 self._stable_count = 0
             else:
                 self._stable_count += 1
-            self._overload = self._current_g > self.capacity_g
+            # Перегрузка объявляется на 9 делений выше НПВ, как требует OIML R76
+            self._overload = self._current_g > self.capacity_g + 9 * self.division_g
             await asyncio.sleep(SAMPLE_PERIOD_S)
+
+    def division_for(self, grams: float) -> int:
+        """Двухдиапазонная цена деления: до 6 кг — 2 г, выше — 5 г."""
+        return self.fine_division_g if abs(grams) <= self.fine_range_g else self.division_g
 
     def read(self) -> WeightReading:
         noisy = self._current_g + random.uniform(-self._noise, self._noise)
-        gross = int(round(noisy))
+        # Реальная плата не отдаёт произвольные граммы: показание всегда кратно цене
+        # деления. Иначе на этикетке появится вес, который прибор измерить не может.
+        step = self.division_for(noisy)
+        gross = int(round(noisy / step) * step)
         stable = self._stable_count >= STABLE_SAMPLES and abs(
             self._current_g - self._target_g
         ) <= STABLE_WINDOW_G
@@ -87,6 +104,9 @@ class FakeScale(ScaleDevice):
             kind="fake",
             detail={
                 "capacity_g": self.capacity_g,
+                "division_g": self.division_g,
+                "fine_division_g": self.fine_division_g,
+                "fine_range_g": self.fine_range_g,
                 "target_g": round(self._target_g, 1),
                 "tare_g": self._tare_g,
                 "overload": self._overload,
