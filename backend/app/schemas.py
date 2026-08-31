@@ -10,7 +10,7 @@ class ProductIn(BaseModel):
     name: str = Field(min_length=1, max_length=120)
     unit: str = Field(default="weight", pattern="^(weight|piece)$")
     price: float = Field(ge=0)
-    category: str = "Прочее"
+    category: str = ""
     tare_g: int = Field(default=0, ge=0)
     shelf_life_days: int = Field(default=0, ge=0)
     composition: str = ""

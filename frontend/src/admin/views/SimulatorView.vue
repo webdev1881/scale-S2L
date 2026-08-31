@@ -1,12 +1,15 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
 import { formatKg } from '@/shared/format'
+import { translateError } from '@/shared/i18n'
 import type { Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
+const { t } = useI18n()
 const weight = useWeightStore()
 
 const grams = ref(0)
@@ -28,7 +31,7 @@ async function put(value: number) {
   } catch (error) {
     isFake.value = false
     ElMessage.warning(
-      error instanceof ApiError ? error.message : 'Симулятор недоступен на реальном железе',
+      error instanceof ApiError ? error.message : t('admin.simulator.unavailable'),
     )
   }
 }
@@ -76,20 +79,23 @@ onUnmounted(() => {
       type="info"
       show-icon
       :closable="false"
-      title="Подключено реальное железо"
-      description="Симулятор отключён: вес приходит с весовой платы, печать идёт на принтер."
+      :title="t('admin.simulator.realTitle')"
+      :description="t('admin.simulator.realText')"
     />
 
     <el-row :gutter="16">
       <el-col :span="12">
         <el-card shadow="never">
-          <template #header>Платформа весов</template>
+          <template #header>{{ t('admin.simulator.platform') }}</template>
 
           <div class="readout">
             <span class="digits">{{ netKg }}</span>
             <span class="unit">кг</span>
-            <el-tag :type="weight.reading.stable ? 'success' : 'warning'" size="small">
-              {{ weight.reading.stable ? 'стабилен' : 'колеблется' }}
+            <el-tag v-if="weight.reading.error" type="danger" size="small">
+              {{ translateError(weight.reading.error) }}
+            </el-tag>
+            <el-tag v-else :type="weight.reading.stable ? 'success' : 'warning'" size="small">
+              {{ weight.reading.stable ? t('admin.simulator.stable') : t('admin.simulator.unstable') }}
             </el-tag>
           </div>
 
@@ -116,33 +122,30 @@ onUnmounted(() => {
           </div>
 
           <div class="row">
-            <el-button @click="api.tare()">Тара</el-button>
-            <el-button @click="api.zero()">Сброс в ноль</el-button>
+            <el-button @click="api.tare()">{{ t('admin.simulator.tare') }}</el-button>
+            <el-button @click="api.zero()">{{ t('admin.simulator.zero') }}</el-button>
           </div>
         </el-card>
       </el-col>
 
       <el-col :span="12">
         <el-card shadow="never">
-          <template #header>Принтер</template>
+          <template #header>{{ t('admin.simulator.printer') }}</template>
           <div class="switch-row">
-            <span>Закончилась бумага</span>
+            <span>{{ t('admin.simulator.paperOut') }}</span>
             <el-switch v-model="paperOut" :disabled="!isFake" @change="togglePrinter" />
           </div>
           <div class="switch-row">
-            <span>Открыта крышка</span>
+            <span>{{ t('admin.simulator.coverOpen') }}</span>
             <el-switch v-model="coverOpen" :disabled="!isFake" @change="togglePrinter" />
           </div>
-          <p class="hint">
-            Включите отказ и попробуйте напечатать этикетку в киоске — так проверяется, что
-            интерфейс переживает сбой печати.
-          </p>
+          <p class="hint">{{ t('admin.simulator.printerHint') }}</p>
         </el-card>
 
         <el-card shadow="never" class="preview-card">
-          <template #header>Предпросмотр этикетки</template>
+          <template #header>{{ t('admin.simulator.preview') }}</template>
           <div class="row">
-            <el-select v-model="previewId" placeholder="Товар" style="width: 260px">
+            <el-select v-model="previewId" :placeholder="t('admin.simulator.product')" style="width: 260px">
               <el-option
                 v-for="product in products"
                 :key="product.id"
@@ -150,7 +153,9 @@ onUnmounted(() => {
                 :value="product.id"
               />
             </el-select>
-            <el-button type="primary" @click="refreshPreview">Отрисовать</el-button>
+            <el-button type="primary" @click="refreshPreview">
+              {{ t('admin.simulator.render') }}
+            </el-button>
           </div>
           <img v-if="previewSrc" :src="previewSrc" class="preview" alt="Этикетка" />
         </el-card>

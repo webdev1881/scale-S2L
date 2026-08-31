@@ -15,6 +15,7 @@ from ..hal.base import PrintJob
 from ..hal.printer.tspl import build_label_tspl
 from .barcode import ean13_pattern
 from .fonts import load_font
+from .i18n import DEFAULT_LANG, label_text
 
 DOTS_PER_MM = 8  # 203 dpi — стандарт термопринтеров этикеток
 
@@ -32,6 +33,7 @@ class LabelData:
     packed_at: datetime
     best_before: datetime | None
     composition: str = ""
+    lang: str = DEFAULT_LANG
 
 
 def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
@@ -81,22 +83,30 @@ def render_label(data: LabelData, width_mm: float = 60, height_mm: float = 40) -
 
     y += 2
     col2 = width // 2
+    lang = data.lang
     if data.unit == "weight":
-        draw.text((pad, y), "Масса, кг", font=f_key, fill=0)
-        draw.text((col2, y), "Цена, {}/кг".format(data.currency), font=f_key, fill=0)
+        draw.text((pad, y), label_text(lang, "mass"), font=f_key, fill=0)
+        draw.text(
+            (col2, y), label_text(lang, "price_per_kg", currency=data.currency), font=f_key, fill=0
+        )
         y += 19
         draw.text((pad, y), f"{data.weight_g / 1000:.3f}", font=f_val, fill=0)
         draw.text((col2, y), f"{data.price:.2f}", font=f_val, fill=0)
     else:
-        draw.text((pad, y), "Количество", font=f_key, fill=0)
-        draw.text((col2, y), "Цена, {}/шт".format(data.currency), font=f_key, fill=0)
+        draw.text((pad, y), label_text(lang, "quantity"), font=f_key, fill=0)
+        draw.text(
+            (col2, y),
+            label_text(lang, "price_per_piece", currency=data.currency),
+            font=f_key,
+            fill=0,
+        )
         y += 19
-        draw.text((pad, y), "1 шт", font=f_val, fill=0)
+        draw.text((pad, y), label_text(lang, "one_piece"), font=f_val, fill=0)
         draw.text((col2, y), f"{data.price:.2f}", font=f_val, fill=0)
     y += 30
 
     draw.rectangle((pad, y, width - pad, y + 44), outline=0, width=2)
-    draw.text((pad + 8, y + 10), "К оплате", font=f_key, fill=0)
+    draw.text((pad + 8, y + 10), label_text(lang, "total"), font=f_key, fill=0)
     total_text = f"{data.total:.2f} {data.currency}"
     draw.text(
         (width - pad - 8 - draw.textlength(total_text, font=f_total), y + 5),
@@ -106,9 +116,9 @@ def render_label(data: LabelData, width_mm: float = 60, height_mm: float = 40) -
     )
     y += 52
 
-    stamp = f"Упаковано: {data.packed_at:%d.%m.%Y %H:%M}"
+    stamp = f"{label_text(lang, 'packed')}: {data.packed_at:%d.%m.%Y %H:%M}"
     if data.best_before:
-        stamp += f"   Годен до: {data.best_before:%d.%m.%Y}"
+        stamp += f"   {label_text(lang, 'best_before')}: {data.best_before:%d.%m.%Y}"
     draw.text((pad, y), stamp, font=f_small, fill=0)
     y += 18
 

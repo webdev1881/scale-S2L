@@ -5,6 +5,7 @@ import asyncio
 from datetime import datetime
 
 from ...config import LABELS_DIR
+from ...errors import PrintCode, PrintError
 from ..base import DeviceStatus, PrinterDevice, PrintJob
 
 # Сколько последних этикеток храним на диске
@@ -33,9 +34,9 @@ class FakePrinter(PrinterDevice):
 
     async def print_label(self, job: PrintJob) -> str:
         if self._paper_out:
-            raise RuntimeError("Нет бумаги")
+            raise PrintError(PrintCode.PAPER_OUT)
         if self._cover_open:
-            raise RuntimeError("Открыта крышка принтера")
+            raise PrintError(PrintCode.COVER_OPEN)
         await asyncio.sleep(0.4)  # реальная печать не мгновенна — UI должен это переживать
         stamp = datetime.now().strftime("%Y%m%d-%H%M%S-%f")
         filename = f"{stamp}.png"

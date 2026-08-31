@@ -5,15 +5,12 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.orm import Session
 
+from ..errors import PrintCode, PrintError
 from ..hal.registry import Devices
 from ..models import Product, Transaction
 from .barcode import build_weight_barcode
 from .label import LabelData, build_print_job
 from .settings_store import DeviceSettings
-
-
-class PrintRefused(Exception):
-    """Печать невозможна по состоянию весов/товара — это не сбой, а нормальный отказ."""
 
 
 def compute_total(product: Product, weight_g: int) -> float:
@@ -47,12 +44,12 @@ async def weigh_and_print(
         weight_g = max(reading.net_g - product.tare_g, 0)
 
     if product.unit == "weight":
-        if settings.require_stable and not reading.stable and weight_g == reading.net_g:
-            raise PrintRefused("Вес не стабилизировался — подождите")
         if reading.error:
-            raise PrintRefused(reading.error)
+            raise PrintError(PrintCode.SCALE_ERROR, reading.error)
+        if settings.require_stable and not reading.stable and weight_g == reading.net_g:
+            raise PrintError(PrintCode.NOT_STABLE)
         if weight_g < settings.min_print_weight_g:
-            raise PrintRefused("Положите товар на платформу")
+            raise PrintError(PrintCode.NO_GOODS)
 
     total = compute_total(product, weight_g)
     barcode = build_barcode(settings, product, weight_g, total)
@@ -71,13 +68,11 @@ async def weigh_and_print(
         if product.shelf_life_days
         else None,
         composition=product.composition,
+        lang=settings.language,
     )
     job = build_print_job(data, settings.label_width_mm, settings.label_height_mm, copies)
 
-    try:
-        label_file = await devices.printer.print_label(job)
-    except RuntimeError as exc:
-        raise PrintRefused(str(exc)) from exc
+    label_file = await devices.printer.print_label(job)
 
     transaction = Transaction(
         product_id=product.id,

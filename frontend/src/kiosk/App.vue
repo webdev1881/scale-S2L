@@ -1,9 +1,11 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
-import { formatKg, formatMoney } from '@/shared/format'
+import { formatKg, formatMoney, localeTag } from '@/shared/format'
+import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import type { DeviceSettings, Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
@@ -11,6 +13,7 @@ import Numpad from './components/Numpad.vue'
 import ProductGrid from './components/ProductGrid.vue'
 import WeightPanel from './components/WeightPanel.vue'
 
+const { t, locale } = useI18n()
 const weight = useWeightStore()
 
 const products = ref<Product[]>([])
@@ -58,11 +61,11 @@ const total = computed(() => {
 
 /** Почему кнопка печати недоступна — текст показывается прямо на кнопке. */
 const printBlockReason = computed(() => {
-  if (!selected.value) return 'Выберите товар'
+  if (!selected.value) return t('blocked.selectProduct')
   if (selected.value.unit === 'piece') return null
-  if (weight.reading.error) return weight.reading.error
-  if (netG.value < minWeight.value) return 'Положите товар на платформу'
-  if (requireStable.value && !weight.reading.stable) return 'Дождитесь стабилизации'
+  if (weight.reading.error) return translateError(weight.reading.error)
+  if (netG.value < minWeight.value) return t('blocked.putGoods')
+  if (requireStable.value && !weight.reading.stable) return t('blocked.waitStable')
   return null
 })
 
@@ -71,6 +74,8 @@ async function loadCatalog() {
   products.value = items
   categories.value = cats
   settings.value = cfg
+  // Язык задаётся на устройстве, а не в браузере покупателя.
+  setLocale(cfg.language)
 }
 
 function selectProduct(product: Product) {
@@ -82,7 +87,7 @@ function findByPlu() {
   const plu = Number(pluInput.value)
   const found = products.value.find((product) => product.plu === plu)
   if (!found) {
-    ElMessage.warning('Товар с PLU ' + pluInput.value + ' не найден')
+    ElMessage.warning(t('kiosk.pluNotFound', { plu: pluInput.value }))
     return
   }
   selectProduct(found)
@@ -100,7 +105,8 @@ async function print() {
     window.clearTimeout(labelTimer)
     labelTimer = window.setTimeout(closeLabel, 8000)
   } catch (error) {
-    const message = error instanceof ApiError ? error.message : 'Ошибка печати'
+    const message =
+      error instanceof ApiError ? translateError(error.message) : t('kiosk.printFailed')
     ElMessage({ message, type: 'warning', duration: 4000 })
   } finally {
     printing.value = false
@@ -146,16 +152,22 @@ onUnmounted(() => {
 })
 
 watch([search, activeCategory, selected], bumpIdle)
+
+// Заголовок вкладки — тоже часть интерфейса, он меняется вместе с языком.
+watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 </script>
 
 <template>
-  <div class="kiosk">
+  <el-config-provider :locale="elementLocale(locale)">
+    <div class="kiosk">
     <header class="topbar">
       <div class="brand">{{ settings?.store_name ?? 'Aurora S2L' }}</div>
       <div class="right">
         <span class="dot" :class="{ ok: weight.connected }"></span>
-        <span class="conn">{{ weight.connected ? 'Весы подключены' : 'Нет связи' }}</span>
-        <span class="clock">{{ clock.toLocaleTimeString('ru-RU') }}</span>
+        <span class="conn">{{
+          weight.connected ? t('kiosk.connected') : t('kiosk.disconnected')
+        }}</span>
+        <span class="clock">{{ clock.toLocaleTimeString(localeTag()) }}</span>
       </div>
     </header>
 
@@ -181,7 +193,7 @@ watch([search, activeCategory, selected], bumpIdle)
             v-model="search"
             class="search"
             type="text"
-            placeholder="Поиск товара или PLU"
+            :placeholder="t('kiosk.searchPlaceholder')"
             autocomplete="off"
           />
           <button class="toggle" :class="{ on: showNumpad }" @click="showNumpad = !showNumpad">
@@ -190,7 +202,9 @@ watch([search, activeCategory, selected], bumpIdle)
         </div>
 
         <div class="chips">
-          <button :class="{ on: !activeCategory }" @click="activeCategory = ''">Все</button>
+          <button :class="{ on: !activeCategory }" @click="activeCategory = ''">
+            {{ t('kiosk.allCategories') }}
+          </button>
           <button
             v-for="category in categories"
             :key="category"
@@ -216,41 +230,48 @@ watch([search, activeCategory, selected], bumpIdle)
           <div class="pick-name">{{ selected.emoji }} {{ selected.name }}</div>
           <div class="pick-meta">
             {{ formatMoney(selected.price) }} {{ currency }}/{{
-              selected.unit === 'piece' ? 'шт' : 'кг'
+              selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
             }}
-            <template v-if="selected.unit === 'weight'"> · {{ formatKg(netG) }} кг</template>
-            <template v-if="selected.tare_g"> · тара {{ selected.tare_g }} г</template>
+            <template v-if="selected.unit === 'weight'">
+              · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
+            </template>
+            <template v-if="selected.tare_g">
+              · {{ t('kiosk.tare') }} {{ selected.tare_g }} г
+            </template>
           </div>
         </template>
-        <div v-else class="pick-empty">Товар не выбран</div>
+        <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
       </div>
 
       <div class="sum">
-        <span class="sum-label">К оплате</span>
+        <span class="sum-label">{{ t('kiosk.total') }}</span>
         <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
       </div>
 
       <button class="print" :disabled="!!printBlockReason || printing" @click="print">
-        <template v-if="printing">Печать…</template>
+        <template v-if="printing">{{ t('kiosk.printing') }}</template>
         <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
-        <template v-else>Напечатать этикетку</template>
+        <template v-else>{{ t('kiosk.print') }}</template>
       </button>
     </footer>
 
     <el-dialog
       v-model="labelVisible"
-      title="Заберите этикетку"
+      :title="t('kiosk.takeLabel')"
       width="560px"
       align-center
       @close="closeLabel"
     >
       <img v-if="labelUrl" :src="labelUrl" class="label-img" alt="Этикетка" />
-      <p v-else class="label-note">Этикетка отправлена на принтер</p>
+      <p v-else class="label-note">{{ t('kiosk.sentToPrinter') }}</p>
       <template #footer>
-        <el-button type="primary" size="large" @click="closeLabel">Готово</el-button>
+        <el-button type="primary" size="large" @click="closeLabel">
+          {{ t('kiosk.done') }}
+        </el-button>
       </template>
-    </el-dialog>
-  </div>
+      </el-dialog>
+    </div>
+  </el-config-provider>
 </template>
 
 <style scoped>

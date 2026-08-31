@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import re
 
+from ...errors import ScaleError
 from ..base import DeviceStatus, ScaleDevice, WeightReading
 
 FRAME_RE = re.compile(
@@ -30,9 +31,10 @@ class SerialScale(ScaleDevice):
         self._reader: asyncio.StreamReader | None = None
         self._writer: asyncio.StreamWriter | None = None
         self._task: asyncio.Task | None = None
-        self._last = WeightReading(gross_g=0, tare_g=0, stable=False, error="Нет связи")
+        self._last = WeightReading(gross_g=0, tare_g=0, stable=False, error=ScaleError.NO_LINK)
         self._tare_g = 0
         self._connected = False
+        self._error_detail = ""
 
     async def start(self) -> None:
         if self._task is None:
@@ -70,8 +72,9 @@ class SerialScale(ScaleDevice):
                 raise
             except Exception as exc:  # обрыв USB, снятое питание платы, мусор в порту
                 self._connected = False
+                self._error_detail = str(exc)
                 self._last = WeightReading(
-                    gross_g=0, tare_g=self._tare_g, stable=False, error=f"Нет связи: {exc}"
+                    gross_g=0, tare_g=self._tare_g, stable=False, error=ScaleError.NO_LINK
                 )
                 await asyncio.sleep(1.0)
 
@@ -110,5 +113,10 @@ class SerialScale(ScaleDevice):
         return DeviceStatus(
             online=self._connected,
             kind="real",
-            detail={"port": self.port, "baudrate": self.baudrate, "error": self._last.error},
+            detail={
+                "port": self.port,
+                "baudrate": self.baudrate,
+                "error": self._last.error,
+                "error_detail": self._error_detail,
+            },
         )

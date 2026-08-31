@@ -9,6 +9,7 @@ from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
 from ..config import get_settings
+from ..errors import PrintError
 from ..db import get_db
 from ..hal.printer.fake import FakePrinter
 from ..hal.registry import Devices, get_devices
@@ -25,7 +26,7 @@ from ..schemas import (
     WeightOut,
 )
 from ..services.label import LabelData, render_label
-from ..services.printing import PrintRefused, build_barcode, compute_total, weigh_and_print
+from ..services.printing import build_barcode, compute_total, weigh_and_print
 from ..services.settings_store import load_settings
 
 router = APIRouter(prefix="/api", tags=["device"])
@@ -79,9 +80,10 @@ async def print_label(
         tx = await weigh_and_print(
             db, devices, settings, product, payload.weight_g, payload.copies
         )
-    except PrintRefused as exc:
-        # 409, а не 500: это ожидаемый отказ, киоск показывает его как подсказку.
-        raise HTTPException(409, str(exc)) from exc
+    except PrintError as exc:
+        # 409, а не 500: это ожидаемый отказ. В detail уходит код — киоск сам подберёт
+        # формулировку на своём языке.
+        raise HTTPException(409, exc.code) from exc
     return PrintResult(
         transaction_id=tx.id,
         barcode=tx.barcode,
@@ -119,6 +121,7 @@ def label_preview(
         if product.shelf_life_days
         else None,
         composition=product.composition,
+        lang=settings.language,
     )
     img = render_label(data, settings.label_width_mm, settings.label_height_mm)
     buf = io.BytesIO()

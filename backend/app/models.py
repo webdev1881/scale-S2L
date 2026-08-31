@@ -21,7 +21,7 @@ class Product(Base):
     # weight — цена за кг, piece — цена за штуку
     unit: Mapped[str] = mapped_column(String(10), default="weight")
     price: Mapped[float] = mapped_column(Float, default=0.0)
-    category: Mapped[str] = mapped_column(String(60), default="Прочее")
+    category: Mapped[str] = mapped_column(String(60), default="")
     tare_g: Mapped[int] = mapped_column(Integer, default=0)
     shelf_life_days: Mapped[int] = mapped_column(Integer, default=0)
     composition: Mapped[str] = mapped_column(Text, default="")

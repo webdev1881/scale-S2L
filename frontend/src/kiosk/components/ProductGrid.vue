@@ -1,6 +1,10 @@
 <script setup lang="ts">
+import { useI18n } from 'vue-i18n'
+
 import { formatMoney } from '@/shared/format'
 import type { Product } from '@/shared/types'
+
+const { t } = useI18n()
 
 defineProps<{ products: Product[]; selectedId: number | null; currency: string }>()
 defineEmits<{ select: [product: Product] }>()
@@ -18,12 +22,14 @@ defineEmits<{ select: [product: Product] }>()
       <span class="emoji">{{ product.emoji || '🏷️' }}</span>
       <span class="name">{{ product.name }}</span>
       <span class="price">
-        {{ formatMoney(product.price) }} {{ currency }}/{{ product.unit === 'piece' ? 'шт' : 'кг' }}
+        {{ formatMoney(product.price) }} {{ currency }}/{{
+          product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+        }}
       </span>
       <span class="plu">PLU {{ product.plu }}</span>
     </button>
 
-    <p v-if="!products.length" class="empty">Ничего не найдено</p>
+    <p v-if="!products.length" class="empty">{{ t('kiosk.nothingFound') }}</p>
   </div>
 </template>
 

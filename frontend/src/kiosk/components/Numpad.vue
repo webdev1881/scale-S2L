@@ -3,6 +3,10 @@
  * Экранная клавиатура собственная, а не системная (squeekboard/onboard):
  * на киоске нужен полный контроль раскладки и никакой зависимости от сессии ОС.
  */
+import { useI18n } from 'vue-i18n'
+
+const { t } = useI18n()
+
 const props = defineProps<{ value: string }>()
 const emit = defineEmits<{ 'update:value': [value: string]; submit: [] }>()
 
@@ -22,7 +26,9 @@ function press(key: string) {
     <div class="keys">
       <button v-for="key in KEYS" :key="key" class="key" @click="press(key)">{{ key }}</button>
     </div>
-    <button class="submit" :disabled="!value" @click="emit('submit')">Найти по PLU</button>
+    <button class="submit" :disabled="!value" @click="emit('submit')">
+      {{ t('numpad.find') }}
+    </button>
   </div>
 </template>
 

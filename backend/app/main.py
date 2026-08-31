@@ -76,10 +76,14 @@ def _mount_frontend() -> None:
         return
     app.mount("/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="assets")
 
+    # Без no-cache браузер держит старый index.html по эвристике и после обновления
+    # киоск продолжает грузить предыдущую сборку. Файлы в /assets хешированы — их кэш безопасен.
+    NO_CACHE = {"Cache-Control": "no-cache"}
+
     @app.get("/admin", include_in_schema=False)
     @app.get("/admin/{path:path}", include_in_schema=False)
     def admin_spa(path: str = "") -> FileResponse:
-        return FileResponse(FRONTEND_DIST / "admin.html")
+        return FileResponse(FRONTEND_DIST / "admin.html", headers=NO_CACHE)
 
     @app.get("/", include_in_schema=False)
     @app.get("/{path:path}", include_in_schema=False)
@@ -87,7 +91,7 @@ def _mount_frontend() -> None:
         candidate = FRONTEND_DIST / path
         if path and candidate.is_file():
             return FileResponse(candidate)
-        return FileResponse(FRONTEND_DIST / "index.html")
+        return FileResponse(FRONTEND_DIST / "index.html", headers=NO_CACHE)
 
 
 _mount_frontend()

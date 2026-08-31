@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 from pathlib import Path
 
+from ...errors import PrintCode, PrintError
 from ..base import DeviceStatus, PrinterDevice, PrintJob
 
 
@@ -33,7 +34,7 @@ class UsbRawPrinter(PrinterDevice):
                 self._last_error = None
             except OSError as exc:
                 self._last_error = str(exc)
-                raise RuntimeError(f"Принтер недоступен: {exc}") from exc
+                raise PrintError(PrintCode.UNAVAILABLE, str(exc)) from exc
         return ""
 
     def _write(self, payload: bytes) -> None:

@@ -1,15 +1,20 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
 import { onMounted, ref } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
+import { LOCALE_NAMES, SUPPORTED_LOCALES, setLocale } from '@/shared/i18n'
 import type { DeviceSettings } from '@/shared/types'
+
+const { t } = useI18n()
 
 const form = ref<DeviceSettings | null>(null)
 const saving = ref(false)
 
 async function load() {
   form.value = await api.settings()
+  setLocale(form.value.language)
 }
 
 async function save() {
@@ -17,9 +22,11 @@ async function save() {
   saving.value = true
   try {
     form.value = await api.saveSettings(form.value)
-    ElMessage.success('Настройки сохранены')
+    // Язык применяется сразу — иначе оператор не увидит результат своего выбора.
+    setLocale(form.value.language)
+    ElMessage.success(t('admin.settings.saved'))
   } catch (error) {
-    ElMessage.error(error instanceof ApiError ? error.message : 'Не удалось сохранить')
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.settings.saveFailed'))
   } finally {
     saving.value = false
   }
@@ -31,15 +38,23 @@ onMounted(load)
 <template>
   <div class="page">
     <el-card v-if="form" shadow="never" class="card">
-      <template #header>Устройство</template>
-      <el-form :model="form" label-width="230px">
-        <el-form-item label="Название магазина">
+      <template #header>{{ t('admin.settings.device') }}</template>
+      <el-form :model="form" label-width="260px">
+        <el-form-item :label="t('admin.settings.language')">
+          <el-radio-group v-model="form.language">
+            <el-radio-button v-for="code in SUPPORTED_LOCALES" :key="code" :value="code">
+              {{ LOCALE_NAMES[code] }}
+            </el-radio-button>
+          </el-radio-group>
+          <div class="hint">{{ t('admin.settings.languageHint') }}</div>
+        </el-form-item>
+        <el-form-item :label="t('admin.settings.storeName')">
           <el-input v-model="form.store_name" maxlength="60" />
         </el-form-item>
-        <el-form-item label="Валюта">
+        <el-form-item :label="t('admin.settings.currency')">
           <el-input v-model="form.currency" maxlength="4" style="width: 100px" />
         </el-form-item>
-        <el-form-item label="Размер этикетки, мм">
+        <el-form-item :label="t('admin.settings.labelSize')">
           <el-input-number v-model="form.label_width_mm" :min="20" :max="120" />
           <span class="times">×</span>
           <el-input-number v-model="form.label_height_mm" :min="20" :max="120" />
@@ -48,47 +63,46 @@ onMounted(load)
     </el-card>
 
     <el-card v-if="form" shadow="never" class="card">
-      <template #header>Штрихкод</template>
-      <el-form :model="form" label-width="230px">
-        <el-form-item label="Шаблон EAN-13">
+      <template #header>{{ t('admin.settings.barcode') }}</template>
+      <el-form :model="form" label-width="260px">
+        <el-form-item :label="t('admin.settings.template')">
           <el-input v-model="form.barcode_template" maxlength="12" style="width: 220px" />
           <div class="hint">
-            P — цифра PLU, W — цифра значения, остальные символы копируются как есть.
-            Например <code>22PPPPPWWWWW</code>: префикс 22, пять цифр PLU, пять цифр значения.
+            {{ t('admin.settings.templateHint', { example: '22PPPPPWWWWW' }) }}
           </div>
         </el-form-item>
-        <el-form-item label="Что кодировать">
+        <el-form-item :label="t('admin.settings.encode')">
           <el-radio-group v-model="form.barcode_value">
-            <el-radio-button value="weight">Масса, г</el-radio-button>
-            <el-radio-button value="total">Сумма, коп</el-radio-button>
+            <el-radio-button value="weight">{{ t('admin.settings.encodeWeight') }}</el-radio-button>
+            <el-radio-button value="total">{{ t('admin.settings.encodeTotal') }}</el-radio-button>
           </el-radio-group>
-          <div class="hint">Зависит от того, как настроены кассы в торговой сети.</div>
+          <div class="hint">{{ t('admin.settings.encodeHint') }}</div>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card v-if="form" shadow="never" class="card">
-      <template #header>Поведение киоска</template>
-      <el-form :model="form" label-width="230px">
-        <el-form-item label="Минимальная масса, г">
+      <template #header>{{ t('admin.settings.kiosk') }}</template>
+      <el-form :model="form" label-width="260px">
+        <el-form-item :label="t('admin.settings.minWeight')">
           <el-input-number v-model="form.min_print_weight_g" :min="0" :max="1000" />
-          <div class="hint">Ниже этого значения печать не разрешается.</div>
+          <div class="hint">{{ t('admin.settings.minWeightHint') }}</div>
         </el-form-item>
-        <el-form-item label="Печатать только по стабильному весу">
+        <el-form-item :label="t('admin.settings.requireStable')">
           <el-switch v-model="form.require_stable" />
-          <div class="hint">
-            Отключать только для отладки: этикетка с «дрожащим» весом врёт покупателю.
-          </div>
+          <div class="hint">{{ t('admin.settings.requireStableHint') }}</div>
         </el-form-item>
-        <el-form-item label="Сброс экрана, с">
+        <el-form-item :label="t('admin.settings.idleReset')">
           <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
         </el-form-item>
       </el-form>
     </el-card>
 
     <div class="actions">
-      <el-button type="primary" :loading="saving" @click="save">Сохранить</el-button>
-      <el-button @click="load">Отменить изменения</el-button>
+      <el-button type="primary" :loading="saving" @click="save">
+        {{ t('admin.settings.save') }}
+      </el-button>
+      <el-button @click="load">{{ t('admin.settings.reset') }}</el-button>
     </div>
   </div>
 </template>
@@ -107,6 +121,8 @@ onMounted(load)
 }
 
 .hint {
+  /* Иначе flex-контейнер el-form-item ставит подсказку справа от контрола */
+  width: 100%;
   margin-top: 4px;
   font-size: 12px;
   line-height: 1.5;

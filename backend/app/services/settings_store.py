@@ -12,6 +12,8 @@ SETTINGS_KEY = "device"
 
 
 class DeviceSettings(BaseModel):
+    # Язык киоска, админки и печатной этикетки. Переключается в настройках админки.
+    language: str = Field(default="uk", pattern="^(uk|ru)$")
     store_name: str = "Маркет «Весна»"
     currency: str = "₴"
     label_width_mm: float = 60

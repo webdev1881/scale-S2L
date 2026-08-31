@@ -8,6 +8,7 @@ from __future__ import annotations
 import asyncio
 import random
 
+from ...errors import ScaleError
 from ..base import DeviceStatus, ScaleDevice, WeightReading
 
 # Порог, внутри которого вес считается неподвижным, и число подряд идущих
@@ -68,7 +69,7 @@ class FakeScale(ScaleDevice):
         stable = self._stable_count >= STABLE_SAMPLES and abs(
             self._current_g - self._target_g
         ) <= STABLE_WINDOW_G
-        error = "Перегрузка" if self._overload else None
+        error = ScaleError.OVERLOAD if self._overload else None
         return WeightReading(gross_g=gross, tare_g=self._tare_g, stable=stable, error=error)
 
     async def tare(self) -> None:

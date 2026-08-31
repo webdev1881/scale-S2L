@@ -1,20 +1,26 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 
 import { formatKg } from '@/shared/format'
+import { translateError } from '@/shared/i18n'
 import type { WeightReading } from '@/shared/types'
 
 const props = defineProps<{ reading: WeightReading; connected: boolean }>()
 defineEmits<{ tare: []; zero: [] }>()
 
+const { t } = useI18n()
+
 const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
 
 const state = computed(() => {
-  if (!props.connected) return { text: 'Нет связи с весами', tone: 'error' as const }
-  if (props.reading.error) return { text: props.reading.error, tone: 'error' as const }
-  if (props.reading.net_g < 5) return { text: 'Положите товар на платформу', tone: 'idle' as const }
-  if (!props.reading.stable) return { text: 'Взвешивание…', tone: 'busy' as const }
-  return { text: 'Вес стабилен', tone: 'ok' as const }
+  if (!props.connected) return { text: translateError('scale.no_link'), tone: 'error' as const }
+  if (props.reading.error) {
+    return { text: translateError(props.reading.error), tone: 'error' as const }
+  }
+  if (props.reading.net_g < 5) return { text: t('weight.putGoods'), tone: 'idle' as const }
+  if (!props.reading.stable) return { text: t('weight.weighing'), tone: 'busy' as const }
+  return { text: t('weight.stable'), tone: 'ok' as const }
 })
 </script>
 
@@ -27,11 +33,13 @@ const state = computed(() => {
 
     <div class="state">{{ state.text }}</div>
 
-    <div v-if="reading.tare_g > 0" class="tare">Тара: {{ formatKg(reading.tare_g) }} кг</div>
+    <div v-if="reading.tare_g > 0" class="tare">
+      {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
+    </div>
 
     <div class="actions">
-      <button class="btn" @click="$emit('tare')">Тара</button>
-      <button class="btn" @click="$emit('zero')">Ноль</button>
+      <button class="btn" @click="$emit('tare')">{{ t('weight.tare') }}</button>
+      <button class="btn" @click="$emit('zero')">{{ t('weight.zero') }}</button>
     </div>
   </div>
 </template>
