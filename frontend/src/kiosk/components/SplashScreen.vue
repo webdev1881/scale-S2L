@@ -1,15 +1,17 @@
 <script setup lang="ts">
 /**
- * Стартовая заставка: пиксели слетаются со всех сторон и складываются в надпись SMK.
+ * Стартовая заставка (~2 с): пиксели слетаются со всех сторон и складываются
+ * в монолитную надпись SMK, по которой переливается градиент.
  *
- * Вместо спиннера — потому что киоск включается один раз за смену, и первое, что видит
- * зал, должно выглядеть как включение прибора, а не как загрузка веб-страницы.
- * Точки берутся из растра самого текста, поэтому надпись всегда совпадает со шрифтом
+ * Вместо спиннера — киоск включается один раз за смену, и первое, что видит зал,
+ * должно выглядеть как включение прибора, а не как загрузка веб-страницы.
+ * Точки берутся из растра самого текста, поэтому надпись совпадает со шрифтом
  * и масштабируется под любой экран.
  *
- * Кадр рисуется прямой записью в ImageData, а не тысячами fillRect: на процессоре
- * прибора (Intel J6412) вызовы канвы упираются в CPU уже на нескольких тысячах
- * частиц, а запись в буфер стоит одинаково при любом их количестве.
+ * Кадр пишется прямо в ImageData, а не тысячами fillRect: на процессоре прибора
+ * (Intel J6412) вызовы канвы упираются в CPU уже на нескольких тысячах точек,
+ * а запись в буфер стоит одинаково при любом их числе. Цвет берётся из заранее
+ * посчитанной таблицы, поэтому перелив не стоит ничего сверх выборки из массива.
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 
@@ -19,26 +21,30 @@ const canvas = ref<HTMLCanvasElement | null>(null)
 const leaving = ref(false)
 
 const TEXT = 'SMK'
-const FLY_MS = 1150 // сборка надписи
-const SWEEP_MS = 420 // блик по собранной надписи
-const HOLD_MS = 260 // пауза, чтобы надпись успели прочитать
-const FADE_MS = 320
+
+// Итого ~2 с вместе с растворением
+const FLY_MS = 1050 // влёт и сборка
+const HOLD_MS = 650 // перелив по собранной надписи
+const FADE_MS = 300
 
 const MAX_PARTICLES = 26000
 const MIN_STEP = 2
-const DOT = 2 // сторона точки в пикселях холста
 
-// Градиент по ширине надписи + светлый набор для блика
-const PALETTE: [number, number, number][] = [
-  [47, 111, 228],
-  [35, 92, 214],
-  [23, 71, 201],
-  [18, 58, 176],
-  [13, 47, 143],
-  [10, 38, 120],
+// Палитра Element Plus вокруг primary #409EFF. Светлые токены (#79bbff, #a0cfff)
+// в заливку не берём: они рассчитаны на фоны и рамки и на белом выцветают.
+// Кольцо замкнуто, чтобы перелив шёл без стыка.
+const RAMP: [number, number, number][] = [
+  [41, 98, 173], // тень
+  [51, 126, 204], // #337ecc
+  [64, 158, 255], // #409eff — primary
+  [102, 177, 255], // #66b1ff — светлый акцент
+  [64, 158, 255],
+  [51, 126, 204],
 ]
-const HIGHLIGHT: [number, number, number] = [120, 176, 255]
+const RAMP_STEPS = 64 // должно быть степенью двойки: индекс берётся через & (RAMP_STEPS - 1)
 const ALPHA_LEVELS = 32
+const CYCLES_ACROSS = 1.6 // сколько волн градиента укладывается в ширину надписи
+const SHIMMER_MS = 1600 // период перелива
 
 let raf = 0
 let guard = 0
@@ -53,7 +59,10 @@ interface Field {
   ax: Float32Array // амплитуда дуги по нормали к траектории
   ay: Float32Array
   delay: Float32Array
-  bucket: Uint8Array
+  dot: number // сторона точки = шагу сетки, иначе между точками остаются просветы
+  minX: number
+  maxX: number
+  baseline: number
 }
 
 /** Мягкий «перелёт» с доводкой: частица чуть проскакивает цель и садится на место. */
@@ -93,12 +102,14 @@ function buildField(width: number, height: number): Field | null {
   const targets: number[] = []
   let minX = width
   let maxX = 0
+  let maxY = 0
   for (let y = 0; y < height; y += step) {
     for (let x = 0; x < width; x += step) {
       if (data[(y * width + x) * 4 + 3] < 128) continue
       targets.push(x, y)
       if (x < minX) minX = x
       if (x > maxX) maxX = x
+      if (y > maxY) maxY = y
     }
   }
 
@@ -114,10 +125,12 @@ function buildField(width: number, height: number): Field | null {
     ax: new Float32Array(count),
     ay: new Float32Array(count),
     delay: new Float32Array(count),
-    bucket: new Uint8Array(count),
+    dot: step,
+    minX,
+    maxX,
+    baseline: Math.min(maxY + Math.round(fontSize * 0.16), height - step - 2),
   }
 
-  const spanX = Math.max(maxX - minX, 1)
   const centreX = width / 2
   const centreY = height / 2
   const radius = Math.hypot(width, height) * 0.75
@@ -146,23 +159,27 @@ function buildField(width: number, height: number): Field | null {
     field.ax[i] = (-dy / len) * arc
     field.ay[i] = (dx / len) * arc
     field.delay[i] = Math.random() * 0.34
-    field.bucket[i] = Math.min(
-      PALETTE.length - 1,
-      Math.floor(((tx - minX) / spanX) * PALETTE.length),
-    )
   }
   return field
 }
 
-/** Готовые ABGR-значения на каждую пару «цвет × прозрачность»: в кадре только выборка. */
+/**
+ * Таблица ABGR на пару «оттенок градиента × прозрачность». Оттенки получаются
+ * линейной интерполяцией по кольцу RAMP, поэтому перелив идёт плавно и замкнуто.
+ */
 function buildColorTable(): Uint32Array {
-  const colors = [...PALETTE, HIGHLIGHT]
-  const table = new Uint32Array(colors.length * ALPHA_LEVELS)
-  for (let c = 0; c < colors.length; c++) {
-    const [r, g, b] = colors[c]
+  const table = new Uint32Array(RAMP_STEPS * ALPHA_LEVELS)
+  for (let s = 0; s < RAMP_STEPS; s++) {
+    const pos = (s / RAMP_STEPS) * RAMP.length
+    const from = RAMP[Math.floor(pos) % RAMP.length]
+    const to = RAMP[(Math.floor(pos) + 1) % RAMP.length]
+    const k = pos - Math.floor(pos)
+    const r = Math.round(from[0] + (to[0] - from[0]) * k)
+    const g = Math.round(from[1] + (to[1] - from[1]) * k)
+    const b = Math.round(from[2] + (to[2] - from[2]) * k)
     for (let a = 0; a < ALPHA_LEVELS; a++) {
       const alpha = Math.round((a / (ALPHA_LEVELS - 1)) * 255)
-      table[c * ALPHA_LEVELS + a] = (alpha << 24) | (b << 16) | (g << 8) | r
+      table[s * ALPHA_LEVELS + a] = (alpha << 24) | (b << 16) | (g << 8) | r
     }
   }
   return table
@@ -186,18 +203,18 @@ function run() {
   const image = context.createImageData(width, height)
   const pixels = new Uint32Array(image.data.buffer)
   const colors = buildColorTable()
-  const highlightRow = PALETTE.length * ALPHA_LEVELS
 
   const started = performance.now()
-  const sweepBand = width * 0.08
-  const OFFSCREEN = -1e9
+  const total = FLY_MS + HOLD_MS
+  const dot = field.dot
+  const span = Math.max(field.maxX - field.minX, 1)
+  const gradientK = (RAMP_STEPS * CYCLES_ACROSS) / span
+  const mask = RAMP_STEPS - 1
 
   const frame = (now: number) => {
     const elapsed = now - started
     const flyPhase = Math.min(elapsed / FLY_MS, 1)
-    const sweepPhase = Math.min(Math.max((elapsed - FLY_MS) / SWEEP_MS, 0), 1)
-    const sweeping = sweepPhase > 0 && sweepPhase < 1
-    const sweepX = sweeping ? -sweepBand + sweepPhase * (width + 2 * sweepBand) : OFFSCREEN
+    const phase = (elapsed / SHIMMER_MS) * RAMP_STEPS
 
     pixels.fill(0)
 
@@ -206,26 +223,47 @@ function run() {
       const local = (flyPhase - delay) / (1 - delay)
       if (local <= 0) continue
       const t = local >= 1 ? 1 : local
-      const e = t >= 1 ? 1 : easeOutBack(t)
-      const swing = t >= 1 ? 0 : Math.sin(Math.PI * t)
+      const landed = t >= 1
+      const e = landed ? 1 : easeOutBack(t)
+      const swing = landed ? 0 : Math.sin(Math.PI * t)
 
-      const x = (field.sx[i] + field.dx[i] * e + field.ax[i] * swing) | 0
-      const y = (field.sy[i] + field.dy[i] * e + field.ay[i] * swing) | 0
-      if (x < 0 || y < 0 || x >= width - DOT || y >= height - DOT) continue
+      // Округление, а не усечение: sx + dx даёт цель с погрешностью float, и при
+      // усечении часть севших точек уезжает на пиксель — в заливке появляется крапина.
+      const x = (field.sx[i] + field.dx[i] * e + field.ax[i] * swing + 0.5) | 0
+      const y = (field.sy[i] + field.dy[i] * e + field.ay[i] * swing + 0.5) | 0
+      if (x < 0 || y < 0 || x >= width - dot || y >= height - dot) continue
 
-      const level = ((0.2 + 0.8 * t) * (ALPHA_LEVELS - 1)) | 0
-      const lit = sweeping && x - sweepX < sweepBand && sweepX - x < sweepBand
-      const colour = colors[(lit ? highlightRow : field.bucket[i] * ALPHA_LEVELS) + level]
+      // Севшая точка всегда непрозрачна: надпись должна читаться как монолит,
+      // а не как облако разноярких зёрен. Прозрачность работает только на подлёте.
+      const level = landed ? ALPHA_LEVELS - 1 : ((0.25 + 0.75 * t) * (ALPHA_LEVELS - 1)) | 0
+      const shade = ((x * gradientK + phase) | 0) & mask
+      const colour = colors[shade * ALPHA_LEVELS + level]
 
       let idx = y * width + x
-      for (let row = 0; row < DOT; row++, idx += width) {
-        for (let col = 0; col < DOT; col++) pixels[idx + col] = colour
+      for (let row = 0; row < dot; row++, idx += width) {
+        for (let col = 0; col < dot; col++) pixels[idx + col] = colour
+      }
+    }
+
+    // Линия под надписью подхватывает тот же перелив и появляется вместе с посадкой.
+    if (flyPhase > 0.55) {
+      const grow = Math.min((flyPhase - 0.55) / 0.45, 1)
+      const centre = (field.minX + field.maxX) / 2
+      const half = (span / 2) * grow
+      const from = Math.max(0, (centre - half) | 0)
+      const to = Math.min(width - 1, (centre + half) | 0)
+      for (let row = 0; row < dot; row++) {
+        const base = (field.baseline + row) * width
+        for (let x = from; x <= to; x++) {
+          const shade = ((x * gradientK + phase) | 0) & mask
+          pixels[base + x] = colors[shade * ALPHA_LEVELS + ALPHA_LEVELS - 1]
+        }
       }
     }
 
     context.putImageData(image, 0, 0)
 
-    if (elapsed < FLY_MS + SWEEP_MS + HOLD_MS) {
+    if (elapsed < total) {
       raf = requestAnimationFrame(frame)
     } else {
       finish()
@@ -235,7 +273,7 @@ function run() {
   raf = requestAnimationFrame(frame)
   // Страховка: в фоновой вкладке requestAnimationFrame не вызывается, и без этого
   // таймера заставка осталась бы висеть поверх киоска навсегда.
-  guard = window.setTimeout(finish, FLY_MS + SWEEP_MS + HOLD_MS + 600)
+  guard = window.setTimeout(finish, total + 600)
 }
 
 function finish() {
@@ -244,7 +282,7 @@ function finish() {
   window.clearTimeout(guard)
   cancelAnimationFrame(raf)
   leaving.value = true
-  // Ждём затухание оверлея, иначе киоск «выпрыгивает» из-под заставки.
+  // Ждём растворение оверлея, иначе киоск «выпрыгивает» из-под заставки.
   window.setTimeout(() => emit('done'), FADE_MS)
 }
 
@@ -275,10 +313,11 @@ onUnmounted(() => {
   position: fixed;
   inset: 0;
   z-index: 3000;
+  /* Тот же фон, что у киоска: переход в интерфейс не даёт вспышки */
   background: #ffffff;
   transition:
-    opacity 0.32s ease,
-    transform 0.32s ease;
+    opacity 0.3s ease,
+    transform 0.3s ease;
 }
 
 .splash.leaving {
