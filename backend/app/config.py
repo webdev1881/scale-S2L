@@ -5,6 +5,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 BASE_DIR = Path(__file__).resolve().parent.parent
@@ -46,6 +47,28 @@ class Settings(BaseSettings):
 
     # Частота публикации веса в WebSocket, Гц
     weight_stream_hz: float = 10.0
+
+
+    @field_validator("db_url")
+    @classmethod
+    def _anchor_sqlite_path(cls, value: str) -> str:
+        """Относительный путь в sqlite-URL считаем от каталога backend, а не от cwd.
+
+        Иначе расположение базы зависит от того, откуда запущен uvicorn: из backend/,
+        из корня репозитория или из systemd. SQLite вдобавок не создаёт недостающие
+        каталоги и падает с невнятным "unable to open database file".
+        """
+        prefix = "sqlite:///"
+        if not value.startswith(prefix):
+            return value
+        rest = value[len(prefix) :]
+        # sqlite:///:memory: и sqlite:////abs/path трогать нечего
+        if not rest or rest.startswith(":memory:") or rest.startswith("/"):
+            return value
+        path = Path(rest)
+        if path.is_absolute():
+            return value
+        return prefix + (BASE_DIR / path).resolve().as_posix()
 
 
 @lru_cache
