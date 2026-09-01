@@ -32,12 +32,16 @@ defineEmits<{ select: [product: Product] }>()
 
       <div class="body">
         <span class="name">{{ product.name }}</span>
-        <span class="price">
-          {{ formatMoney(product.price) }} {{ currency }}/{{
-            product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-          }}
-        </span>
-        <span class="plu">{{ t('kiosk.code') }} {{ product.plu }}</span>
+        <!-- цена и код в одну строку: на экране прибора каждая лишняя строка
+             подписи отнимает высоту у фотографии -->
+        <div class="meta">
+          <span class="price">
+            {{ formatMoney(product.price) }} {{ currency }}/{{
+              product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+            }}
+          </span>
+          <span class="plu">{{ t('kiosk.code') }} {{ product.plu }}</span>
+        </div>
       </div>
     </button>
 
@@ -105,26 +109,34 @@ defineEmits<{ select: [product: Product] }>()
 .body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px 12px;
+  padding: 8px 10px 10px;
 }
 
 .name {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 600;
-  line-height: 1.25;
+  line-height: 1.2;
+}
+
+.meta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 4px;
 }
 
 .price {
-  margin-top: 4px;
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--s2l-accent);
+  white-space: nowrap;
 }
 
 .plu {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--s2l-muted);
+  white-space: nowrap;
 }
 
 .empty {

@@ -79,7 +79,7 @@ defineEmits<{ open: [category: Category] }>()
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 12px 14px 14px;
+  padding: 10px 12px 12px;
 }
 
 .name {

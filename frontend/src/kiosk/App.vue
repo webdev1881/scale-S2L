@@ -577,7 +577,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .catalog-title {
   margin: 0;
   padding: 0 4px;
-  font-size: 26px;
+  font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
 }
@@ -594,8 +594,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   align-items: center;
   gap: 14px;
   flex: 1;
-  height: 76px;
-  padding: 0 20px;
+  height: 64px;
+  padding: 0 18px;
   background: var(--s2l-panel);
   border: 3px solid transparent;
   border-radius: 16px;
@@ -641,9 +641,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .clear {
   flex: none;
-  width: 52px;
-  height: 52px;
-  font-size: 30px;
+  width: 46px;
+  height: 46px;
+  font-size: 28px;
   line-height: 1;
   color: var(--s2l-muted);
   background: var(--s2l-soft);
@@ -657,8 +657,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .toggle {
-  width: 76px;
-  height: 76px;
+  width: 72px;
+  height: 64px;
   font-size: 19px;
   font-weight: 700;
   border: none;

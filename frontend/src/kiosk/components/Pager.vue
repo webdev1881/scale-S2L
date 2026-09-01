@@ -45,8 +45,8 @@ function go(delta: number) {
 .nav {
   /* Стрелки — основная навигация пальцем, поэтому крупные */
   width: 84px;
-  height: 56px;
-  font-size: 30px;
+  height: 46px;
+  font-size: 26px;
   line-height: 1;
   color: var(--s2l-ink);
   background: var(--s2l-panel);
@@ -72,8 +72,8 @@ function go(delta: number) {
 }
 
 .dot {
-  width: 34px;
-  height: 34px;
+  width: 26px;
+  height: 26px;
   padding: 0;
   border: none;
   border-radius: 50%;
