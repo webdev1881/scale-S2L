@@ -1,17 +1,18 @@
 <script setup lang="ts">
 /**
- * Стартовая заставка (~2 с): пиксели слетаются со всех сторон и складываются
- * в монолитную надпись SMK, по которой переливается градиент.
+ * Стартовая заставка (~2 с): пиксели слетаются со всех сторон, собираются в надпись
+ * SMK и уступают место чистой типографике с переливающимся градиентом.
  *
  * Вместо спиннера — киоск включается один раз за смену, и первое, что видит зал,
  * должно выглядеть как включение прибора, а не как загрузка веб-страницы.
- * Точки берутся из растра самого текста, поэтому надпись совпадает со шрифтом
- * и масштабируется под любой экран.
  *
- * Кадр пишется прямо в ImageData, а не тысячами fillRect: на процессоре прибора
- * (Intel J6412) вызовы канвы упираются в CPU уже на нескольких тысячах точек,
- * а запись в буфер стоит одинаково при любом их числе. Цвет берётся из заранее
- * посчитанной таблицы, поэтому перелив не стоит ничего сверх выборки из массива.
+ * Пиксели — приём сборки, а не конечный вид: как только частицы сели, кадр
+ * перетекает в тот же текст, нарисованный шрифтом со сглаживанием. Пиксельная
+ * лесенка на финальном кадре читалась бы как низкое разрешение экрана.
+ *
+ * Фаза влёта пишется прямо в ImageData, а не тысячами fillRect: на процессоре
+ * прибора (Intel J6412) вызовы канвы упираются в CPU уже на нескольких тысячах
+ * точек, а запись в буфер стоит одинаково при любом их числе.
  */
 import { onMounted, onUnmounted, ref } from 'vue'
 
@@ -23,8 +24,9 @@ const leaving = ref(false)
 const TEXT = 'SMK'
 
 // Итого ~2 с вместе с растворением
-const FLY_MS = 1050 // влёт и сборка
-const HOLD_MS = 650 // перелив по собранной надписи
+const FLY_MS = 1050 // влёт и сборка из частиц
+const CRISP_MS = 280 // переход от зерна к шрифту
+const HOLD_MS = 400 // перелив по готовой надписи
 const FADE_MS = 300
 
 const MAX_PARTICLES = 26000
@@ -34,14 +36,14 @@ const MIN_STEP = 2
 // в заливку не берём: они рассчитаны на фоны и рамки и на белом выцветают.
 // Кольцо замкнуто, чтобы перелив шёл без стыка.
 const RAMP: [number, number, number][] = [
-  [41, 98, 173], // тень
+  [41, 98, 173],
   [51, 126, 204], // #337ecc
   [64, 158, 255], // #409eff — primary
-  [102, 177, 255], // #66b1ff — светлый акцент
+  [102, 177, 255], // #66b1ff
   [64, 158, 255],
   [51, 126, 204],
 ]
-const RAMP_STEPS = 64 // должно быть степенью двойки: индекс берётся через & (RAMP_STEPS - 1)
+const RAMP_STEPS = 64 // степень двойки: индекс берётся через & (RAMP_STEPS - 1)
 const ALPHA_LEVELS = 32
 const CYCLES_ACROSS = 1.6 // сколько волн градиента укладывается в ширину надписи
 const SHIMMER_MS = 1600 // период перелива
@@ -60,9 +62,12 @@ interface Field {
   ay: Float32Array
   delay: Float32Array
   dot: number // сторона точки = шагу сетки, иначе между точками остаются просветы
+  font: string
+  fontSize: number
   minX: number
   maxX: number
   baseline: number
+  lineHeight: number
 }
 
 /** Мягкий «перелёт» с доводкой: частица чуть проскакивает цель и садится на место. */
@@ -73,6 +78,15 @@ function easeOutBack(t: number): number {
   return 1 + c3 * p * p * p + c1 * p * p
 }
 
+function easeOutCubic(t: number): number {
+  const p = 1 - t
+  return 1 - p * p * p
+}
+
+function fontFor(size: number): string {
+  return `700 ${size}px "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`
+}
+
 function buildField(width: number, height: number): Field | null {
   const probe = document.createElement('canvas')
   probe.width = width
@@ -81,10 +95,11 @@ function buildField(width: number, height: number): Field | null {
   if (!pen) return null
 
   const fontSize = Math.min(width * 0.29, height * 0.46)
+  const font = fontFor(fontSize)
   pen.fillStyle = '#000'
   pen.textAlign = 'center'
   pen.textBaseline = 'middle'
-  pen.font = `700 ${fontSize}px "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif`
+  pen.font = font
   pen.letterSpacing = `${fontSize * 0.06}px`
   pen.fillText(TEXT, width / 2, height / 2)
 
@@ -116,6 +131,7 @@ function buildField(width: number, height: number): Field | null {
   const count = targets.length / 2
   if (!count) return null
 
+  const lineHeight = Math.max(2, Math.round(fontSize * 0.035))
   const field: Field = {
     count,
     sx: new Float32Array(count),
@@ -126,9 +142,12 @@ function buildField(width: number, height: number): Field | null {
     ay: new Float32Array(count),
     delay: new Float32Array(count),
     dot: step,
+    font,
+    fontSize,
     minX,
     maxX,
-    baseline: Math.min(maxY + Math.round(fontSize * 0.16), height - step - 2),
+    baseline: Math.min(maxY + Math.round(fontSize * 0.16), height - lineHeight - 2),
+    lineHeight,
   }
 
   const centreX = width / 2
@@ -163,10 +182,7 @@ function buildField(width: number, height: number): Field | null {
   return field
 }
 
-/**
- * Таблица ABGR на пару «оттенок градиента × прозрачность». Оттенки получаются
- * линейной интерполяцией по кольцу RAMP, поэтому перелив идёт плавно и замкнуто.
- */
+/** Таблица ABGR на пару «оттенок градиента × прозрачность» для фазы влёта. */
 function buildColorTable(): Uint32Array {
   const table = new Uint32Array(RAMP_STEPS * ALPHA_LEVELS)
   for (let s = 0; s < RAMP_STEPS; s++) {
@@ -185,10 +201,36 @@ function buildColorTable(): Uint32Array {
   return table
 }
 
+/**
+ * Тот же перелив для чистой надписи: кольцо цветов повторяется по ширине и
+ * сдвигается со временем. Полоса шире надписи на цикл с каждой стороны, поэтому
+ * при сдвиге не открывается пустой край.
+ */
+function shimmerGradient(
+  context: CanvasRenderingContext2D,
+  field: Field,
+  elapsed: number,
+): CanvasGradient {
+  const span = Math.max(field.maxX - field.minX, 1)
+  const cycle = span / CYCLES_ACROSS
+  const offset = ((elapsed / SHIMMER_MS) % 1) * cycle
+  const from = field.minX - cycle + offset
+  const to = field.maxX + cycle + offset
+  const gradient = context.createLinearGradient(from, 0, to, 0)
+
+  const rings = Math.ceil((to - from) / cycle)
+  const stops = rings * RAMP.length
+  for (let k = 0; k <= stops; k++) {
+    const [r, g, b] = RAMP[k % RAMP.length]
+    gradient.addColorStop(Math.min(1, k / stops), `rgb(${r},${g},${b})`)
+  }
+  return gradient
+}
+
 function run() {
   const element = canvas.value
-  const context = element?.getContext('2d')
-  if (!element || !context) return finish()
+  const view = element?.getContext('2d')
+  if (!element || !view) return finish()
 
   const ratio = Math.min(window.devicePixelRatio || 1, 2)
   const width = Math.floor(element.clientWidth * ratio)
@@ -200,68 +242,81 @@ function run() {
   const field = buildField(width, height)
   if (!field) return finish()
 
-  const image = context.createImageData(width, height)
+  const grain = document.createElement('canvas')
+  grain.width = width
+  grain.height = height
+  const grainCtx = grain.getContext('2d')
+  if (!grainCtx) return finish()
+
+  const image = grainCtx.createImageData(width, height)
   const pixels = new Uint32Array(image.data.buffer)
   const colors = buildColorTable()
 
   const started = performance.now()
-  const total = FLY_MS + HOLD_MS
+  const total = FLY_MS + CRISP_MS + HOLD_MS
   const dot = field.dot
   const span = Math.max(field.maxX - field.minX, 1)
+  const centreX = (field.minX + field.maxX) / 2
   const gradientK = (RAMP_STEPS * CYCLES_ACROSS) / span
   const mask = RAMP_STEPS - 1
 
   const frame = (now: number) => {
     const elapsed = now - started
     const flyPhase = Math.min(elapsed / FLY_MS, 1)
+    const crisp = Math.min(Math.max((elapsed - FLY_MS) / CRISP_MS, 0), 1)
     const phase = (elapsed / SHIMMER_MS) * RAMP_STEPS
 
-    pixels.fill(0)
+    view.clearRect(0, 0, width, height)
 
-    for (let i = 0; i < field.count; i++) {
-      const delay = field.delay[i]
-      const local = (flyPhase - delay) / (1 - delay)
-      if (local <= 0) continue
-      const t = local >= 1 ? 1 : local
-      const landed = t >= 1
-      const e = landed ? 1 : easeOutBack(t)
-      const swing = landed ? 0 : Math.sin(Math.PI * t)
+    // Пока зерно ещё видно — собираем кадр частиц. После перехода этот проход
+    // не нужен вовсе, и на удержании кадр стоит почти ничего.
+    if (crisp < 1) {
+      pixels.fill(0)
+      for (let i = 0; i < field.count; i++) {
+        const delay = field.delay[i]
+        const local = (flyPhase - delay) / (1 - delay)
+        if (local <= 0) continue
+        const t = local >= 1 ? 1 : local
+        const landed = t >= 1
+        const e = landed ? 1 : easeOutBack(t)
+        const swing = landed ? 0 : Math.sin(Math.PI * t)
 
-      // Округление, а не усечение: sx + dx даёт цель с погрешностью float, и при
-      // усечении часть севших точек уезжает на пиксель — в заливке появляется крапина.
-      const x = (field.sx[i] + field.dx[i] * e + field.ax[i] * swing + 0.5) | 0
-      const y = (field.sy[i] + field.dy[i] * e + field.ay[i] * swing + 0.5) | 0
-      if (x < 0 || y < 0 || x >= width - dot || y >= height - dot) continue
+        // Округление, а не усечение: sx + dx даёт цель с погрешностью float, и при
+        // усечении часть севших точек уезжает на пиксель — в заливке появляется крапина.
+        const x = (field.sx[i] + field.dx[i] * e + field.ax[i] * swing + 0.5) | 0
+        const y = (field.sy[i] + field.dy[i] * e + field.ay[i] * swing + 0.5) | 0
+        if (x < 0 || y < 0 || x >= width - dot || y >= height - dot) continue
 
-      // Севшая точка всегда непрозрачна: надпись должна читаться как монолит,
-      // а не как облако разноярких зёрен. Прозрачность работает только на подлёте.
-      const level = landed ? ALPHA_LEVELS - 1 : ((0.25 + 0.75 * t) * (ALPHA_LEVELS - 1)) | 0
-      const shade = ((x * gradientK + phase) | 0) & mask
-      const colour = colors[shade * ALPHA_LEVELS + level]
+        const level = landed ? ALPHA_LEVELS - 1 : ((0.25 + 0.75 * t) * (ALPHA_LEVELS - 1)) | 0
+        const shade = ((x * gradientK + phase) | 0) & mask
+        const colour = colors[shade * ALPHA_LEVELS + level]
 
-      let idx = y * width + x
-      for (let row = 0; row < dot; row++, idx += width) {
-        for (let col = 0; col < dot; col++) pixels[idx + col] = colour
-      }
-    }
-
-    // Линия под надписью подхватывает тот же перелив и появляется вместе с посадкой.
-    if (flyPhase > 0.55) {
-      const grow = Math.min((flyPhase - 0.55) / 0.45, 1)
-      const centre = (field.minX + field.maxX) / 2
-      const half = (span / 2) * grow
-      const from = Math.max(0, (centre - half) | 0)
-      const to = Math.min(width - 1, (centre + half) | 0)
-      for (let row = 0; row < dot; row++) {
-        const base = (field.baseline + row) * width
-        for (let x = from; x <= to; x++) {
-          const shade = ((x * gradientK + phase) | 0) & mask
-          pixels[base + x] = colors[shade * ALPHA_LEVELS + ALPHA_LEVELS - 1]
+        let idx = y * width + x
+        for (let row = 0; row < dot; row++, idx += width) {
+          for (let col = 0; col < dot; col++) pixels[idx + col] = colour
         }
       }
+      grainCtx.putImageData(image, 0, 0)
+      view.globalAlpha = 1 - crisp
+      view.drawImage(grain, 0, 0)
     }
 
-    context.putImageData(image, 0, 0)
+    // Финал — не зерно, а нормально сглаженный шрифт с тем же переливом.
+    if (crisp > 0) {
+      const gradient = shimmerGradient(view, field, elapsed)
+      view.globalAlpha = crisp
+      view.fillStyle = gradient
+      view.textAlign = 'center'
+      view.textBaseline = 'middle'
+      view.font = field.font
+      view.letterSpacing = `${field.fontSize * 0.06}px`
+      view.fillText(TEXT, width / 2, height / 2)
+
+      const half = (span / 2) * easeOutCubic(crisp)
+      view.fillRect(centreX - half, field.baseline, half * 2, field.lineHeight)
+    }
+
+    view.globalAlpha = 1
 
     if (elapsed < total) {
       raf = requestAnimationFrame(frame)
