@@ -77,7 +77,6 @@ const state = computed(() => {
 .weight-panel {
   display: flex;
   flex-direction: column;
-  justify-content: center;
   gap: 12px;
   padding: 24px;
   height: 100%;
@@ -97,11 +96,15 @@ const state = computed(() => {
   border-color: var(--s2l-danger);
 }
 
+/* Показание занимает всю свободную высоту и остаётся по центру колонки,
+   а тара и кнопки прижаты к низу */
 .value {
   display: flex;
-  align-items: baseline;
+  flex: 1;
+  align-items: center;
   justify-content: center;
   gap: 10px;
+  min-height: 0;
 }
 
 .digits {
@@ -181,7 +184,7 @@ const state = computed(() => {
 .actions {
   display: flex;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 4px;
 }
 
 .btn {

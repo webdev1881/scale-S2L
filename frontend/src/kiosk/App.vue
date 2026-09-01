@@ -311,46 +311,44 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
 
-    <div class="kiosk" :class="{ 'kb-open': keyboardOpen }">
-      <header class="topbar">
-        <div class="nav-slot">
-          <button v-if="!showCategories" class="back" @click="backToCategories">
-            <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
-          </button>
-        </div>
+    <div class="kiosk">
+      <!-- Весы занимают всю высоту экрана и не сжимаются ничем: ни шапкой,
+           ни выехавшей клавиатурой. Это единственный блок, за которым покупатель
+           следит непрерывно. -->
+      <aside class="scale">
+        <WeightPanel
+          :reading="weight.reading"
+          :connected="weight.connected"
+          :currency="currency"
+          :product="selected"
+          :total="total"
+          @tare="api.tare()"
+          @zero="api.zero()"
+        />
+      </aside>
 
-        <div class="status">
+      <section class="main" :class="{ 'kb-open': keyboardOpen || showNumpad }">
+        <!-- Шапка сведена к одной строке статуса: на 768 px каждая строка
+             отнимает высоту у карточек. -->
+        <header class="statusbar">
           <span class="dot" :class="{ ok: weight.connected }"></span>
           <span class="conn">{{
             weight.connected ? t('kiosk.connected') : t('kiosk.disconnected')
           }}</span>
           <span class="clock">{{ clock.toLocaleTimeString(localeTag()) }}</span>
-        </div>
-      </header>
+        </header>
 
-      <main class="body">
-        <aside class="left">
-          <WeightPanel
-            :reading="weight.reading"
-            :connected="weight.connected"
-            :currency="currency"
-            :product="selected"
-            :total="total"
-            @tare="api.tare()"
-            @zero="api.zero()"
-          />
-          <Numpad
-            v-if="showNumpad"
-            v-model:value="pluInput"
-            class="numpad-block"
-            @submit="findByPlu"
-          />
-        </aside>
-
-        <section class="catalog">
+        <!-- Возврат живёт рядом с заголовком выбора, а не в шапке: обе подписи
+             про одно и то же — где покупатель находится. Строка сохраняет высоту
+             и на верхнем уровне, иначе карточки меняли бы размер между экранами. -->
+        <div class="catalog-head">
+          <button v-if="!showCategories" class="back" @click="backToCategories">
+            <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
+          </button>
           <h1 v-if="catalogTitle" class="catalog-title">{{ catalogTitle }}</h1>
+        </div>
 
-          <div class="search-row">
+        <div class="search-row">
             <div class="search-field" :class="{ focused: keyboardOpen }">
               <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
@@ -393,11 +391,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             @select="selectProduct"
           />
 
-          <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
-        </section>
-      </main>
+        <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
 
-      <footer class="bottom">
+        <footer class="bottom">
         <div class="pick">
           <template v-if="selected">
             <div class="pick-name">{{ selected.name }}</div>
@@ -421,12 +417,33 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
         </div>
 
-        <button class="print" :disabled="!!printBlockReason || printing" @click="print">
-          <template v-if="printing">{{ t('kiosk.printing') }}</template>
-          <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
-          <template v-else>{{ t('kiosk.print') }}</template>
-        </button>
-      </footer>
+          <button class="print" :disabled="!!printBlockReason || printing" @click="print">
+            <template v-if="printing">{{ t('kiosk.printing') }}</template>
+            <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
+            <template v-else>{{ t('kiosk.print') }}</template>
+          </button>
+        </footer>
+
+        <!-- Экранный ввод выезжает внутри правой колонки, поэтому весы остаются
+             видны целиком, а сжимается только сетка каталога. -->
+        <Transition name="kb">
+          <Keyboard
+            v-if="keyboardOpen"
+            class="sheet"
+            :has-text="search.length > 0"
+            @key="keyPress"
+            @backspace="search = search.slice(0, -1)"
+            @clear="search = ''"
+            @done="closeKeyboard"
+          />
+          <Numpad
+            v-else-if="showNumpad"
+            v-model:value="pluInput"
+            class="sheet"
+            @submit="findByPlu"
+          />
+        </Transition>
+      </section>
 
       <el-dialog
         v-model="labelVisible"
@@ -444,17 +461,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         </template>
       </el-dialog>
 
-      <Transition name="kb">
-        <Keyboard
-          v-if="keyboardOpen"
-          class="kb"
-          :has-text="search.length > 0"
-          @key="keyPress"
-          @backspace="search = search.slice(0, -1)"
-          @clear="search = ''"
-          @done="closeKeyboard"
-        />
-      </Transition>
     </div>
   </el-config-provider>
 </template>
@@ -462,40 +468,59 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 <style scoped>
 .kiosk {
   display: grid;
-  grid-template-rows: auto 1fr auto;
+  /* Две колонки во всю высоту: весы слева, всё остальное справа */
+  grid-template-columns: minmax(290px, 29%) 1fr;
   height: 100%;
   gap: 12px;
   padding: 12px;
-  /* Клавиатура не накрывает интерфейс, а поджимает его: сетка ужимается,
-     но все карточки страницы остаются на виду. */
-  transition: padding-bottom 0.22s ease;
   /* Киоск не прокручивается целиком: скроллится только сетка карточек */
   overflow: hidden;
 }
 
-.kiosk.kb-open {
-  padding-bottom: calc(12px + var(--s2l-kb-height));
+.scale {
+  min-height: 0;
 }
 
-.topbar {
+.main {
+  position: relative;
+  display: grid;
+  /* статус / возврат с заголовком / поиск / сетка / пагинация / итог */
+  grid-template-rows: auto auto auto 1fr auto auto;
+  gap: 10px;
+  min-height: 0;
+  /* Клавиатура выезжает внутри этой колонки и поджимает только её */
+  transition: padding-bottom 0.22s ease;
+}
+
+.main.kb-open {
+  padding-bottom: var(--s2l-kb-height);
+}
+
+.statusbar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  padding: 8px 14px;
-  background: var(--s2l-panel);
-  border-radius: var(--s2l-radius);
+  justify-content: flex-end;
+  gap: 10px;
+  height: 24px;
+  padding: 0 6px;
+  font-size: 14px;
+  color: var(--s2l-muted);
+  white-space: nowrap;
 }
 
-/* Пустой слот сохраняет место кнопки возврата, чтобы статус не прыгал вправо-влево */
-.nav-slot {
+/* Строка сохраняет высоту и при пустом содержимом: иначе карточки меняли бы
+   размер при переходе между уровнями каталога */
+.catalog-head {
   display: flex;
+  align-items: center;
+  gap: 14px;
   min-height: 52px;
-  align-items: center;
+  padding: 0 4px;
 }
 
 .back {
   display: flex;
+  flex: none;
   align-items: center;
   gap: 10px;
   min-height: 52px;
@@ -518,16 +543,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   line-height: 1;
 }
 
-/* Индикатор, подпись и часы — одной строкой */
-.status {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  font-size: 15px;
-  color: var(--s2l-muted);
-  white-space: nowrap;
-}
-
 .dot {
   flex: none;
   width: 10px;
@@ -546,40 +561,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   color: var(--s2l-ink);
 }
 
-.body {
-  display: grid;
-  grid-template-columns: minmax(300px, 32%) 1fr;
-  gap: 12px;
-  min-height: 0;
-}
-
-.left {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  min-height: 0;
-}
-
-.numpad-block {
-  background: var(--s2l-panel);
-  border-radius: var(--s2l-radius);
-  padding: 14px;
-}
-
-.catalog {
-  display: grid;
-  /* заголовок / поиск / сетка / пагинация — пустые строки схлопываются */
-  grid-template-rows: auto auto 1fr auto;
-  gap: 12px;
-  min-height: 0;
-}
-
 .catalog-title {
   margin: 0;
-  padding: 0 4px;
   font-size: 22px;
   font-weight: 700;
   line-height: 1.2;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .search-row {
@@ -677,7 +666,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   grid-template-columns: 1fr auto auto;
   align-items: center;
   gap: 18px;
-  padding: 12px 18px;
+  padding: 10px 16px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
 }
@@ -745,12 +734,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   color: var(--s2l-muted);
 }
 
-.kb {
-  position: fixed;
+.sheet {
+  position: absolute;
   right: 0;
   bottom: 0;
   left: 0;
   z-index: 2000;
+  border-radius: var(--s2l-radius);
+  overflow: hidden;
 }
 
 .kb-enter-active,

@@ -37,9 +37,16 @@ function press(key: string) {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  /* Та же высота и тот же вид, что у клавиатуры поиска: оба ввода выезжают
+     в одно и то же место, и киоск поджимается одинаково */
+  height: var(--s2l-kb-height);
+  padding: 12px 14px 16px;
+  background: var(--s2l-kb-bg);
+  border-top: 1px solid var(--s2l-kb-line);
 }
 
 .display {
+  flex: none;
   height: 56px;
   display: flex;
   align-items: center;
@@ -53,12 +60,18 @@ function press(key: string) {
 
 .keys {
   display: grid;
+  flex: 1;
   grid-template-columns: repeat(3, 1fr);
+  grid-template-rows: repeat(4, 1fr);
   gap: 10px;
+  min-height: 0;
+  max-width: 420px;
+  align-self: center;
+  width: 100%;
 }
 
 .key {
-  min-height: 64px;
+  min-height: 0;
   font-size: 24px;
   font-weight: 600;
   background: var(--s2l-panel);
@@ -72,7 +85,8 @@ function press(key: string) {
 }
 
 .submit {
-  min-height: 60px;
+  flex: none;
+  min-height: 56px;
   font-size: 19px;
   font-weight: 600;
   color: #fff;
