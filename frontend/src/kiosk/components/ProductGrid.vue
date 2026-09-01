@@ -37,7 +37,7 @@ defineEmits<{ select: [product: Product] }>()
             product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
           }}
         </span>
-        <span class="plu">PLU {{ product.plu }}</span>
+        <span class="plu">{{ t('kiosk.code') }} {{ product.plu }}</span>
       </div>
     </button>
 

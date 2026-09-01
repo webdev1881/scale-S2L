@@ -14,8 +14,9 @@
  * прибора (Intel J6412) вызовы канвы упираются в CPU уже на нескольких тысячах
  * точек, а запись в буфер стоит одинаково при любом их числе.
  */
-import { onMounted, onUnmounted, ref } from 'vue'
+import { onMounted, onUnmounted, ref, watch } from 'vue'
 
+const props = defineProps<{ durationMs: number }>()
 const emit = defineEmits<{ done: [] }>()
 
 const canvas = ref<HTMLCanvasElement | null>(null)
@@ -23,11 +24,19 @@ const leaving = ref(false)
 
 const TEXT = 'SMK'
 
-// Итого ~2 с вместе с растворением
-const FLY_MS = 1050 // влёт и сборка из частиц
-const CRISP_MS = 280 // переход от зерна к шрифту
-const HOLD_MS = 400 // перелив по готовой надписи
+// Длительность задаётся в настройках прибора, поэтому фазы не константы, а доли
+// от общего времени: влёт, переход от зерна к шрифту и удержание с переливом.
+const FLY_SHARE = 0.61
+const CRISP_SHARE = 0.16
 const FADE_MS = 300
+const MIN_ANIMATION_MS = 600
+
+function phases(durationMs: number) {
+  const animation = Math.max(durationMs - FADE_MS, MIN_ANIMATION_MS)
+  const fly = animation * FLY_SHARE
+  const crisp = animation * CRISP_SHARE
+  return { fly, crisp, total: animation }
+}
 
 const MAX_PARTICLES = 26000
 const MIN_STEP = 2
@@ -50,6 +59,7 @@ const SHIMMER_MS = 1600 // период перелива
 
 let raf = 0
 let guard = 0
+let stopWatch: (() => void) | null = null
 let finished = false
 
 interface Field {
@@ -253,7 +263,6 @@ function run() {
   const colors = buildColorTable()
 
   const started = performance.now()
-  const total = FLY_MS + CRISP_MS + HOLD_MS
   const dot = field.dot
   const span = Math.max(field.maxX - field.minX, 1)
   const centreX = (field.minX + field.maxX) / 2
@@ -262,6 +271,11 @@ function run() {
 
   const frame = (now: number) => {
     const elapsed = now - started
+    // Длительность пересчитывается каждый кадр: настройки приезжают уже после
+    // старта заставки, и без этого смена значения применялась бы только со
+    // следующего включения — со стороны это выглядит как «не работает».
+    const { fly: FLY_MS, crisp: CRISP_MS, total } = phases(props.durationMs)
+    if (props.durationMs <= 0) return finish()
     const flyPhase = Math.min(elapsed / FLY_MS, 1)
     const crisp = Math.min(Math.max((elapsed - FLY_MS) / CRISP_MS, 0), 1)
     const phase = (elapsed / SHIMMER_MS) * RAMP_STEPS
@@ -326,9 +340,16 @@ function run() {
   }
 
   raf = requestAnimationFrame(frame)
+
   // Страховка: в фоновой вкладке requestAnimationFrame не вызывается, и без этого
-  // таймера заставка осталась бы висеть поверх киоска навсегда.
-  guard = window.setTimeout(finish, total + 600)
+  // таймера заставка осталась бы висеть поверх киоска навсегда. Таймер
+  // переставляется вслед за настройкой, иначе он обрежет удлинённую заставку.
+  const armGuard = () => {
+    window.clearTimeout(guard)
+    guard = window.setTimeout(finish, phases(props.durationMs).total + FADE_MS + 600)
+  }
+  armGuard()
+  stopWatch = watch(() => props.durationMs, armGuard)
 }
 
 function finish() {
@@ -336,6 +357,7 @@ function finish() {
   finished = true
   window.clearTimeout(guard)
   cancelAnimationFrame(raf)
+  stopWatch?.()
   leaving.value = true
   // Ждём растворение оверлея, иначе киоск «выпрыгивает» из-под заставки.
   window.setTimeout(() => emit('done'), FADE_MS)
@@ -354,6 +376,7 @@ onMounted(() => {
 onUnmounted(() => {
   cancelAnimationFrame(raf)
   window.clearTimeout(guard)
+  stopWatch?.()
 })
 </script>
 

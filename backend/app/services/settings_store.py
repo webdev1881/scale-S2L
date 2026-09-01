@@ -17,7 +17,7 @@ class DeviceSettings(BaseModel):
     # Тема киоска. Тёмная по умолчанию: экран прибора светит покупателю в лицо
     # весь день, и белая заливка на 15.6" утомляет сильнее.
     theme: str = Field(default="dark", pattern="^(dark|light)$")
-    store_name: str = "Маркет «Весна»"
+    store_name: str = "Рулька"
     currency: str = "₴"
     # Печатающий узел Aurora S2 берёт ленту шириной не более 56 мм
     label_width_mm: float = Field(default=56, ge=20, le=56)
@@ -31,6 +31,8 @@ class DeviceSettings(BaseModel):
     require_stable: bool = True
     # Сколько секунд бездействия до сброса экрана киоска
     kiosk_idle_reset_s: int = 45
+    # Длительность стартовой заставки. 0 — не показывать её вовсе.
+    splash_seconds: float = Field(default=3.0, ge=0, le=10)
     # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
     # поэтому вынесено в настройки, а не зашито в вёрстку.
     # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка

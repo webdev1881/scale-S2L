@@ -6,7 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, ApiError } from '@/shared/api'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
-import { applyTheme } from '@/shared/theme'
+import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
 import type { Category, DeviceSettings, Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
@@ -21,7 +21,10 @@ import WeightPanel from './components/WeightPanel.vue'
 const { t, locale } = useI18n()
 const weight = useWeightStore()
 
-const booting = ref(true)
+// Длительность заставки берётся из настроек прошлого запуска: сервер ответит
+// уже после того, как заставка стартует. Ноль — заставку не показываем вовсе.
+const splashMs = ref(storedSplashMs())
+const booting = ref(splashMs.value > 0)
 
 const products = ref<Product[]>([])
 const categories = ref<Category[]>([])
@@ -131,6 +134,7 @@ async function loadCatalog() {
   // Язык и тема задаются на устройстве, а не в браузере покупателя.
   setLocale(cfg.language)
   applyTheme(cfg.theme)
+  splashMs.value = rememberSplash(cfg.splash_seconds)
 }
 
 /**
@@ -144,6 +148,7 @@ async function refreshSettings() {
     settings.value = cfg
     setLocale(cfg.language)
     applyTheme(cfg.theme)
+    rememberSplash(cfg.splash_seconds)
   } catch {
     /* сеть моргнула — киоск продолжает работать на прежних настройках */
   }
@@ -304,7 +309,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 <template>
   <el-config-provider :locale="elementLocale(locale)">
-    <SplashScreen v-if="booting" @done="booting = false" />
+    <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
 
     <div class="kiosk" :class="{ 'kb-open': keyboardOpen }">
       <header class="topbar">

@@ -103,6 +103,10 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.idleReset')">
           <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
         </el-form-item>
+        <el-form-item :label="t('admin.settings.splash')">
+          <el-input-number v-model="form.splash_seconds" :min="0" :max="10" :step="0.5" />
+          <div class="hint">{{ t('admin.settings.splashHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.grid')">
           <el-input-number v-model="form.grid_cols" :min="2" :max="6" />
           <span class="times">×</span>

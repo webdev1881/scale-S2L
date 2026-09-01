@@ -19,7 +19,8 @@ const messages = {
     kiosk: {
       connected: 'Ваги підключено',
       disconnected: 'Немає зв’язку',
-      searchPlaceholder: 'Знайдіть товар за назвою або PLU',
+      searchPlaceholder: 'Знайдіть товар за назвою або кодом',
+      code: 'Код',
       allCategories: 'Усі',
       searchResults: 'Результати пошуку',
       allGroups: 'Усі групи',
@@ -32,7 +33,7 @@ const messages = {
       takeLabel: 'Заберіть етикетку',
       sentToPrinter: 'Етикетку надіслано на принтер',
       done: 'Готово',
-      pluNotFound: 'Товар з PLU {plu} не знайдено',
+      pluNotFound: 'Товар з кодом {plu} не знайдено',
       printFailed: 'Помилка друку',
       perKg: 'кг',
       perPiece: 'шт',
@@ -49,7 +50,7 @@ const messages = {
       stable: 'Вага стабільна',
     },
     numpad: {
-      find: 'Знайти за PLU',
+      find: 'Знайти за кодом',
     },
     keyboard: {
       space: 'Пробіл',
@@ -87,7 +88,8 @@ const messages = {
         openKiosk: 'Відкрити кіоск →',
       },
       products: {
-        search: 'Пошук за назвою або PLU',
+        search: 'Пошук за назвою або кодом',
+        code: 'Код',
         add: 'Додати товар',
         name: 'Назва',
         category: 'Категорія',
@@ -117,7 +119,7 @@ const messages = {
         saveFailed: 'Не вдалося зберегти',
         confirmHide: 'Приховати «{name}» з каталогу? Журнал операцій збережеться.',
         confirmTitle: 'Видалення товару',
-        pluRule: 'PLU від 1 до 99999',
+        pluRule: 'Код від 1 до 99999',
         nameRule: 'Вкажіть назву',
         priceRule: 'Ціна не може бути від’ємною',
       },
@@ -168,7 +170,7 @@ const messages = {
         barcode: 'Штрихкод',
         template: 'Шаблон EAN-13',
         templateHint:
-          'P — цифра PLU, W — цифра значення, решта символів копіюється як є. Наприклад {example}: префікс 22, п’ять цифр PLU, п’ять цифр значення.',
+          'P — цифра коду, W — цифра значення, решта символів копіюється як є. Наприклад {example}: префікс 22, п’ять цифр коду, п’ять цифр значення.',
         encode: 'Що кодувати',
         encodeWeight: 'Маса, г',
         encodeTotal: 'Сума, коп',
@@ -180,6 +182,8 @@ const messages = {
         requireStableHint:
           'Вимикати лише для налагодження: етикетка з «тремтячою» вагою бреше покупцеві.',
         idleReset: 'Скидання екрана, с',
+        splash: 'Тривалість заставки, с',
+        splashHint: 'Заставка з написом SMK під час увімкнення. 0 — не показувати.',
         grid: 'Сітка каталогу (стовпців × рядків)',
         gridHint:
           'Карток на сторінці: {count}. Решта переноситься на наступні сторінки — обрізаних рядів не буває.',
@@ -199,7 +203,8 @@ const messages = {
     kiosk: {
       connected: 'Весы подключены',
       disconnected: 'Нет связи',
-      searchPlaceholder: 'Найдите товар по названию или PLU',
+      searchPlaceholder: 'Найдите товар по названию или коду',
+      code: 'Код',
       allCategories: 'Все',
       searchResults: 'Результаты поиска',
       allGroups: 'Все группы',
@@ -212,7 +217,7 @@ const messages = {
       takeLabel: 'Заберите этикетку',
       sentToPrinter: 'Этикетка отправлена на принтер',
       done: 'Готово',
-      pluNotFound: 'Товар с PLU {plu} не найден',
+      pluNotFound: 'Товар с кодом {plu} не найден',
       printFailed: 'Ошибка печати',
       perKg: 'кг',
       perPiece: 'шт',
@@ -229,7 +234,7 @@ const messages = {
       stable: 'Вес стабилен',
     },
     numpad: {
-      find: 'Найти по PLU',
+      find: 'Найти по коду',
     },
     keyboard: {
       space: 'Пробел',
@@ -267,7 +272,8 @@ const messages = {
         openKiosk: 'Открыть киоск →',
       },
       products: {
-        search: 'Поиск по названию или PLU',
+        search: 'Поиск по названию или коду',
+        code: 'Код',
         add: 'Добавить товар',
         name: 'Название',
         category: 'Категория',
@@ -297,7 +303,7 @@ const messages = {
         saveFailed: 'Не удалось сохранить',
         confirmHide: 'Скрыть «{name}» из каталога? Журнал операций сохранится.',
         confirmTitle: 'Удаление товара',
-        pluRule: 'PLU от 1 до 99999',
+        pluRule: 'Код от 1 до 99999',
         nameRule: 'Укажите название',
         priceRule: 'Цена не может быть отрицательной',
       },
@@ -348,7 +354,7 @@ const messages = {
         barcode: 'Штрихкод',
         template: 'Шаблон EAN-13',
         templateHint:
-          'P — цифра PLU, W — цифра значения, остальные символы копируются как есть. Например {example}: префикс 22, пять цифр PLU, пять цифр значения.',
+          'P — цифра кода, W — цифра значения, остальные символы копируются как есть. Например {example}: префикс 22, пять цифр кода, пять цифр значения.',
         encode: 'Что кодировать',
         encodeWeight: 'Масса, г',
         encodeTotal: 'Сумма, коп',
@@ -360,6 +366,8 @@ const messages = {
         requireStableHint:
           'Отключать только для отладки: этикетка с «дрожащим» весом врёт покупателю.',
         idleReset: 'Сброс экрана, с',
+        splash: 'Длительность заставки, с',
+        splashHint: 'Заставка с надписью SMK при включении. 0 — не показывать.',
         grid: 'Сетка каталога (столбцов × строк)',
         gridHint:
           'Карточек на странице: {count}. Остальные переносятся на следующие страницы — обрезанных рядов не бывает.',

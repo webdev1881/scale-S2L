@@ -130,7 +130,7 @@ onMounted(load)
     </div>
 
     <el-table :data="products" v-loading="loading" stripe height="calc(100vh - 190px)">
-      <el-table-column prop="plu" label="PLU" width="90" sortable />
+      <el-table-column prop="plu" :label="t('admin.products.code')" width="90" sortable />
       <el-table-column :label="t('admin.products.name')" min-width="240">
         <template #default="{ row }">
           <img v-if="row.image" :src="`/products/${row.image}`" class="row-thumb" alt="" />
@@ -182,7 +182,7 @@ onMounted(load)
       width="560px"
     >
       <el-form ref="formRef" :model="form" :rules="rules" label-width="150px">
-        <el-form-item label="PLU" prop="plu">
+        <el-form-item :label="t('admin.products.code')" prop="plu">
           <el-input-number v-model="form.plu" :min="1" :max="99999" />
         </el-form-item>
         <el-form-item :label="t('admin.products.name')" prop="name">

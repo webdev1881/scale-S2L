@@ -74,6 +74,7 @@ export interface DeviceSettings {
   min_print_weight_g: number
   require_stable: boolean
   kiosk_idle_reset_s: number
+  splash_seconds: number
   grid_cols: number
   grid_rows: number
 }

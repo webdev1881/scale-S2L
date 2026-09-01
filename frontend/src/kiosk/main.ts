@@ -6,7 +6,7 @@ import { createPinia } from 'pinia'
 import { createApp } from 'vue'
 
 import { i18n } from '@/shared/i18n'
-import { applyTheme, storedTheme } from '@/shared/theme'
+import { applyTheme, storedTheme } from '@/shared/boot'
 import '@/shared/styles/base.css'
 
 import App from './App.vue'
