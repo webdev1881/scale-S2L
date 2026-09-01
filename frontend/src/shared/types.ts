@@ -64,6 +64,7 @@ export interface Transaction {
 
 export interface DeviceSettings {
   language: 'uk' | 'ru'
+  theme: 'dark' | 'light'
   store_name: string
   currency: string
   label_width_mm: number

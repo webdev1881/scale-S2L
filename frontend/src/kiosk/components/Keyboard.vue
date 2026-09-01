@@ -72,9 +72,9 @@ const rows = computed(() => LAYOUTS[locale.value] ?? LAYOUTS.uk)
   /* Ровно та высота, на которую киоск поднимает своё содержимое */
   height: var(--s2l-kb-height);
   padding: 12px 14px 16px;
-  background: #e7ebf0;
-  border-top: 1px solid #d3dae2;
-  box-shadow: 0 -8px 24px rgb(29 33 41 / 12%);
+  background: var(--s2l-kb-bg);
+  border-top: 1px solid var(--s2l-kb-line);
+  box-shadow: 0 -8px 24px var(--s2l-shadow-strong);
 }
 
 .row {
@@ -93,21 +93,21 @@ const rows = computed(() => LAYOUTS[locale.value] ?? LAYOUTS.uk)
   font-size: clamp(17px, 2vw, 23px);
   font-weight: 600;
   color: var(--s2l-ink);
-  background: #ffffff;
+  background: var(--s2l-key);
   border: none;
   border-radius: 10px;
-  box-shadow: 0 1px 0 #c3ccd6;
+  box-shadow: 0 1px 0 var(--s2l-key-shadow);
   cursor: pointer;
 }
 
 .key:active:not(:disabled) {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
   transform: translateY(1px);
   box-shadow: none;
 }
 
 .key:disabled {
-  color: #b9c3ce;
+  color: var(--s2l-disabled-ink);
   cursor: default;
 }
 

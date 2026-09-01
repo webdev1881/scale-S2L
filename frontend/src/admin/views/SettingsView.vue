@@ -48,6 +48,13 @@ onMounted(load)
           </el-radio-group>
           <div class="hint">{{ t('admin.settings.languageHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.theme')">
+          <el-radio-group v-model="form.theme">
+            <el-radio-button value="dark">{{ t('admin.settings.themeDark') }}</el-radio-button>
+            <el-radio-button value="light">{{ t('admin.settings.themeLight') }}</el-radio-button>
+          </el-radio-group>
+          <div class="hint">{{ t('admin.settings.themeHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.storeName')">
           <el-input v-model="form.store_name" maxlength="60" />
         </el-form-item>

@@ -14,6 +14,9 @@ SETTINGS_KEY = "device"
 class DeviceSettings(BaseModel):
     # Язык киоска, админки и печатной этикетки. Переключается в настройках админки.
     language: str = Field(default="uk", pattern="^(uk|ru)$")
+    # Тема киоска. Тёмная по умолчанию: экран прибора светит покупателю в лицо
+    # весь день, и белая заливка на 15.6" утомляет сильнее.
+    theme: str = Field(default="dark", pattern="^(dark|light)$")
     store_name: str = "Маркет «Весна»"
     currency: str = "₴"
     # Печатающий узел Aurora S2 берёт ленту шириной не более 56 мм

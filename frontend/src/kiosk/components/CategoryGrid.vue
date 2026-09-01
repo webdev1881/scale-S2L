@@ -51,7 +51,7 @@ defineEmits<{ open: [category: Category] }>()
   overflow: hidden;
   text-align: left;
   background: var(--s2l-panel);
-  border: 2px solid #e3e8ef;
+  border: 2px solid var(--s2l-line);
   border-radius: var(--s2l-radius);
   cursor: pointer;
   transition: border-color 0.15s;
@@ -65,7 +65,7 @@ defineEmits<{ open: [category: Category] }>()
   /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
   flex: 1;
   min-height: 0;
-  background: #eef1f5;
+  background: var(--s2l-soft);
 }
 
 .photo img {

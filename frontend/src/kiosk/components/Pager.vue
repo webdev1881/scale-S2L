@@ -56,11 +56,11 @@ function go(delta: number) {
 }
 
 .nav:active:not(:disabled) {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
 }
 
 .nav:disabled {
-  color: #c4ccd6;
+  color: var(--s2l-disabled-ink);
   cursor: default;
 }
 
@@ -77,7 +77,7 @@ function go(delta: number) {
   padding: 0;
   border: none;
   border-radius: 50%;
-  background: #d7dde5;
+  background: var(--s2l-disabled);
   cursor: pointer;
 }
 

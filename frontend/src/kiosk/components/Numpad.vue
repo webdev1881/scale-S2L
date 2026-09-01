@@ -47,7 +47,7 @@ function press(key: string) {
   font-size: 30px;
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  background: #eef1f5;
+  background: var(--s2l-soft);
   border-radius: 12px;
 }
 
@@ -68,7 +68,7 @@ function press(key: string) {
 }
 
 .key:active {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
 }
 
 .submit {
@@ -83,6 +83,6 @@ function press(key: string) {
 }
 
 .submit:disabled {
-  background: #b9c3ce;
+  background: var(--s2l-disabled);
 }
 </style>

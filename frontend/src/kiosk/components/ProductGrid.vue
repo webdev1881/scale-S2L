@@ -69,7 +69,7 @@ defineEmits<{ select: [product: Product] }>()
   background: var(--s2l-panel);
   /* Рамка есть всегда: у выбранной карточки она лишь меняет цвет, поэтому
      соседние карточки не сдвигаются в момент выбора. */
-  border: 3px solid #e3e8ef;
+  border: 3px solid var(--s2l-line);
   border-radius: var(--s2l-radius);
   cursor: pointer;
   transition: border-color 0.15s;
@@ -77,7 +77,7 @@ defineEmits<{ select: [product: Product] }>()
 
 .card.active {
   border-color: var(--s2l-accent);
-  background: #f2fbf6;
+  background: var(--s2l-selected);
 }
 
 .photo {
@@ -87,7 +87,7 @@ defineEmits<{ select: [product: Product] }>()
   /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
   flex: 1;
   min-height: 0;
-  background: #eef1f5;
+  background: var(--s2l-soft);
 }
 
 .photo img {

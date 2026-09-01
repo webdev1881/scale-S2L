@@ -153,7 +153,7 @@ const state = computed(() => {
   justify-content: space-between;
   gap: 12px;
   padding: 10px 14px;
-  background: #f5f7fa;
+  background: var(--s2l-soft);
   border-radius: 12px;
 }
 
@@ -170,7 +170,7 @@ const state = computed(() => {
 }
 
 .figure.cost {
-  background: #eef7f1;
+  background: var(--s2l-selected);
 }
 
 .figure.cost dd {
@@ -190,13 +190,13 @@ const state = computed(() => {
   font-size: 20px;
   font-weight: 600;
   color: var(--s2l-ink);
-  background: #eef1f5;
+  background: var(--s2l-soft);
   border: none;
   border-radius: 12px;
   cursor: pointer;
 }
 
 .btn:active {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
 }
 </style>

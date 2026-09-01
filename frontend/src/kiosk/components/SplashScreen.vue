@@ -369,7 +369,7 @@ onUnmounted(() => {
   inset: 0;
   z-index: 3000;
   /* Тот же фон, что у киоска: переход в интерфейс не даёт вспышки */
-  background: #ffffff;
+  background: var(--s2l-splash-bg);
   transition:
     opacity 0.3s ease,
     transform 0.3s ease;

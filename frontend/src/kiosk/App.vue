@@ -6,6 +6,7 @@ import { useI18n } from 'vue-i18n'
 import { api, ApiError } from '@/shared/api'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
+import { applyTheme } from '@/shared/theme'
 import type { Category, DeviceSettings, Product } from '@/shared/types'
 import { useWeightStore } from '@/shared/weight'
 
@@ -127,8 +128,25 @@ async function loadCatalog() {
   products.value = items
   categories.value = cats
   settings.value = cfg
-  // Язык задаётся на устройстве, а не в браузере покупателя.
+  // Язык и тема задаются на устройстве, а не в браузере покупателя.
   setLocale(cfg.language)
+  applyTheme(cfg.theme)
+}
+
+/**
+ * Перечитываем настройки на возврате к начальному экрану: оператор меняет тему
+ * или язык в админке, и киоск подхватывает это сам, без перезапуска сервиса.
+ * Опроса по таймеру не заводим — сброс и так случается регулярно.
+ */
+async function refreshSettings() {
+  try {
+    const cfg = await api.settings()
+    settings.value = cfg
+    setLocale(cfg.language)
+    applyTheme(cfg.theme)
+  } catch {
+    /* сеть моргнула — киоск продолжает работать на прежних настройках */
+  }
 }
 
 function openCategory(category: Category) {
@@ -236,6 +254,7 @@ function closeLabel() {
 }
 
 function reset() {
+  void refreshSettings()
   selected.value = null
   search.value = ''
   openedCategory.value = null
@@ -479,14 +498,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   font-size: 18px;
   font-weight: 600;
   color: var(--s2l-ink);
-  background: #eef1f5;
+  background: var(--s2l-soft);
   border: none;
   border-radius: 12px;
   cursor: pointer;
 }
 
 .back:active {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
 }
 
 .arrow {
@@ -575,7 +594,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-panel);
   border: 3px solid transparent;
   border-radius: 16px;
-  box-shadow: 0 2px 10px rgb(29 33 41 / 6%);
+  box-shadow: 0 2px 10px var(--s2l-shadow);
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -612,7 +631,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .search::placeholder {
-  color: #9aa5b1;
+  color: var(--s2l-muted);
 }
 
 .clear {
@@ -622,14 +641,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   font-size: 30px;
   line-height: 1;
   color: var(--s2l-muted);
-  background: #eef1f5;
+  background: var(--s2l-soft);
   border: none;
   border-radius: 50%;
   cursor: pointer;
 }
 
 .clear:active {
-  background: #dfe4ea;
+  background: var(--s2l-soft-active);
 }
 
 .toggle {
@@ -705,14 +724,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .print:disabled {
-  background: #c4ccd6;
+  background: var(--s2l-disabled);
   cursor: default;
 }
 
 .label-img {
   display: block;
   width: 100%;
-  border: 1px solid #dcdfe6;
+  border: 1px solid var(--s2l-line);
   border-radius: 8px;
 }
 
