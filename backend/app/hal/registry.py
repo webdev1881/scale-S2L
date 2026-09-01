@@ -28,7 +28,11 @@ _devices: Devices | None = None
 def build_devices(settings: Settings) -> Devices:
     if settings.hal_backend == "real":
         return Devices(
-            scale=SerialScale(settings.scale_port, settings.scale_baudrate),
+            scale=SerialScale(
+                settings.scale_port,
+                settings.scale_baudrate,
+                division_g=settings.scale_division_g,
+            ),
             printer=UsbRawPrinter(settings.printer_device),
             backend="real",
         )

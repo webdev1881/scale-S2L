@@ -13,15 +13,21 @@ LABELS_DIR = DATA_DIR / "labels"
 
 
 class Settings(BaseSettings):
+    # env_file обязан быть абсолютным: относительный путь pydantic резолвит от рабочего
+    # каталога процесса, и при запуске uvicorn не из backend/ файл просто не находился.
     model_config = SettingsConfigDict(
-        env_prefix="S2L_", env_file=".env", env_file_encoding="utf-8", extra="ignore"
+        env_prefix="S2L_",
+        env_file=BASE_DIR / ".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
     )
 
     # fake — симулятор для разработки без весов, real — драйверы железа
     hal_backend: Literal["fake", "real"] = "fake"
 
-    scale_port: str = "/dev/serial/by-id/CHANGE-ME"
-    scale_baudrate: int = 9600
+    # Подтверждено на приборе: весовая плата висит на встроенном RS232, 19200 бод
+    scale_port: str = "/dev/ttyS4"
+    scale_baudrate: int = 19200
     printer_device: str = "/dev/usb/lp0"
 
     # Параметры весоизмерительной части Aurora S2 (6/15 кг, класс III): наибольший
