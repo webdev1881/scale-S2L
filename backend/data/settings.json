@@ -2,7 +2,7 @@
   "language": "uk",
   "theme": "light",
   "store_name": "Рулька",
-  "currency": "₴",
+  "currency": "грн",
   "label_width_mm": 56.0,
   "label_height_mm": 40.0,
   "barcode_template": "22PPPPPWWWWW",
@@ -21,7 +21,7 @@
   "ui_photo_product": 85,
   "ui_plate_height": 15,
   "ui_plate_color": "#123b8d",
-  "grid_cols": 6,
+  "grid_cols": 5,
   "grid_rows": 2,
   "product_grid_cols": 4,
   "product_grid_rows": 2

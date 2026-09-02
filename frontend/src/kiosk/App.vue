@@ -151,13 +151,17 @@ const pageCount = computed(() => {
   return Math.max(1, Math.ceil(length / pageSize.value))
 })
 
-const pagedCategories = computed(() =>
-  categories.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value),
-)
+/** Срез страницы по её номеру: под палец подставляется соседняя, а не текущая. */
+function categoriesOn(index: number) {
+  return categories.value.slice(index * pageSize.value, (index + 1) * pageSize.value)
+}
 
-const pagedProducts = computed(() =>
-  visibleProducts.value.slice(page.value * pageSize.value, (page.value + 1) * pageSize.value),
-)
+function productsOn(index: number) {
+  return visibleProducts.value.slice(index * pageSize.value, (index + 1) * pageSize.value)
+}
+
+const pagedCategories = computed(() => categoriesOn(page.value))
+const pagedProducts = computed(() => productsOn(page.value))
 
 const netG = computed(() => {
   const tare = selected.value?.tare_g ?? 0
@@ -224,28 +228,67 @@ function turnPage(delta: number, animated = true) {
   return true
 }
 
-// Свайп по сетке — равноправная замена пейджеру: у витрины палец тянется
-// провести по карточкам раньше, чем искать кнопку. Страница едет за пальцем ещё
-// до отпускания, иначе непонятно, поймал прибор жест или нет.
+// Свайп по сетке — равноправная замена пейджеру: у витрины палец тянется провести
+// по карточкам раньше, чем искать кнопку. Страницы идут лентой: соседняя стоит
+// вплотную и едет вместе с текущей один в один за пальцем, а после отпускания
+// лента доезжает до места. Подмена страницы «на месте» ощущалась рывком именно
+// потому, что палец вёл одно, а на экране в конце оказывалось другое.
 const SWIPE_START_PX = 8 // с какого сдвига считаем, что ведут, а не промахнулись
-const SWIPE_MIN_PX = 56 // медленная протяжка засчитывается по длине
-const SWIPE_FLICK_PX = 24 // короткий бросок — по скорости
+const SWIPE_COMMIT_RATIO = 0.25 // четверть ширины — страница пролистана
+// На широком экране четверть — это уже 340 px, длиннее удобного движения кистью,
+// поэтому порог ограничен и сверху.
+const SWIPE_COMMIT_MAX_PX = 200
+const SWIPE_FLICK_PX = 24 // короткий бросок — по скорости, а не по длине
 const SWIPE_FLICK_SPEED = 0.5 // px/мс
-const SWIPE_PULL_RATIO = 0.35 // сопротивление: страница отстаёт от пальца
-const SWIPE_PULL_MAX = 56
+const SWIPE_EDGE_RATIO = 0.12 // на краю каталога лента почти не поддаётся
+const SWIPE_EDGE_MAX = 56
+const SETTLE_MS = 280 // столько лента доезжает после отпускания
 
-let swipeFrom: { x: number; y: number; at: number; id: number } | null = null
-/** Сдвиг страницы под пальцем. Ноль — палец отпущен или ведёт не туда. */
-const swipeShift = ref(0)
+let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
+/** Сдвиг ленты в пикселях: под пальцем — один в один, после отпускания доезжает. */
+const dragX = ref(0)
 const swipeDragging = ref(false)
+/** Какая страница подставлена рядом: 1 — следующая справа, -1 — предыдущая слева. */
+const dragDir = ref(0)
+let settleTimer = 0
 // Браузер шлёт click даже после протяжки на сотню пикселей, поэтому выбор товара
 // после состоявшегося жеста гасим вручную.
 let swipeJustHappened = false
 
+/** Пока лента доезжает сама, новый жест её не перехватывает. */
+const settling = computed(() => !swipeDragging.value && dragDir.value !== 0)
+
+const ribbonMotion = computed(() =>
+  swipeDragging.value ? 'none' : `transform ${SETTLE_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)`,
+)
+
+/**
+ * Текущая страница ленты. Стиль появляется только на время жеста, чтобы не
+ * спорить с переходом, которым листают кнопки пейджера.
+ */
+const trackStyle = computed(() =>
+  dragX.value || dragDir.value
+    ? { transform: `translateX(${dragX.value}px)`, transition: ribbonMotion.value }
+    : undefined,
+)
+
+/** Соседняя страница стоит вплотную к текущей и едет тем же сдвигом. */
+const neighbourStyle = computed(() => ({
+  transform: `translateX(calc(${dragX.value}px + ${dragDir.value * 100}%))`,
+  transition: ribbonMotion.value,
+}))
+
 function onSwipeStart(event: PointerEvent) {
   // Второй палец в жесте не участвует: это масштабирование или случайное касание.
-  if (!event.isPrimary) return
-  swipeFrom = { x: event.clientX, y: event.clientY, at: event.timeStamp, id: event.pointerId }
+  if (!event.isPrimary || settling.value) return
+  const width = (event.currentTarget as HTMLElement).getBoundingClientRect().width
+  swipeFrom = {
+    x: event.clientX,
+    y: event.clientY,
+    at: event.timeStamp,
+    id: event.pointerId,
+    width,
+  }
   swipeDragging.value = false
 }
 
@@ -266,25 +309,35 @@ function onSwipeMove(event: PointerEvent) {
       /* указатель уже отпущен — жест доживёт и без захвата */
     }
   }
-  // На краю каталога листать некуда, и страница почти не поддаётся — это и есть
+  const dir = dx < 0 ? 1 : -1
+  const exists = dir > 0 ? page.value < pageCount.value - 1 : page.value > 0
+  dragDir.value = exists ? dir : 0
+  // На краю каталога подставлять нечего, и лента почти не поддаётся — это и есть
   // ответ «дальше ничего нет», понятный без подписи.
-  const blocked = (dx < 0 && page.value >= pageCount.value - 1) || (dx > 0 && page.value <= 0)
-  const pull = dx * (blocked ? 0.12 : SWIPE_PULL_RATIO)
-  swipeShift.value = Math.max(-SWIPE_PULL_MAX, Math.min(SWIPE_PULL_MAX, pull))
+  dragX.value = exists
+    ? dx
+    : Math.max(-SWIPE_EDGE_MAX, Math.min(SWIPE_EDGE_MAX, dx * SWIPE_EDGE_RATIO))
 }
 
 function onSwipeEnd(event: PointerEvent) {
   const from = swipeFrom
   const dragged = swipeDragging.value
-  cancelSwipe()
-  if (!from || event.pointerId !== from.id) return
-  const dx = event.clientX - from.x
-  const dy = event.clientY - from.y
-  // Вертикальное движение свайпом не считаем: это промах по карточке.
-  if (Math.abs(dx) <= Math.abs(dy)) return
-  const speed = Math.abs(dx) / Math.max(event.timeStamp - from.at, 1)
-  const flick = Math.abs(dx) >= SWIPE_FLICK_PX && speed >= SWIPE_FLICK_SPEED
-  if (Math.abs(dx) >= SWIPE_MIN_PX || flick) turnPage(dx < 0 ? 1 : -1, false)
+  const dir = dragDir.value
+  swipeFrom = null
+  swipeDragging.value = false
+  if (from && event.pointerId === from.id) {
+    const dx = event.clientX - from.x
+    const speed = Math.abs(dx) / Math.max(event.timeStamp - from.at, 1)
+    const flick = Math.abs(dx) >= SWIPE_FLICK_PX && speed >= SWIPE_FLICK_SPEED
+    const enough = Math.min(from.width * SWIPE_COMMIT_RATIO, SWIPE_COMMIT_MAX_PX)
+    const commit = dir !== 0 && (Math.abs(dx) >= enough || flick)
+    // Доезжаем в ту же сторону, куда вели: страница уже почти ушла, и возврат
+    // читался бы как отказ прибора листать.
+    dragX.value = commit ? -dir * from.width : 0
+  } else {
+    dragX.value = 0
+  }
+  settleLater()
   // Гасим выбор после любой протяжки, а не только после смены страницы: палец
   // отпущен над чужой карточкой, и её открытие выглядело бы промахом прибора.
   if (dragged) {
@@ -293,10 +346,25 @@ function onSwipeEnd(event: PointerEvent) {
   }
 }
 
+/**
+ * Лента доехала: страницу подменяем без перехода и обнуляем сдвиг в одном кадре.
+ * Соседняя уже стоит ровно там, где окажется новая текущая, поэтому подмены не
+ * видно.
+ */
+function settleLater() {
+  window.clearTimeout(settleTimer)
+  settleTimer = window.setTimeout(() => {
+    if (dragX.value !== 0 && dragDir.value !== 0) turnPage(dragDir.value, false)
+    dragX.value = 0
+    dragDir.value = 0
+  }, SETTLE_MS)
+}
+
 function cancelSwipe() {
   swipeFrom = null
   swipeDragging.value = false
-  swipeShift.value = 0
+  dragX.value = 0
+  settleLater()
 }
 
 function openCategory(category: Category) {
@@ -560,13 +628,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <div class="catalog-area">
           <div
             class="grid-slot"
-            :class="{ dragging: swipeDragging }"
-          :style="swipeShift ? { transform: `translateX(${swipeShift}px)` } : undefined"
-          @pointerdown="onSwipeStart"
-          @pointermove="onSwipeMove"
-          @pointerup="onSwipeEnd"
-          @pointercancel="cancelSwipe"
-        >
+            @pointerdown="onSwipeStart"
+            @pointermove="onSwipeMove"
+            @pointerup="onSwipeEnd"
+            @pointercancel="cancelSwipe"
+          >
           <!-- Без mode="out-in": уходящая и приходящая сетки лежат в одной ячейке и
                меняются внахлёст. Последовательный режим требует, чтобы уход
                обязательно завершился, и любая заминка оставила бы каталог пустым.
@@ -580,6 +646,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :categories="pagedCategories"
               :cols="cols"
               :rows="visibleRows"
+              :style="trackStyle"
               @open="openCategory"
             />
             <ProductGrid
@@ -590,9 +657,32 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :currency="currency"
               :cols="cols"
               :rows="visibleRows"
+              :style="trackStyle"
               @select="selectProduct"
             />
           </Transition>
+
+          <!-- Соседняя страница живёт только на время жеста: она стоит вплотную
+               к текущей и едет вместе с ней, поэтому листание видно целиком, а
+               не появляется готовым результатом. -->
+          <CategoryGrid
+            v-if="dragDir && showCategories"
+            class="neighbour"
+            :categories="categoriesOn(page + dragDir)"
+            :cols="cols"
+            :rows="visibleRows"
+            :style="neighbourStyle"
+          />
+          <ProductGrid
+            v-else-if="dragDir"
+            class="neighbour"
+            :products="productsOn(page + dragDir)"
+            :selected-id="selected?.id ?? null"
+            :currency="currency"
+            :cols="cols"
+            :rows="visibleRows"
+            :style="neighbourStyle"
+          />
           </div>
 
           <!-- Цифры выезжают справа поверх карточек: блок узкий, и поджимать ради
@@ -817,15 +907,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   /* Горизонтальный жест наш: иначе браузер забирает его под свою навигацию и
      присылает pointercancel посреди свайпа. */
   touch-action: pan-y;
-  /* Возврат страницы на место после недостаточного жеста — тоже ответ прибора:
-     видно, что касание заметили, но листать не стали. */
-  transition: transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
 }
 
-/* Под пальцем страница идёт без сглаживания: любая задержка читается как
-   залипание экрана. */
-.grid-slot.dragging {
-  transition: none;
+/* Соседняя страница ленты касаний не ловит: палец в этот момент ведёт ленту,
+   а не выбирает товар. */
+.neighbour {
+  pointer-events: none;
 }
 
 /* Обе сетки занимают одну и ту же ячейку: во время перехода они наложены,
