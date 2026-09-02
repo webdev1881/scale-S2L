@@ -15,7 +15,9 @@ function go(delta: number) {
 
 <template>
   <div class="pager">
-    <button class="nav" :disabled="page === 0" @click="go(-1)">‹</button>
+    <button class="nav" :disabled="page === 0" @click="go(-1)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+    </button>
 
     <div class="dots">
       <button
@@ -31,7 +33,9 @@ function go(delta: number) {
 
     <span class="counter">{{ t('kiosk.pageOf', { page: page + 1, pages }) }}</span>
 
-    <button class="nav" :disabled="page >= pages - 1" @click="go(1)">›</button>
+    <button class="nav" :disabled="page >= pages - 1" @click="go(1)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m9 5 7 7-7 7" /></svg>
+    </button>
   </div>
 </template>
 
@@ -42,26 +46,56 @@ function go(delta: number) {
   gap: 14px;
 }
 
+/* Стрелка нарисована контуром, а не типографским знаком: «‹» у каждого шрифта
+   свой и получается тонким и мелким, а тут толщина и размер заданы явно. */
 .nav {
-  /* Стрелки — основная навигация пальцем, поэтому крупные */
-  width: 84px;
-  height: 46px;
-  font-size: 26px;
-  line-height: 1;
-  color: var(--s2l-ink);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 96px;
+  height: 56px;
   background: var(--s2l-panel);
-  border: none;
-  border-radius: 12px;
+  border: 2px solid var(--s2l-line);
+  border-radius: 14px;
+  box-shadow: 0 2px 0 var(--s2l-line);
   cursor: pointer;
+  transition:
+    background 0.15s,
+    border-color 0.15s;
+}
+
+.nav svg {
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: var(--s2l-accent);
+  stroke-width: 3.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .nav:active:not(:disabled) {
-  background: var(--s2l-soft-active);
+  background: var(--s2l-accent);
+  border-color: var(--s2l-accent-dark);
+  box-shadow: none;
+  transform: translateY(2px);
 }
 
+.nav:active:not(:disabled) svg {
+  stroke: #fff;
+}
+
+/* Недоступная сторона не исчезает, а гаснет: покупателю видно, что страница
+   крайняя, а не что кнопка пропала. */
 .nav:disabled {
-  color: var(--s2l-disabled-ink);
+  background: transparent;
+  border-color: var(--s2l-disabled);
+  box-shadow: none;
   cursor: default;
+}
+
+.nav:disabled svg {
+  stroke: var(--s2l-disabled);
 }
 
 .dots {
@@ -72,8 +106,8 @@ function go(delta: number) {
 }
 
 .dot {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
   border: none;
   border-radius: 50%;
@@ -94,9 +128,10 @@ function go(delta: number) {
 }
 
 .counter {
-  min-width: 66px;
+  min-width: 72px;
   text-align: right;
-  font-size: 15px;
+  font-size: 17px;
+  font-weight: 600;
   font-variant-numeric: tabular-nums;
   color: var(--s2l-muted);
 }
