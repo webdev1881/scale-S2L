@@ -47,55 +47,49 @@ function go(delta: number) {
 }
 
 /* Стрелка нарисована контуром, а не типографским знаком: «‹» у каждого шрифта
-   свой и получается тонким и мелким, а тут толщина и размер заданы явно. */
+   свой и получается тонким и мелким, а тут толщина и размер заданы явно.
+   Кнопка — та же фигура, что «Усі групи»: обе перемещают покупателя по каталогу,
+   и выглядеть они должны одинаково. */
 .nav {
   display: flex;
   align-items: center;
   justify-content: center;
   width: 96px;
-  height: 56px;
-  background: var(--s2l-panel);
-  border: 2px solid var(--s2l-line);
+  min-height: 56px;
+  background: var(--s2l-accent);
+  border: none;
   border-radius: 14px;
-  box-shadow: 0 2px 0 var(--s2l-line);
+  box-shadow: 0 2px 0 var(--s2l-accent-dark);
   cursor: pointer;
-  transition:
-    background 0.15s,
-    border-color 0.15s;
+  transition: background 0.15s;
 }
 
 .nav svg {
   width: 30px;
   height: 30px;
   fill: none;
-  stroke: var(--s2l-accent);
+  stroke: #fff;
   stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;
 }
 
 .nav:active:not(:disabled) {
-  background: var(--s2l-accent);
-  border-color: var(--s2l-accent-dark);
+  background: var(--s2l-accent-dark);
   box-shadow: none;
   transform: translateY(2px);
-}
-
-.nav:active:not(:disabled) svg {
-  stroke: #fff;
 }
 
 /* Недоступная сторона не исчезает, а гаснет: покупателю видно, что страница
    крайняя, а не что кнопка пропала. */
 .nav:disabled {
-  background: transparent;
-  border-color: var(--s2l-disabled);
+  background: var(--s2l-disabled);
   box-shadow: none;
   cursor: default;
 }
 
 .nav:disabled svg {
-  stroke: var(--s2l-disabled);
+  stroke: var(--s2l-disabled-ink);
 }
 
 .dots {

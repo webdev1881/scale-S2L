@@ -38,7 +38,7 @@ const page = ref(0)
  * сдвигом в сторону движения. Направление берётся из самой смены состояния,
  * а не из обработчиков: страницу листают и пейджером, и свайпом, и поиском.
  */
-const gridAnim = ref<'dive' | 'rise' | 'page-next' | 'page-prev'>('dive')
+const gridAnim = ref<'dive' | 'rise' | 'page-next' | 'page-prev' | 'none'>('dive')
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -208,9 +208,18 @@ async function refreshSettings() {
   }
 }
 
-function turnPage(delta: number) {
+/**
+ * Смена страницы. Свайп листает без перехода: страница уже съездила за пальцем,
+ * и добавленный поверх сдвиг читается как второе, чужое движение. Переход
+ * остаётся кнопкам пейджера — там движение единственное и оно объясняет, куда
+ * ушла страница.
+ */
+let pageTurnSilent = false
+
+function turnPage(delta: number, animated = true) {
   const next = page.value + delta
   if (next < 0 || next >= pageCount.value) return false
+  pageTurnSilent = !animated
   page.value = next
   return true
 }
@@ -275,7 +284,7 @@ function onSwipeEnd(event: PointerEvent) {
   if (Math.abs(dx) <= Math.abs(dy)) return
   const speed = Math.abs(dx) / Math.max(event.timeStamp - from.at, 1)
   const flick = Math.abs(dx) >= SWIPE_FLICK_PX && speed >= SWIPE_FLICK_SPEED
-  if (Math.abs(dx) >= SWIPE_MIN_PX || flick) turnPage(dx < 0 ? 1 : -1)
+  if (Math.abs(dx) >= SWIPE_MIN_PX || flick) turnPage(dx < 0 ? 1 : -1, false)
   // Гасим выбор после любой протяжки, а не только после смены страницы: палец
   // отпущен над чужой карточкой, и её открытие выглядело бы промахом прибора.
   if (dragged) {
@@ -458,7 +467,10 @@ watch([search, openedCategory, selected], bumpIdle)
 // на нулевую, и без этого условия переход читался бы как листание назад.
 watch([showCategories, page], ([toGroups, next], [wasGroups, prev]) => {
   if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
+  // Имя без единого CSS-правила: Vue не находит перехода и меняет страницу сразу.
+  else if (pageTurnSilent) gridAnim.value = 'none'
   else gridAnim.value = next > prev ? 'page-next' : 'page-prev'
+  pageTurnSilent = false
 })
 
 // Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
