@@ -796,41 +796,50 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
         <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
 
+        <!-- Футер собран теми же плитками, что и шапка: сумма слева, выбранный
+             товар посередине, действие справа — под большой палец. -->
         <footer class="bottom">
-        <div class="pick">
-          <template v-if="selected">
-            <div class="pick-name">{{ selected.name }}</div>
-            <div class="pick-meta">
-              {{ formatMoney(selected.price) }} {{ currency }}/{{
-                selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-              }}
-              <template v-if="selected.unit === 'weight'">
-                · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
-              </template>
-              <template v-if="selected.tare_g">
-                · {{ t('kiosk.tare') }} {{ selected.tare_g }} г
-              </template>
-            </div>
-          </template>
-          <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
-        </div>
+          <div class="tile sum" :class="{ empty: !selected }">
+            <span class="sum-label">{{ t('kiosk.total') }}</span>
+            <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
+          </div>
 
-        <div class="sum">
-          <span class="sum-label">{{ t('kiosk.total') }}</span>
-          <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
-        </div>
+          <div class="tile pick">
+            <template v-if="selected">
+              <div class="pick-name">{{ selected.name }}</div>
+              <div class="pick-meta">
+                {{ formatMoney(selected.price) }} {{ currency }}/{{
+                  selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+                }}
+                <template v-if="selected.unit === 'weight'">
+                  · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
+                </template>
+                <template v-if="selected.tare_g">
+                  · {{ t('kiosk.tare') }} {{ selected.tare_g }} г
+                </template>
+              </div>
+            </template>
+            <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
+          </div>
 
           <!-- Пока товар не выбран, кнопка печати всё равно ничего не делает, а
                подпись «Оберіть товар» только сообщает об этом. Вместо мёртвой
-               подписи стоит кнопка поиска: это и есть следующий шаг покупателя. -->
-          <button v-if="!selected" class="print search-cta" @click="openSearch">
+               подписи стоит кнопка поиска: это и есть следующий шаг покупателя,
+               то есть главное действие экрана — и красится оно акцентом, как
+               печать, которая займёт то же место. -->
+          <button v-if="!selected" class="tile action search-cta" @click="openSearch">
             <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M16.5 16.5 21 21" />
             </svg>
-            {{ t('kiosk.searchCta') }}
+            <span>{{ t('kiosk.searchCta') }}</span>
           </button>
-          <button v-else class="print" :disabled="!!printBlockReason || printing" @click="print">
+          <button
+            v-else
+            class="tile action"
+            :disabled="!!printBlockReason || printing"
+            @click="print"
+          >
             <template v-if="printing">{{ t('kiosk.printing') }}</template>
             <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
             <template v-else>{{ t('kiosk.print') }}</template>
@@ -1183,17 +1192,108 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-soft-active);
 }
 
-.search-cta {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 14px;
-  color: var(--ui-plate-ink, #f4f7fb);
-  background: var(--ui-plate-bg, #1d2129);
+/* Футер — такой же ряд плиток, что и шапка: один радиус, одни отступы, одна
+   высота. Порядок читается слева направо: сколько платить, за что, что дальше. */
+.bottom {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
+  background: var(--s2l-panel);
+  border-radius: var(--s2l-radius);
 }
 
-.search-cta:active {
-  opacity: 0.85;
+.bottom .tile {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 2px;
+  min-width: 0;
+  /* Отступы скромнее, чем в шапке: шапка и футер вдвоём и так забирают у
+     карточек больше трети экрана прибора. */
+  padding: 8px 16px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+}
+
+/* Сумма стоит первой и обведена акцентом: это число покупатель уносит с собой.
+   Заливка акцентом уже занята кнопкой действия — двух заливок ряд не выдержит.
+   Селектор с `.bottom`: иначе общее правило плитки, у которого вес выше,
+   перекрашивает рамку обратно в прозрачную. */
+.bottom .sum {
+  background: var(--s2l-panel);
+  border-color: var(--s2l-accent);
+}
+
+.bottom .sum.empty {
+  background: var(--s2l-soft);
+  border-color: transparent;
+}
+
+.sum-label {
+  font-size: calc(16px * var(--ui-footer, 1));
+  color: var(--s2l-muted);
+}
+
+.sum-value {
+  font-size: calc(36px * var(--ui-footer, 1));
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  color: var(--s2l-accent);
+  white-space: nowrap;
+}
+
+.sum.empty .sum-value {
+  color: var(--s2l-muted);
+}
+
+.pick {
+  background: var(--s2l-soft);
+}
+
+.pick-name {
+  font-size: calc(22px * var(--ui-footer, 1));
+  font-weight: 600;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.pick-meta,
+.pick-empty {
+  font-size: calc(17px * var(--ui-footer, 1));
+  color: var(--s2l-muted);
+}
+
+/* Единственное действие экрана — печать или, пока товар не выбран, поиск.
+   Оно всегда справа, под большой палец, и всегда акцентное. */
+.action {
+  align-items: center;
+  flex-direction: row;
+  justify-content: center;
+  gap: 14px;
+  min-width: 330px;
+  padding: 0 26px;
+  font-size: calc(24px * var(--ui-footer, 1));
+  font-weight: 700;
+  color: #fff;
+  background: var(--s2l-accent);
+  box-shadow: 0 3px 0 var(--s2l-accent-dark);
+  cursor: pointer;
+}
+
+.action:active:not(:disabled) {
+  background: var(--s2l-accent-dark);
+  box-shadow: none;
+  transform: translateY(3px);
+}
+
+.action:disabled {
+  background: var(--s2l-disabled);
+  box-shadow: none;
+  cursor: default;
 }
 
 .cta-icon {
