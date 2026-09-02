@@ -678,6 +678,19 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :class="{ on: showNumpad }"
               @click="showNumpad ? cancelNumpad() : openNumpad()"
             >
+              <!-- Клавиши цифрового блока прямо на кнопке: она открывает именно их,
+                   и с расстояния фигура читается раньше надписи. -->
+              <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="6" cy="6" r="1.8" />
+                <circle cx="12" cy="6" r="1.8" />
+                <circle cx="18" cy="6" r="1.8" />
+                <circle cx="6" cy="12" r="1.8" />
+                <circle cx="12" cy="12" r="1.8" />
+                <circle cx="18" cy="12" r="1.8" />
+                <circle cx="6" cy="18" r="1.8" />
+                <circle cx="12" cy="18" r="1.8" />
+                <circle cx="18" cy="18" r="1.8" />
+              </svg>
               {{ t('kiosk.byCode') }}
             </button>
           </div>
@@ -1169,21 +1182,40 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-soft-active);
 }
 
+/* Второй вход в поиск после поля — и выглядит как вход, а не как служебная
+   белая кнопка: та же заливка, что у «ПОШУК товару» внизу, та же посадка на
+   тень, что у «Усі групи» рядом. Цвет — из настроек, вместе с плашкой карточек. */
 .toggle {
+  display: flex;
   flex: none;
-  padding: 0 20px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 0 22px;
   height: 64px;
   font-size: 19px;
   font-weight: 700;
+  color: var(--ui-plate-ink, #f4f7fb);
+  background: var(--ui-plate-bg, #1d2129);
   border: none;
-  border-radius: 12px;
-  background: var(--s2l-panel);
+  border-radius: 14px;
+  box-shadow: 0 2px 0 rgb(0 0 0 / 25%);
   cursor: pointer;
 }
 
-.toggle.on {
-  background: var(--s2l-accent);
-  color: #fff;
+.toggle-icon {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  fill: currentcolor;
+}
+
+/* Пока блок цифр открыт, кнопка стоит вдавленной: панель на экране и так видна,
+   а смена цвета на произвольной заливке из настроек читалась бы хуже. */
+.toggle.on,
+.toggle:active {
+  box-shadow: none;
+  transform: translateY(2px);
 }
 
 .bottom {
