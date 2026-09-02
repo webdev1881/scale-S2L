@@ -12,6 +12,8 @@ const props = defineProps<{
   currency: string
   cols: number
   rows: number
+  /** Набор идёт прямо сейчас: карточки не переставляются, а просто проявляются. */
+  calm?: boolean
 }>()
 defineEmits<{ select: [product: Product] }>()
 </script>
@@ -21,6 +23,7 @@ defineEmits<{ select: [product: Product] }>()
     tag="div"
     name="card"
     class="grid"
+    :class="{ calm: props.calm }"
     :style="{ '--cols': props.cols, '--rows': props.rows }"
   >
     <button
@@ -226,6 +229,36 @@ defineEmits<{ select: [product: Product] }>()
 
 .card-move {
   transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Пока набирают код или название, список пересобирается на каждой цифре.
+   Перестановка соседей тут не помогает, а мешает: карточки не успевают доехать
+   до новых мест и на следующем нажатии едут заново — особенно заметно, когда их
+   осталось мало и ехать далеко. Поэтому в наборе карточки не двигаются вовсе,
+   а новые просто проявляются.
+
+   Отсутствие перехода у `.card-move` — это не украшение: Vue проверяет, есть ли
+   у класса перестановки переход, и без него пропускает всю перестановку целиком,
+   не трогая позиции. */
+.grid.calm .card-move,
+.grid.calm .card-leave-active {
+  transition: none;
+}
+
+/* Уходящая карточка не должна прожить и кадра: иначе оставшиеся встают на места
+   вокруг неё, а через кадр перескакивают. */
+.grid.calm .card-leave-active {
+  display: none;
+}
+
+.grid.calm .card-enter-active {
+  transition: opacity 0.12s ease;
+  transition-delay: 0s;
+}
+
+.grid.calm .card-enter-from {
+  opacity: 0;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

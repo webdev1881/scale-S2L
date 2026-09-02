@@ -751,6 +751,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :currency="currency"
                 :cols="cols"
                 :rows="visibleRows"
+                :calm="searching"
                 @select="selectProduct"
               />
             </Transition>
