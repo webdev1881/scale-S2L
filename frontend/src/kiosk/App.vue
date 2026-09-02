@@ -647,9 +647,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
              заголовка дешевле, чем ряд карточек, сжатый до полоски. -->
         <div class="head-row">
           <div class="catalog-head">
-            <button v-if="!showCategories" class="back" @click="backToCategories">
-              <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
-            </button>
             <h1 v-if="catalogTitle" class="catalog-title">{{ catalogTitle }}</h1>
           </div>
 
@@ -670,12 +667,18 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               />
               <button v-if="search" class="clear" @click="search = ''">×</button>
             </div>
+            <!-- Возврат стоит между поиском и набором кода: все три кнопки про одно
+                 и то же — как покупатель ищет товар. Стрелка не нужна, надпись и
+                 так говорит, куда ведёт. -->
+            <button v-if="!showCategories" class="back" @click="backToCategories">
+              {{ t('kiosk.allGroups') }}
+            </button>
             <button
               class="toggle"
               :class="{ on: showNumpad }"
               @click="showNumpad ? cancelNumpad() : openNumpad()"
             >
-              123
+              {{ t('kiosk.byCode') }}
             </button>
           </div>
         </div>
@@ -919,13 +922,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 /* Возврат — основной путь назад, поэтому он окрашен акцентом, а не выглядит
-   вспомогательной серой кнопкой рядом с крупным заголовком */
+   вспомогательной серой кнопкой. Ростом он в строку поиска, рядом с которой стоит. */
 .back {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 12px;
-  min-height: 56px;
+  height: 64px;
   padding: 0 26px;
   font-size: 20px;
   font-weight: 700;
@@ -941,11 +943,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-accent-dark);
   box-shadow: none;
   transform: translateY(2px);
-}
-
-.arrow {
-  font-size: 26px;
-  line-height: 1;
 }
 
 .dot {
@@ -1173,7 +1170,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .toggle {
-  width: 72px;
+  flex: none;
+  padding: 0 20px;
   height: 64px;
   font-size: 19px;
   font-weight: 700;
