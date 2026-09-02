@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage } from 'element-plus'
-import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
@@ -329,6 +329,16 @@ function openKeyboard() {
   showNumpad.value = false
 }
 
+/**
+ * Кнопка поиска в нижней панели: клавиатура и фокус в поле — один жест.
+ * Фокус ставим после отрисовки, иначе он приходит в поле, которое ещё не
+ * встало на своё место рядом с заголовком.
+ */
+function openSearch() {
+  openKeyboard()
+  void nextTick(() => searchInput.value?.focus())
+}
+
 /** Набор завершён осознанно — результаты остаются на экране. */
 function closeKeyboard() {
   keyboardOpen.value = false
@@ -351,8 +361,14 @@ function onPointerDown(event: PointerEvent) {
   const target = event.target as HTMLElement | null
   if (!target) return
   if (target.closest('.keyboard') || target.closest('.search-field')) return
-  // Касание самих результатов — это продолжение поиска, а не отказ от него.
-  if (target.closest('.catalog')) return closeKeyboard()
+  // Кнопка поиска — часть набора, а не касание мимо: иначе повторное нажатие
+  // сначала отменяло бы поиск, а потом открывало его заново.
+  if (target.closest('.search-cta')) return
+  // Касание самих результатов и пейджера — продолжение поиска, а не отказ от
+  // него: клавиатура уходит, набранное остаётся. Класс сетки здесь обязан
+  // совпадать с разметкой — с исчезнувшим `.catalog` касание карточки откатывало
+  // экран к состоянию до набора, и палец попадал уже по другому товару.
+  if (target.closest('.grid-slot') || target.closest('.pager')) return closeKeyboard()
   cancelKeyboard()
 }
 
@@ -369,6 +385,9 @@ function findByPlu() {
   page.value = 0
   selectProduct(found)
   pluInput.value = ''
+  // Код набран, товар найден — блок цифр больше не нужен и только закрывает
+  // собой итоговую панель, ради которой покупатель его и набирал.
+  showNumpad.value = false
 }
 
 async function print() {
@@ -480,14 +499,18 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <!-- Возврат живёт рядом с заголовком выбора: обе подписи
              про одно и то же — где покупатель находится. Строка сохраняет высоту
              и на верхнем уровне, иначе карточки меняли бы размер между экранами. -->
-        <div class="catalog-head">
-          <button v-if="!showCategories" class="back" @click="backToCategories">
-            <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
-          </button>
-          <h1 v-if="catalogTitle" class="catalog-title">{{ catalogTitle }}</h1>
-        </div>
+        <!-- Голова каталога и поиск живут в одной обёртке: при выехавшей
+             клавиатуре они встают в строку, и ряд карточек получает обратно
+             высоту, которую забрал бы пустой заголовок. -->
+        <div class="head-row">
+          <div class="catalog-head">
+            <button v-if="!showCategories" class="back" @click="backToCategories">
+              <span class="arrow">←</span> {{ t('kiosk.allGroups') }}
+            </button>
+            <h1 v-if="catalogTitle" class="catalog-title">{{ catalogTitle }}</h1>
+          </div>
 
-        <div class="search-row">
+          <div class="search-row">
             <div class="search-field" :class="{ focused: keyboardOpen }">
               <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
@@ -512,6 +535,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               123
             </button>
           </div>
+        </div>
 
         <div
           class="grid-slot"
@@ -576,7 +600,17 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
         </div>
 
-          <button class="print" :disabled="!!printBlockReason || printing" @click="print">
+          <!-- Пока товар не выбран, кнопка печати всё равно ничего не делает, а
+               подпись «Оберіть товар» только сообщает об этом. Вместо мёртвой
+               подписи стоит кнопка поиска: это и есть следующий шаг покупателя. -->
+          <button v-if="!selected" class="print search-cta" @click="openSearch">
+            <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
+              <circle cx="11" cy="11" r="7" />
+              <path d="M16.5 16.5 21 21" />
+            </svg>
+            {{ t('kiosk.searchCta') }}
+          </button>
+          <button v-else class="print" :disabled="!!printBlockReason || printing" @click="print">
             <template v-if="printing">{{ t('kiosk.printing') }}</template>
             <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
             <template v-else>{{ t('kiosk.print') }}</template>
@@ -643,8 +677,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .main {
   position: relative;
   display: grid;
-  /* возврат с заголовком / поиск / сетка / пагинация / итог */
-  grid-template-rows: auto auto 1fr auto auto;
+  /* голова с поиском / сетка / пагинация / итог */
+  grid-template-rows: auto 1fr auto auto;
   gap: 10px;
   min-height: 0;
   /* Клавиатура выезжает внутри этой колонки и поджимает только её */
@@ -655,9 +689,33 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding-bottom: var(--s2l-kb-height);
 }
 
+.head-row {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+
+/* При выехавшей клавиатуре заголовок и поиск встают в одну строку: слева от
+   заголовка всё равно пусто, а ряду карточек эта высота нужнее — сжатая до
+   полоски карточка не читается. */
+.main.kb-open .head-row {
+  grid-template-columns: auto minmax(340px, 1fr);
+  align-items: center;
+  gap: 14px;
+}
+
+/* Итоговая панель на время набора уходит: выбранного товара в этот момент нет,
+   а её 114 px — разница между читаемой карточкой и полоской. Одной перестановки
+   заголовка на 1366x768 не хватает: клавиатура и панель вдвоём не оставляют
+   ряду ничего. */
+.main.kb-open .bottom {
+  display: none;
+}
+
 /* Строка сохраняет высоту и при пустом содержимом: иначе карточки меняли бы
    размер при переходе между уровнями каталога */
 .catalog-head {
+  min-width: 0;
   display: flex;
   align-items: center;
   gap: 14px;
@@ -966,6 +1024,31 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .print:disabled {
   background: var(--s2l-disabled);
   cursor: default;
+}
+
+/* Поиск — не печать, поэтому и не зелёный: тёмная плашка отличает действие от
+   единственной зелёной кнопки экрана, но остаётся такой же крупной целью. */
+.search-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  color: var(--s2l-panel);
+  background: var(--s2l-ink);
+}
+
+.search-cta:active {
+  opacity: 0.85;
+}
+
+.cta-icon {
+  flex: none;
+  width: 30px;
+  height: 30px;
+  fill: none;
+  stroke: currentcolor;
+  stroke-width: 2.4;
+  stroke-linecap: round;
 }
 
 .label-img {

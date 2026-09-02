@@ -19,6 +19,7 @@ const messages = {
     kiosk: {
       connected: 'Ваги підключено',
       disconnected: 'Немає зв’язку',
+      searchCta: 'ПОШУК товару',
       searchPlaceholder: 'Натисніть щоб знайти товар за Назвою або Кодом',
       code: 'Код',
       allCategories: 'Усі',
@@ -219,6 +220,7 @@ const messages = {
     kiosk: {
       connected: 'Весы подключены',
       disconnected: 'Нет связи',
+      searchCta: 'ПОИСК товара',
       searchPlaceholder: 'Найдите товар по названию или коду',
       code: 'Код',
       allCategories: 'Все',
