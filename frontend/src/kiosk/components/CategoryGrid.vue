@@ -61,7 +61,9 @@ defineEmits<{ open: [category: Category] }>()
   overflow: hidden;
   text-align: left;
   background: var(--s2l-panel);
-  border: 2px solid var(--s2l-line);
+  /* Рамка того же цвета, что и плашка с названием: карточка читается как одна
+     фигура и обводится тем же цветом, который выбран в админке. */
+  border: 1px solid var(--ui-plate-bg, #1d2129);
   border-radius: var(--s2l-radius);
   cursor: pointer;
   transition: border-color 0.15s;

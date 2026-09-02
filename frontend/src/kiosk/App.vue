@@ -1026,15 +1026,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   cursor: default;
 }
 
-/* Поиск — не печать, поэтому и не зелёный: тёмная плашка отличает действие от
-   единственной зелёной кнопки экрана, но остаётся такой же крупной целью. */
+/* Поиск — не печать, поэтому и не зелёный: заливка та же, что у плашки с
+   названием и рамки карточек, — кнопка принадлежит каталогу, а не действию
+   печати, и следует за цветом, выбранным в админке. */
 .search-cta {
   display: flex;
   align-items: center;
   justify-content: center;
   gap: 14px;
-  color: var(--s2l-panel);
-  background: var(--s2l-ink);
+  color: var(--ui-plate-ink, #f4f7fb);
+  background: var(--ui-plate-bg, #1d2129);
 }
 
 .search-cta:active {

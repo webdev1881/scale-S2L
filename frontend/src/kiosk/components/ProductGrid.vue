@@ -81,8 +81,9 @@ defineEmits<{ select: [product: Product] }>()
   text-align: left;
   background: var(--s2l-panel);
   /* Рамка есть всегда: у выбранной карточки она лишь меняет цвет, поэтому
-     соседние карточки не сдвигаются в момент выбора. */
-  border: 3px solid var(--s2l-line);
+     соседние карточки не сдвигаются в момент выбора. Цвет — тот же, что у плашки
+     с названием: карточка читается как одна фигура. */
+  border: 1px solid var(--ui-plate-bg, #1d2129);
   border-radius: var(--s2l-radius);
   cursor: pointer;
   transition: border-color 0.15s;
