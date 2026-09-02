@@ -25,17 +25,20 @@ const leaving = ref(false)
 const TEXT = 'SMK'
 
 // Длительность задаётся в настройках прибора, поэтому фазы не константы, а доли
-// от общего времени: влёт, переход от зерна к шрифту и удержание с переливом.
-const FLY_SHARE = 0.61
-const CRISP_SHARE = 0.16
+// от общего времени: влёт и удержание с переливом.
+const FLY_SHARE = 0.66
 const FADE_MS = 300
 const MIN_ANIMATION_MS = 600
 
+// Доля влёта, на которой начинает проявляться шрифт. Переход намеренно перекрывает
+// хвост влёта и заканчивается ровно в момент посадки последних частиц: если ждать
+// полной сборки, зритель успевает увидеть готовую надпись из квадратов, и она
+// читается как низкое разрешение экрана.
+const CRISP_FROM = 0.72
+
 function phases(durationMs: number) {
   const animation = Math.max(durationMs - FADE_MS, MIN_ANIMATION_MS)
-  const fly = animation * FLY_SHARE
-  const crisp = animation * CRISP_SHARE
-  return { fly, crisp, total: animation }
+  return { fly: animation * FLY_SHARE, total: animation }
 }
 
 const MAX_PARTICLES = 26000
@@ -274,10 +277,13 @@ function run() {
     // Длительность пересчитывается каждый кадр: настройки приезжают уже после
     // старта заставки, и без этого смена значения применялась бы только со
     // следующего включения — со стороны это выглядит как «не работает».
-    const { fly: FLY_MS, crisp: CRISP_MS, total } = phases(props.durationMs)
+    const { fly: FLY_MS, total } = phases(props.durationMs)
     if (props.durationMs <= 0) return finish()
     const flyPhase = Math.min(elapsed / FLY_MS, 1)
-    const crisp = Math.min(Math.max((elapsed - FLY_MS) / CRISP_MS, 0), 1)
+    // Квадрат вместо линейности: пока частицы ещё заметно летят, шрифт держится
+    // почти прозрачным и забирает кадр на последних мгновениях сборки.
+    const crispRaw = Math.min(Math.max((flyPhase - CRISP_FROM) / (1 - CRISP_FROM), 0), 1)
+    const crisp = crispRaw * crispRaw
     const phase = (elapsed / SHIMMER_MS) * RAMP_STEPS
 
     view.clearRect(0, 0, width, height)
