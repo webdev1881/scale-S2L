@@ -68,12 +68,8 @@ defineEmits<{ open: [category: Category] }>()
 }
 
 .photo {
-  /* Доля высоты карточки под фото — желаемая, а не жёсткая: при обычных размерах
-     подписи выполняется точно, а при увеличенном шрифте фото уступает место,
-     иначе подпись не помещается в плашку и наезжает на фотографию */
+  /* Фото занимает заданную долю высоты, плашка забирает весь остаток */
   flex: 0 1 calc(var(--ui-photo-group, 60) * 1%);
-  /* Фотография не исчезает совсем даже при очень крупной подписи */
-  min-height: 34%;
   min-height: 0;
   background: var(--s2l-soft);
 }
@@ -87,20 +83,34 @@ defineEmits<{ open: [category: Category] }>()
 
 .body {
   display: flex;
-  /* Подпись занимает столько, сколько нужно её содержимому, но не больше двух
-     третей карточки: иначе при крупном шрифте от фотографии не остаётся ничего */
-  flex: none;
-  max-height: 66%;
+  /* Плашка занимает всю текстовую часть карточки, а не только строку под текстом:
+     подпись читается как отдельная панель, а не как надпись на белом поле.
+     Ширина и цвет — из настроек прибора, цвет текста выводится из яркости заливки. */
+  flex: 1;
+  /* Плашка не может стать тоньше одной строки подписи: доля высоты под фото —
+     желаемая, но нечитаемая подпись делает карточку бесполезной, поэтому здесь
+     фотография уступает. */
+  min-height: calc(26px * var(--ui-group-title, 1) * 1.3 + 18px);
   overflow: hidden;
-  flex-direction: column;
-  gap: 2px;
-  padding: 10px 12px 12px;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  width: calc(var(--ui-plate-width, 100) * 1%);
+  margin: 0 auto;
+  padding: 8px 12px;
+  background: var(--ui-plate-bg, #1d2129);
+  color: var(--ui-plate-ink, #f4f7fb);
 }
 
 .name {
   font-size: calc(26px * var(--ui-group-title, 1));
   font-weight: 700;
   line-height: 1.2;
+  text-align: center;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .empty {

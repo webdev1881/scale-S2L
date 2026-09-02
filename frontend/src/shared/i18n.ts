@@ -194,6 +194,9 @@ const messages = {
         scaleProductPrice: 'Ціна товару',
         scaleProductCode: 'Код товару',
         photoProduct: 'Фото товару, % висоти',
+        plateWidth: 'Ширина плашки з назвою, %',
+        plateColor: 'Колір плашки з назвою',
+        plateHint: 'Колір тексту підбирається за яскравістю плашки автоматично.',
         scaleFooter: 'Нижня панель',
         grid: 'Сітка каталогу (стовпців × рядків)',
         gridHint:
@@ -389,6 +392,9 @@ const messages = {
         scaleProductPrice: 'Цена товара',
         scaleProductCode: 'Код товара',
         photoProduct: 'Фото товара, % высоты',
+        plateWidth: 'Ширина плашки с названием, %',
+        plateColor: 'Цвет плашки с названием',
+        plateHint: 'Цвет текста подбирается по яркости плашки автоматически.',
         scaleFooter: 'Нижняя панель',
         grid: 'Сетка каталога (столбцов × строк)',
         gridHint:

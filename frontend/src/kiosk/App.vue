@@ -57,16 +57,38 @@ const currency = computed(() => settings.value?.currency ?? '₴')
  * считает размеры от них, а значения приходят из настроек прибора. Без этого
  * каждый размер пришлось бы пробрасывать пропом до каждой карточки.
  */
-const uiScales = computed<Record<string, string>>(() => ({
+/**
+ * Цвет текста на плашке не настраивается, а выводится из её яркости: иначе
+ * достаточно одного неудачного выбора, чтобы подпись пропала на заливке.
+ */
+function plateInk(hex: string): { ink: string; accent: string } {
+  const value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#1d2129'
+  const r = parseInt(value.slice(1, 3), 16)
+  const g = parseInt(value.slice(3, 5), 16)
+  const b = parseInt(value.slice(5, 7), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6
+    ? { ink: '#1d2129', accent: '#1f7a4d' }
+    : { ink: '#f4f7fb', accent: '#4fc98a' }
+}
+
+const uiScales = computed<Record<string, string>>(() => {
+  const plate = plateInk(settings.value?.ui_plate_color ?? '#1d2129')
+  return {
   '--ui-weight': String(settings.value?.ui_scale_weight ?? 1),
   '--ui-group-title': String(settings.value?.ui_scale_group_title ?? 1),
   '--ui-name': String(settings.value?.ui_scale_product_name ?? 1),
   '--ui-price': String(settings.value?.ui_scale_product_price ?? 1),
   '--ui-code': String(settings.value?.ui_scale_product_code ?? 1),
   '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
-  '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
-  '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
-}))
+    '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
+    '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
+    '--ui-plate-width': String(settings.value?.ui_plate_width ?? 100),
+    '--ui-plate-bg': settings.value?.ui_plate_color ?? '#1d2129',
+    '--ui-plate-ink': plate.ink,
+    '--ui-plate-accent': plate.accent,
+  }
+})
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 

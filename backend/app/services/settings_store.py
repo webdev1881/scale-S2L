@@ -51,6 +51,11 @@ class DeviceSettings(BaseModel):
     ui_scale_footer: float = Field(default=1.0, ge=0.7, le=2.0)
     ui_photo_group: int = Field(default=60, ge=30, le=85)
     ui_photo_product: int = Field(default=60, ge=30, le=85)
+    # Плашка с наименованием: доля ширины карточки и цвет заливки. Цвет текста
+    # не настраивается — он выбирается по яркости плашки, иначе легко получить
+    # светлую подпись на светлой заливке.
+    ui_plate_width: int = Field(default=100, ge=50, le=100)
+    ui_plate_color: str = Field(default="#1d2129", pattern="^#[0-9a-fA-F]{6}$")
     # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
     # поэтому вынесено в настройки, а не зашито в вёрстку.
     # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка

@@ -83,6 +83,8 @@ export interface DeviceSettings {
   ui_scale_footer: number
   ui_photo_group: number
   ui_photo_product: number
+  ui_plate_width: number
+  ui_plate_color: string
   grid_cols: number
   grid_rows: number
 }

@@ -104,12 +104,8 @@ defineEmits<{ select: [product: Product] }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Доля высоты карточки под фото — желаемая, а не жёсткая: при обычных размерах
-     подписи выполняется точно, а при увеличенном шрифте фото уступает место,
-     иначе подпись не помещается в плашку и наезжает на фотографию */
+  /* Фото занимает заданную долю высоты, плашка забирает весь остаток */
   flex: 0 1 calc(var(--ui-photo-product, 60) * 1%);
-  /* Фотография не исчезает совсем даже при очень крупной подписи */
-  min-height: 34%;
   min-height: 0;
   background: var(--s2l-soft);
 }
@@ -140,18 +136,23 @@ defineEmits<{ select: [product: Product] }>()
 
 .body {
   display: flex;
-  /* Подпись занимает столько, сколько нужно её содержимому, но не больше двух
-     третей карточки: иначе при крупном шрифте от фотографии не остаётся ничего */
-  flex: none;
-  max-height: 66%;
+  /* Плашка занимает всю текстовую часть карточки, а не только строку под текстом:
+     подпись читается как отдельная панель, а не как надпись на белом поле.
+     Ширина и цвет — из настроек прибора, цвет текста выводится из яркости заливки. */
+  flex: 1;
+  /* Плашка не может стать тоньше одной строки подписи: доля высоты под фото —
+     желаемая, но нечитаемая подпись делает карточку бесполезной, поэтому здесь
+     фотография уступает. */
+  min-height: calc(19px * var(--ui-name, 1) * 1.3 + 18px);
   overflow: hidden;
-  /* По центру по вертикали: подпись занимает плашку целиком и не липнет к краю */
   align-items: center;
   justify-content: space-between;
   gap: 10px;
+  width: calc(var(--ui-plate-width, 100) * 1%);
+  margin: 0 auto;
   padding: 8px 12px;
-  background: var(--s2l-card-plate);
-  color: var(--s2l-card-plate-ink);
+  background: var(--ui-plate-bg, #1d2129);
+  color: var(--ui-plate-ink, #f4f7fb);
 }
 
 /* Обрезка по строкам живёт на вложенном элементе: у flex-элемента браузер
@@ -177,7 +178,7 @@ defineEmits<{ select: [product: Product] }>()
   flex: none;
   font-size: calc(19px * var(--ui-price, 1));
   font-weight: 700;
-  color: var(--s2l-card-plate-accent);
+  color: var(--ui-plate-accent, #4fc98a);
   white-space: nowrap;
 }
 
