@@ -1296,6 +1296,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   cursor: default;
 }
 
+/* Поиск шире печати на 300 px: пока товар не выбран, это единственное, что
+   покупателю нужно нажать, и промахнуться по нему нельзя. */
+.bottom .search-cta {
+  min-width: 630px;
+}
+
 .cta-icon {
   flex: none;
   width: 30px;
