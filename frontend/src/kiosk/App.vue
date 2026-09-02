@@ -33,8 +33,12 @@ const settings = ref<DeviceSettings | null>(null)
 const search = ref('')
 const openedCategory = ref<Category | null>(null)
 const page = ref(0)
-/** Куда «едет» сетка при смене уровня: внутрь группы или обратно к списку. */
-const levelAnim = ref<'dive' | 'rise'>('dive')
+/**
+ * Как меняется сетка: провал в группу и возврат — приближением, листание —
+ * сдвигом в сторону движения. Направление берётся из самой смены состояния,
+ * а не из обработчиков: страницу листают и пейджером, и свайпом, и поиском.
+ */
+const gridAnim = ref<'dive' | 'rise' | 'page-next' | 'page-prev'>('dive')
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -382,9 +386,12 @@ onUnmounted(() => {
 
 watch([search, openedCategory, selected], bumpIdle)
 
-// Направление берём из самой смены уровня, а не из обработчиков: провалиться
-// в группу можно и кнопкой, и поиском, и набором кода.
-watch(showCategories, (toGroups) => (levelAnim.value = toGroups ? 'rise' : 'dive'))
+// Смена уровня старше листания: при провале в группу страница тоже сбрасывается
+// на нулевую, и без этого условия переход читался бы как листание назад.
+watch([showCategories, page], ([toGroups, next], [wasGroups, prev]) => {
+  if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
+  else gridAnim.value = next > prev ? 'page-next' : 'page-prev'
+})
 
 // Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
 watch([search, pageSize], () => (page.value = 0))
@@ -465,11 +472,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         >
           <!-- Без mode="out-in": уходящая и приходящая сетки лежат в одной ячейке и
                меняются внахлёст. Последовательный режим требует, чтобы уход
-               обязательно завершился, и любая заминка оставила бы каталог пустым. -->
-          <Transition :name="levelAnim">
+               обязательно завершился, и любая заминка оставила бы каталог пустым.
+               Номер страницы входит в ключ: страница уезжает целиком, а не
+               карточка за карточкой. Иначе на время перехода в сетке оказывается
+               вдвое больше карточек, ряды пересобираются и кадр дёргается. -->
+          <Transition :name="gridAnim">
             <CategoryGrid
               v-if="showCategories"
-              key="groups"
+              :key="`groups:${page}`"
               :categories="pagedCategories"
               :cols="cols"
               :rows="visibleRows"
@@ -477,7 +487,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             />
             <ProductGrid
               v-else
-              key="products"
+              :key="`products:${page}`"
               :products="pagedProducts"
               :selected-id="selected?.id ?? null"
               :currency="currency"
@@ -664,6 +674,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .grid-slot {
   min-height: 0;
   display: grid;
+  /* Уезжающая страница не должна выглядывать из-под весов и пейджера */
+  overflow: hidden;
 }
 
 /* Обе сетки занимают одну и ту же ячейку: во время перехода они наложены,
@@ -704,11 +716,38 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   transform: scale(0.94);
 }
 
+/* Листание: страница уходит в ту сторону, куда её листают, а следующая приходит
+   с противоположной. Движение совпадает со стрелкой пейджера и с самим свайпом. */
+.page-next-enter-active,
+.page-next-leave-active,
+.page-prev-enter-active,
+.page-prev-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.page-next-enter-from,
+.page-prev-leave-to {
+  opacity: 0;
+  transform: translateX(7%);
+}
+
+.page-next-leave-to,
+.page-prev-enter-from {
+  opacity: 0;
+  transform: translateX(-7%);
+}
+
 @media (prefers-reduced-motion: reduce) {
   .dive-enter-active,
   .dive-leave-active,
   .rise-enter-active,
-  .rise-leave-active {
+  .rise-leave-active,
+  .page-next-enter-active,
+  .page-next-leave-active,
+  .page-prev-enter-active,
+  .page-prev-leave-active {
     transition: none;
   }
 }

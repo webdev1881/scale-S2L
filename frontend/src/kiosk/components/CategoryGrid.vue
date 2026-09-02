@@ -42,6 +42,10 @@ defineEmits<{ open: [category: Category] }>()
      области, вместо прокрутки — пагинация. */
   grid-template-columns: repeat(var(--cols), minmax(0, 1fr));
   grid-template-rows: repeat(var(--rows), minmax(0, 1fr));
+  /* Уходящие карточки на время перехода не помещаются в страницу и создают
+     неявные ряды. Нулевая высота держит их вне раскладки: иначе ряды страницы
+     сжимаются, и фильтрация выглядит рывком. */
+  grid-auto-rows: 0;
   gap: 16px;
   min-height: 0;
   height: 100%;
