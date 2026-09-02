@@ -7,16 +7,20 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{ value: string }>()
-const emit = defineEmits<{ 'update:value': [value: string]; submit: [] }>()
+defineProps<{ value: string }>()
+/**
+ * Клавиши только сообщают о нажатии, строку меняет её владелец. Если считать
+ * текущее значение из пропа, два быстрых нажатия в одном тике прочитают одно и
+ * то же старое значение и цифра потеряется.
+ */
+const emit = defineEmits<{ key: [value: string]; backspace: []; clear: []; submit: [] }>()
 
 const KEYS = ['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '⌫']
 
 function press(key: string) {
-  if (key === 'C') return emit('update:value', '')
-  if (key === '⌫') return emit('update:value', props.value.slice(0, -1))
-  if (props.value.length >= 5) return
-  emit('update:value', props.value + key)
+  if (key === 'C') return emit('clear')
+  if (key === '⌫') return emit('backspace')
+  emit('key', key)
 }
 </script>
 
@@ -37,12 +41,12 @@ function press(key: string) {
   display: flex;
   flex-direction: column;
   gap: 10px;
-  /* Та же высота и тот же вид, что у клавиатуры поиска: оба ввода выезжают
-     в одно и то же место, и киоск поджимается одинаково */
-  height: var(--s2l-kb-height);
+  /* Блок выезжает справа поверх карточек и занимает всю высоту сетки, а не
+     фиксированную высоту клавиатуры: цели касания от этого только крупнее. */
+  height: 100%;
   padding: 12px 14px 16px;
   background: var(--s2l-kb-bg);
-  border-top: 1px solid var(--s2l-kb-line);
+  border-left: 1px solid var(--s2l-kb-line);
 }
 
 .display {

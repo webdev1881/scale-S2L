@@ -381,6 +381,12 @@ function onPointerDown(event: PointerEvent) {
   cancelKeyboard()
 }
 
+/** Длину кода держит владелец строки, а не клавиши: см. Numpad. */
+function padKey(key: string) {
+  if (pluInput.value.length >= 5) return
+  pluInput.value += key
+}
+
 function findByPlu() {
   const plu = Number(pluInput.value)
   const found = products.value.find((product) => product.plu === plu)
@@ -504,7 +510,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         />
       </header>
 
-      <section class="main" :class="{ 'kb-open': keyboardOpen || showNumpad }">
+      <section class="main" :class="{ 'kb-open': keyboardOpen }">
         <!-- Отдельной шапки нет: строка состояния переехала в блок весов, за
              которым покупатель и так следит. Освободившаяся высота отдана карточкам. -->
 
@@ -548,9 +554,13 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           </div>
         </div>
 
-        <div
-          class="grid-slot"
-          :class="{ dragging: swipeDragging }"
+        <!-- Карточки и цифровой блок лежат в одной обёртке: блок перекрывает
+             именно сетку и ровно по её границам, а не занимает собственный ряд
+             колонки. -->
+        <div class="catalog-area">
+          <div
+            class="grid-slot"
+            :class="{ dragging: swipeDragging }"
           :style="swipeShift ? { transform: `translateX(${swipeShift}px)` } : undefined"
           @pointerdown="onSwipeStart"
           @pointermove="onSwipeMove"
@@ -581,6 +591,22 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :cols="cols"
               :rows="visibleRows"
               @select="selectProduct"
+            />
+          </Transition>
+          </div>
+
+          <!-- Цифры выезжают справа поверх карточек: блок узкий, и поджимать ради
+               него весь каталог незачем — набирающий код смотрит в него, а не в
+               сетку, а остальным карточки остаются видны. -->
+          <Transition name="pad">
+            <Numpad
+              v-if="showNumpad"
+              :value="pluInput"
+              class="pad"
+              @key="padKey"
+              @backspace="pluInput = pluInput.slice(0, -1)"
+              @clear="pluInput = ''"
+              @submit="findByPlu"
             />
           </Transition>
         </div>
@@ -628,8 +654,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           </button>
         </footer>
 
-        <!-- Экранный ввод выезжает внутри правой колонки, поэтому весы остаются
-             видны целиком, а сжимается только сетка каталога. -->
+        <!-- Клавиатура поиска выезжает снизу внутри этой колонки: она широкая,
+             и весы остаются видны целиком, а сжимается только каталог. -->
         <Transition name="kb">
           <Keyboard
             v-if="keyboardOpen"
@@ -639,12 +665,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             @backspace="search = search.slice(0, -1)"
             @clear="search = ''"
             @done="closeKeyboard"
-          />
-          <Numpad
-            v-else-if="showNumpad"
-            v-model:value="pluInput"
-            class="sheet"
-            @submit="findByPlu"
           />
         </Transition>
       </section>
@@ -1090,5 +1110,36 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .kb-enter-from,
 .kb-leave-to {
   transform: translateY(100%);
+}
+
+/* Цифровой блок занимает ту же ячейку, что и сетка карточек (второй ряд
+   колонки), и прижат к правому краю — он лежит поверх карточек, а не двигает
+   их. Ячейка задана явно: авторазмещение отправило бы блок новым рядом вниз. */
+.catalog-area {
+  position: relative;
+  display: grid;
+  min-height: 0;
+}
+
+.pad {
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 2000;
+  width: min(420px, 42%);
+  border-radius: var(--s2l-radius);
+  overflow: hidden;
+  box-shadow: -10px 0 28px var(--s2l-shadow-strong);
+}
+
+.pad-enter-active,
+.pad-leave-active {
+  transition: transform 0.22s ease;
+}
+
+.pad-enter-from,
+.pad-leave-to {
+  transform: translateX(100%);
 }
 </style>
