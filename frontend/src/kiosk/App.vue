@@ -369,10 +369,10 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
 
     <div class="kiosk" :style="uiScales">
-      <!-- Весы занимают всю высоту экрана и не сжимаются ничем: ни шапкой,
-           ни выехавшей клавиатурой. Это единственный блок, за которым покупатель
-           следит непрерывно. -->
-      <aside class="scale">
+      <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места
+           у прибора, а не только стоя напротив левого края экрана. Клавиатура
+           выезжает ниже и их не задевает. -->
+      <header class="scale">
         <WeightPanel
           :reading="weight.reading"
           :connected="weight.connected"
@@ -383,7 +383,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           @tare="api.tare()"
           @zero="api.zero()"
         />
-      </aside>
+      </header>
 
       <section class="main" :class="{ 'kb-open': keyboardOpen || showNumpad }">
         <!-- Отдельной шапки нет: строка состояния переехала в блок весов, за
@@ -533,8 +533,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 <style scoped>
 .kiosk {
   display: grid;
-  /* Две колонки во всю высоту: весы слева, всё остальное справа */
-  grid-template-columns: minmax(290px, 29%) 1fr;
+  /* Весы шапкой во всю ширину, каталог под ними */
+  grid-template-rows: auto 1fr;
   height: 100%;
   gap: 12px;
   padding: 12px;

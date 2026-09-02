@@ -27,6 +27,12 @@
   --s2l-key: #ffffff;
   --s2l-key-shadow: #c3ccd6;
 
+  /* Плашка с названием товара: тёмная в обеих темах — на белых снимках
+     светлая подпись сливалась бы с фотографией, а тёмная её отбивает */
+  --s2l-card-plate: #1d2129;
+  --s2l-card-plate-ink: #f4f7fb;
+  --s2l-card-plate-accent: #4fc98a;
+
   --s2l-splash-bg: #ffffff;
   --s2l-shadow: rgb(29 33 41 / 6%);
   --s2l-shadow-strong: rgb(29 33 41 / 12%);
@@ -59,6 +65,10 @@
   --s2l-kb-line: #26303f;
   --s2l-key: #202a3a;
   --s2l-key-shadow: #0b1017;
+
+  --s2l-card-plate: #131a25;
+  --s2l-card-plate-ink: #eaf0f8;
+  --s2l-card-plate-accent: #4fc98a;
 
   --s2l-splash-bg: #0b1220;
   --s2l-shadow: rgb(0 0 0 / 35%);

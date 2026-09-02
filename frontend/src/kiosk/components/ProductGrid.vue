@@ -41,7 +41,7 @@ defineEmits<{ select: [product: Product] }>()
 
       <!-- Название слева, цена справа: взгляд идёт по строке от «что» к «сколько» -->
       <div class="body">
-        <span class="name">{{ product.name }}</span>
+        <span class="name-slot"><span class="name">{{ product.name }}</span></span>
         <span class="price">
           {{ formatMoney(product.price) }} {{ currency }}/{{
             product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
@@ -89,15 +89,27 @@ defineEmits<{ select: [product: Product] }>()
   background: var(--s2l-selected);
 }
 
+/* Выбранная карточка красит плашку акцентом: на тёмной подложке одной лишь
+   рамки мало, чтобы выбор читался с расстояния */
+.card.active .body {
+  background: var(--s2l-accent-dark);
+}
+
+.card.active .price {
+  color: #fff;
+}
+
 .photo {
   position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Доля высоты карточки под фото задаётся в настройках прибора */
-  /* Ровно заданная доля высоты, а не остаток: иначе крупная подпись
-     съедает фотографию и настройка перестаёт означать обещанное */
-  flex: 0 0 calc(var(--ui-photo-product, 60) * 1%);
+  /* Доля высоты карточки под фото — желаемая, а не жёсткая: при обычных размерах
+     подписи выполняется точно, а при увеличенном шрифте фото уступает место,
+     иначе подпись не помещается в плашку и наезжает на фотографию */
+  flex: 0 1 calc(var(--ui-photo-product, 60) * 1%);
+  /* Фотография не исчезает совсем даже при очень крупной подписи */
+  min-height: 34%;
   min-height: 0;
   background: var(--s2l-soft);
 }
@@ -128,32 +140,44 @@ defineEmits<{ select: [product: Product] }>()
 
 .body {
   display: flex;
-  min-height: 0;
+  /* Подпись занимает столько, сколько нужно её содержимому, но не больше двух
+     третей карточки: иначе при крупном шрифте от фотографии не остаётся ничего */
+  flex: none;
+  max-height: 66%;
   overflow: hidden;
-  align-items: baseline;
+  /* По центру по вертикали: подпись занимает плашку целиком и не липнет к краю */
+  align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 8px 12px 10px;
+  padding: 8px 12px;
+  background: var(--s2l-card-plate);
+  color: var(--s2l-card-plate-ink);
+}
+
+/* Обрезка по строкам живёт на вложенном элементе: у flex-элемента браузер
+   приводит display к flow-root, и -webkit-line-clamp перестаёт работать —
+   название разрасталось на четыре строки и лезло на фотографию. */
+.name-slot {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .name {
-  flex: 1;
-  min-width: 0;
-  font-size: calc(19px * var(--ui-name, 1));
-  font-weight: 600;
-  line-height: 1.2;
-  /* Длинное название переносится на вторую строку, дальше — многоточие */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-size: calc(19px * var(--ui-name, 1));
+  font-weight: 600;
+  line-height: 1.2;
 }
 
 .price {
   flex: none;
   font-size: calc(19px * var(--ui-price, 1));
   font-weight: 700;
-  color: var(--s2l-accent);
+  color: var(--s2l-card-plate-accent);
   white-space: nowrap;
 }
 

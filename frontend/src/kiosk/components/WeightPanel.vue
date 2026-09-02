@@ -37,7 +37,7 @@ const state = computed(() => {
   if (props.reading.error) {
     return { text: translateError(props.reading.error), tone: 'error' as const }
   }
-  if (props.reading.net_g < 5) return { text: t('weight.putGoods'), tone: 'idle' as const }
+  if (props.reading.net_g < 5) return { text: '', tone: 'idle' as const }
   if (!props.reading.stable) return { text: t('weight.weighing'), tone: 'busy' as const }
   return { text: t('weight.stable'), tone: 'ok' as const }
 })
@@ -45,24 +45,28 @@ const state = computed(() => {
 
 <template>
   <div class="weight-panel" :class="`tone-${state.tone}`">
-    <!-- Состояние связи показывается здесь, а не отдельной шапкой: покупатель
-         и так смотрит на этот блок, а экран на 768 px не может позволить себе
-         строку ради трёх слов. -->
-    <div class="status">
-      <span class="dot" :class="{ ok: connected }"></span>
-      <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
-      <span class="clock">{{ clock }}</span>
-    </div>
-
-    <div class="value">
-      <span class="digits">{{ netKg }}</span>
-      <span class="unit">кг</span>
-    </div>
-
-    <div class="state">{{ state.text }}</div>
-
-    <div v-if="reading.tare_g > 0" class="tare">
-      {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
+    <!-- Показание, подписи и кнопки стоят в строку: в шапке высота дороже ширины -->
+    <div class="readout">
+      <div class="value">
+        <span class="digits">{{ netKg }}</span>
+        <span class="unit">кг</span>
+      </div>
+      <div class="captions">
+        <!-- Состояние связи показывается здесь, а не отдельной строкой: покупатель
+             и так смотрит на этот блок, а на 768 px строка ради трёх слов не окупается. -->
+        <div class="status">
+          <span class="dot" :class="{ ok: connected }"></span>
+          <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
+          <span class="clock">{{ clock }}</span>
+        </div>
+        <!-- Пустая платформа — это норма, а не сообщение: подсказка в шапке
+             висела бы почти всё время и превращалась в шум. Строка сохраняет
+             высоту, чтобы шапка не дёргалась при появлении текста. -->
+        <div class="state">{{ state.text }}</div>
+        <div v-if="reading.tare_g > 0" class="tare">
+          {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
+        </div>
+      </div>
     </div>
 
     <dl class="figures">
@@ -85,15 +89,30 @@ const state = computed(() => {
 
 <style scoped>
 .weight-panel {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  padding: 20px 24px 24px;
-  height: 100%;
+  display: grid;
+  /* показание с подписями | цена и стоимость | кнопки */
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 24px;
+  padding: 14px 20px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
   border: 3px solid transparent;
   transition: border-color 0.2s;
+}
+
+.readout {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  min-width: 0;
+}
+
+.captions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
 }
 
 .tone-ok {
@@ -106,15 +125,10 @@ const state = computed(() => {
   border-color: var(--s2l-danger);
 }
 
-/* Показание занимает всю свободную высоту и остаётся по центру колонки,
-   а тара и кнопки прижаты к низу */
 .value {
   display: flex;
-  flex: 1;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 0;
+  align-items: baseline;
+  gap: 8px;
 }
 
 .status {
@@ -146,7 +160,8 @@ const state = computed(() => {
 }
 
 .digits {
-  font-size: calc(clamp(56px, 9vw, 132px) * var(--ui-weight, 1));
+  /* В шапке высота дороже: показание крупное, но не во весь экран */
+  font-size: calc(clamp(48px, 6.2vw, 92px) * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -159,7 +174,7 @@ const state = computed(() => {
 }
 
 .state {
-  text-align: center;
+  min-height: calc(1.3em);
   font-size: calc(clamp(16px, 1.7vw, 22px) * var(--ui-weight, 1));
   color: var(--s2l-muted);
   min-height: 1.4em;
@@ -176,23 +191,24 @@ const state = computed(() => {
 }
 
 .tare {
-  text-align: center;
   font-size: calc(16px * var(--ui-weight, 1));
   color: var(--s2l-muted);
 }
 
 .figures {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
-  margin: 4px 0 0;
+  gap: 12px;
+  margin: 0;
+  min-width: 0;
 }
 
 .figure {
   display: flex;
+  flex: 1;
   align-items: baseline;
   justify-content: space-between;
   gap: 12px;
+  min-width: 0;
   padding: 10px 14px;
   background: var(--s2l-soft);
   border-radius: 12px;
@@ -222,11 +238,10 @@ const state = computed(() => {
 .actions {
   display: flex;
   gap: 12px;
-  margin-top: 4px;
 }
 
 .btn {
-  flex: 1;
+  min-width: 128px;
   min-height: 64px;
   font-size: calc(22px * var(--ui-weight, 1));
   font-weight: 600;
