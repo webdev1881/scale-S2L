@@ -13,7 +13,10 @@ const props = defineProps<{
   currency: string
   product: Product | null
   total: number
+  /** Открыт ли цифровой блок: кнопка в шапке показывает это вдавленностью. */
+  codeOpen: boolean
 }>()
+defineEmits<{ toggleCode: [] }>()
 const { t } = useI18n()
 
 const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
@@ -43,7 +46,7 @@ const state = computed(() => {
 
 <template>
   <div class="weight-panel" :class="`tone-${state.tone}`">
-    <div class="readout">
+    <div class="tile readout">
       <!-- Часы и связь стоят строкой над показанием: за ними следят краем глаза,
            а вес — то, ради чего на этот блок смотрят. Кнопок тары и нуля здесь
            нет: это работа оператора, и её место в админке. -->
@@ -69,37 +72,65 @@ const state = computed(() => {
     </div>
 
     <dl class="figures">
-      <div class="figure price" :class="{ empty: !product }">
+      <div class="tile figure price" :class="{ empty: !product }">
         <dt>{{ t('weight.price') }}</dt>
         <dd>{{ priceText }}</dd>
       </div>
-      <div class="figure cost" :class="{ empty: !product }">
+      <div class="tile figure cost" :class="{ empty: !product }">
         <dt>{{ t('weight.cost') }}</dt>
         <dd>{{ costText }}</dd>
       </div>
     </dl>
+
+    <!-- Набор кода — тоже вход в каталог, и стоит он в шапке рядом с ценой:
+         покупатель, который знает код, не ищет глазами строку поиска. -->
+    <button class="tile code-toggle" :class="{ on: codeOpen }" @click="$emit('toggleCode')">
+      <svg class="code-icon" viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="6" cy="6" r="1.8" />
+        <circle cx="12" cy="6" r="1.8" />
+        <circle cx="18" cy="6" r="1.8" />
+        <circle cx="6" cy="12" r="1.8" />
+        <circle cx="12" cy="12" r="1.8" />
+        <circle cx="18" cy="12" r="1.8" />
+        <circle cx="6" cy="18" r="1.8" />
+        <circle cx="12" cy="18" r="1.8" />
+        <circle cx="18" cy="18" r="1.8" />
+      </svg>
+      <span>{{ t('kiosk.byCode') }}</span>
+    </button>
   </div>
 </template>
 
 <style scoped>
 .weight-panel {
   display: grid;
-  /* показание с часами | цена и стоимость */
-  grid-template-columns: auto 1fr;
-  align-items: center;
-  gap: 24px;
-  padding: 12px 20px;
+  /* показание с часами | цена и стоимость | набор кода */
+  grid-template-columns: auto 1fr auto;
+  /* Плитки одинаковой высоты: шапка читается как один ряд, а не как число,
+     к которому что-то приставили сбоку. */
+  align-items: stretch;
+  gap: 12px;
+  padding: 12px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
   border: 3px solid transparent;
   transition: border-color 0.2s;
 }
 
-.readout {
+/* Общая форма всех блоков шапки: один радиус, одни отступы, одна высота. */
+.tile {
   display: flex;
   flex-direction: column;
+  justify-content: center;
   gap: 2px;
   min-width: 0;
+  padding: 10px 18px;
+  border: 2px solid transparent;
+  border-radius: 14px;
+}
+
+.readout {
+  background: var(--s2l-soft);
 }
 
 .tone-ok {
@@ -203,18 +234,43 @@ const state = computed(() => {
   min-width: 0;
 }
 
+/* Кнопка набора кода — такая же плитка, как цена и стоимость, только цветом
+   каталога: тот же радиус, та же высота, та же посадка на тень, что у кнопок
+   поиска в каталоге. Имя класса не `code`: так называется код товара на
+   карточке, а одинаковые имена в разных компонентах уже ловили коллизией. */
+.code-toggle {
+  align-items: center;
+  flex-direction: row;
+  gap: 12px;
+  min-width: 190px;
+  font-size: calc(20px * var(--ui-weight, 1));
+  font-weight: 700;
+  color: var(--ui-plate-ink, #f4f7fb);
+  background: var(--ui-plate-bg, #1d2129);
+  box-shadow: 0 2px 0 rgb(0 0 0 / 25%);
+  cursor: pointer;
+}
+
+.code-icon {
+  flex: none;
+  width: 24px;
+  height: 24px;
+  fill: currentcolor;
+}
+
+/* Пока блок цифр открыт, кнопка стоит вдавленной: панель на экране и так видна,
+   а смена цвета на произвольной заливке из настроек читалась бы хуже. */
+.code-toggle.on,
+.code-toggle:active {
+  box-shadow: none;
+  transform: translateY(2px);
+}
+
 /* Цена и стоимость — то, ради чего покупатель кладёт товар на платформу, и
    выглядят они соответственно: цена обведена акцентом, стоимость им залита.
    Место освободилось от кнопок тары и нуля, ушедших в админку. */
 .figure {
-  display: flex;
   flex: 1;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 18px;
-  border-radius: 14px;
 }
 
 .figure dt {
@@ -232,7 +288,7 @@ const state = computed(() => {
 
 .figure.price {
   background: var(--s2l-panel);
-  border: 2px solid var(--s2l-accent);
+  border-color: var(--s2l-accent);
 }
 
 .figure.price dt {
@@ -259,7 +315,7 @@ const state = computed(() => {
    не подписана цветом, а залита им целиком. */
 .figure.cost {
   background: var(--s2l-accent);
-  border: 2px solid var(--s2l-accent);
+  border-color: var(--s2l-accent);
 }
 
 .figure.cost dt {

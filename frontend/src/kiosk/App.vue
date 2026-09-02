@@ -493,7 +493,7 @@ function cancelKeyboard() {
 function onPointerDown(event: PointerEvent) {
   const target = event.target as HTMLElement | null
   if (!target) return
-  if (showNumpad.value && !target.closest('.pad') && !target.closest('.toggle')) {
+  if (showNumpad.value && !target.closest('.pad') && !target.closest('.code-toggle')) {
     // Касание результатов — продолжение набора: блок уходит, найденное остаётся.
     // Всё остальное — отказ, и экран возвращается к состоянию до набора.
     if (target.closest('.grid-slot')) closeNumpad()
@@ -649,6 +649,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           :currency="currency"
           :product="selected"
           :total="total"
+          :code-open="showNumpad"
+          @toggle-code="showNumpad ? cancelNumpad() : openNumpad()"
         />
       </header>
 
@@ -683,31 +685,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               />
               <button v-if="search" class="clear" @click="search = ''">×</button>
             </div>
-            <!-- Возврат стоит между поиском и набором кода: все три кнопки про одно
-                 и то же — как покупатель ищет товар. Стрелка не нужна, надпись и
-                 так говорит, куда ведёт. -->
+            <!-- Возврат стоит рядом с полем поиска: обе кнопки про одно и то же —
+                 как покупатель ищет товар. Стрелка не нужна, надпись и так
+                 говорит, куда ведёт. Набор кода переехал в шапку. -->
             <button v-if="!showCategories" class="back" @click="backToCategories">
               {{ t('kiosk.allGroups') }}
-            </button>
-            <button
-              class="toggle"
-              :class="{ on: showNumpad }"
-              @click="showNumpad ? cancelNumpad() : openNumpad()"
-            >
-              <!-- Клавиши цифрового блока прямо на кнопке: она открывает именно их,
-                   и с расстояния фигура читается раньше надписи. -->
-              <svg class="toggle-icon" viewBox="0 0 24 24" aria-hidden="true">
-                <circle cx="6" cy="6" r="1.8" />
-                <circle cx="12" cy="6" r="1.8" />
-                <circle cx="18" cy="6" r="1.8" />
-                <circle cx="6" cy="12" r="1.8" />
-                <circle cx="12" cy="12" r="1.8" />
-                <circle cx="18" cy="12" r="1.8" />
-                <circle cx="6" cy="18" r="1.8" />
-                <circle cx="12" cy="18" r="1.8" />
-                <circle cx="18" cy="18" r="1.8" />
-              </svg>
-              {{ t('kiosk.byCode') }}
             </button>
           </div>
         </div>
@@ -1201,106 +1183,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-soft-active);
 }
 
-/* Второй вход в поиск после поля — и выглядит как вход, а не как служебная
-   белая кнопка: та же заливка, что у «ПОШУК товару» внизу, та же посадка на
-   тень, что у «Усі групи» рядом. Цвет — из настроек, вместе с плашкой карточек. */
-.toggle {
-  display: flex;
-  flex: none;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  padding: 0 22px;
-  height: 64px;
-  font-size: 19px;
-  font-weight: 700;
-  color: var(--ui-plate-ink, #f4f7fb);
-  background: var(--ui-plate-bg, #1d2129);
-  border: none;
-  border-radius: 14px;
-  box-shadow: 0 2px 0 rgb(0 0 0 / 25%);
-  cursor: pointer;
-}
-
-.toggle-icon {
-  flex: none;
-  width: 22px;
-  height: 22px;
-  fill: currentcolor;
-}
-
-/* Пока блок цифр открыт, кнопка стоит вдавленной: панель на экране и так видна,
-   а смена цвета на произвольной заливке из настроек читалась бы хуже. */
-.toggle.on,
-.toggle:active {
-  box-shadow: none;
-  transform: translateY(2px);
-}
-
-.bottom {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  align-items: center;
-  gap: 18px;
-  padding: 10px 16px;
-  background: var(--s2l-panel);
-  border-radius: var(--s2l-radius);
-}
-
-.pick-name {
-  font-size: calc(24px * var(--ui-footer, 1));
-  font-weight: 600;
-}
-
-.pick-meta,
-.pick-empty {
-  font-size: calc(17px * var(--ui-footer, 1));
-  color: var(--s2l-muted);
-}
-
-.sum {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.sum-label {
-  font-size: calc(16px * var(--ui-footer, 1));
-  color: var(--s2l-muted);
-}
-
-.sum-value {
-  font-size: calc(42px * var(--ui-footer, 1));
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-}
-
-.print {
-  min-width: 330px;
-  min-height: 84px;
-  padding: 0 26px;
-  font-size: calc(24px * var(--ui-footer, 1));
-  font-weight: 700;
-  color: #fff;
-  background: var(--s2l-accent);
-  border: none;
-  border-radius: 14px;
-  cursor: pointer;
-}
-
-.print:active:not(:disabled) {
-  background: var(--s2l-accent-dark);
-}
-
-.print:disabled {
-  background: var(--s2l-disabled);
-  cursor: default;
-}
-
-/* Поиск — не печать, поэтому и не зелёный: заливка та же, что у плашки с
-   названием и рамки карточек, — кнопка принадлежит каталогу, а не действию
-   печати, и следует за цветом, выбранным в админке. */
 .search-cta {
   display: flex;
   align-items: center;
