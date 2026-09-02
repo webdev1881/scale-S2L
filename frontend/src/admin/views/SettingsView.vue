@@ -169,12 +169,15 @@ onMounted(load)
       </el-form>
     </el-card>
 
-    <div class="actions">
+    <!-- Кнопки живут в шапке: форма длинная, и кнопка сохранения не должна
+         уезжать под нижний край вместе с ней. `defer` нужен потому, что шапка
+         рисуется тем же обходом, что и эта страница. -->
+    <Teleport to="#admin-actions" defer>
       <el-button type="primary" :loading="saving" @click="save">
         {{ t('admin.settings.save') }}
       </el-button>
       <el-button @click="load">{{ t('admin.settings.reset') }}</el-button>
-    </div>
+    </Teleport>
   </div>
 </template>
 
@@ -204,8 +207,5 @@ onMounted(load)
   color: var(--s2l-muted);
 }
 
-.actions {
-  display: flex;
-  gap: 10px;
-}
+
 </style>

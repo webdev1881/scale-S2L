@@ -1,6 +1,6 @@
 {
   "language": "uk",
-  "theme": "light",
+  "theme": "dark",
   "store_name": "Рулька",
   "currency": "грн",
   "label_width_mm": 56.0,
@@ -21,7 +21,7 @@
   "ui_photo_product": 85,
   "ui_plate_height": 15,
   "ui_plate_color": "#123b8d",
-  "grid_cols": 5,
+  "grid_cols": 6,
   "grid_rows": 2,
   "product_grid_cols": 4,
   "product_grid_rows": 2

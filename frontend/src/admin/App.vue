@@ -78,7 +78,12 @@ onUnmounted(() => window.clearInterval(poll))
             HAL: {{ status?.backend ?? '—' }}
           </el-tag>
         </div>
-        <a href="/" target="_blank" class="kiosk-link">{{ t('admin.status.openKiosk') }}</a>
+        <div class="header-right">
+          <!-- Место для кнопок текущего раздела: страница настроек телепортирует
+               сюда «Зберегти», чтобы кнопка не уезжала вниз вместе с формой. -->
+          <div id="admin-actions" class="header-actions"></div>
+          <a href="/" target="_blank" class="kiosk-link">{{ t('admin.status.openKiosk') }}</a>
+        </div>
       </el-header>
 
       <el-main class="main">
@@ -126,6 +131,17 @@ onUnmounted(() => window.clearInterval(poll))
 .badges {
   display: flex;
   gap: 8px;
+}
+
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+}
+
+.header-actions {
+  display: flex;
+  gap: 10px;
 }
 
 .kiosk-link {
