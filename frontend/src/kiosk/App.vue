@@ -649,8 +649,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           :currency="currency"
           :product="selected"
           :total="total"
-          @tare="api.tare()"
-          @zero="api.zero()"
         />
       </header>
 

@@ -14,8 +14,6 @@ const props = defineProps<{
   product: Product | null
   total: number
 }>()
-defineEmits<{ tare: []; zero: [] }>()
-
 const { t } = useI18n()
 
 const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
@@ -45,56 +43,52 @@ const state = computed(() => {
 
 <template>
   <div class="weight-panel" :class="`tone-${state.tone}`">
-    <!-- Показание, подписи и кнопки стоят в строку: в шапке высота дороже ширины -->
     <div class="readout">
+      <!-- Часы и связь стоят строкой над показанием: за ними следят краем глаза,
+           а вес — то, ради чего на этот блок смотрят. Кнопок тары и нуля здесь
+           нет: это работа оператора, и её место в админке. -->
+      <div class="status">
+        <span class="dot" :class="{ ok: connected }"></span>
+        <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
+        <span class="clock">{{ clock }}</span>
+      </div>
+
       <div class="value">
         <span class="digits">{{ netKg }}</span>
         <span class="unit">кг</span>
-      </div>
-      <div class="captions">
-        <!-- Состояние связи показывается здесь, а не отдельной строкой: покупатель
-             и так смотрит на этот блок, а на 768 px строка ради трёх слов не окупается. -->
-        <div class="status">
-          <span class="dot" :class="{ ok: connected }"></span>
-          <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
-          <span class="clock">{{ clock }}</span>
-        </div>
-        <!-- Пустая платформа — это норма, а не сообщение: подсказка в шапке
-             висела бы почти всё время и превращалась в шум. Строка сохраняет
-             высоту, чтобы шапка не дёргалась при появлении текста. -->
-        <div class="state">{{ state.text }}</div>
-        <div v-if="reading.tare_g > 0" class="tare">
-          {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
+        <!-- Подписи идут рядом с числом, а не под ним: на 768 px лишний ряд в
+             шапке отнимает высоту у карточек. Пустая платформа сообщением не
+             считается, но строка сохраняет высоту, чтобы шапка не дёргалась. -->
+        <div class="notes">
+          <div class="state">{{ state.text }}</div>
+          <div v-if="reading.tare_g > 0" class="tare">
+            {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
+          </div>
         </div>
       </div>
     </div>
 
     <dl class="figures">
-      <div class="figure">
+      <div class="figure price" :class="{ empty: !product }">
         <dt>{{ t('weight.price') }}</dt>
         <dd>{{ priceText }}</dd>
       </div>
-      <div class="figure cost">
+      <div class="figure cost" :class="{ empty: !product }">
         <dt>{{ t('weight.cost') }}</dt>
         <dd>{{ costText }}</dd>
       </div>
     </dl>
-
-    <div class="actions">
-      <button class="btn" @click="$emit('tare')">{{ t('weight.tare') }}</button>
-      <button class="btn" @click="$emit('zero')">{{ t('weight.zero') }}</button>
-    </div>
   </div>
 </template>
 
 <style scoped>
 .weight-panel {
   display: grid;
-  /* показание с подписями | цена и стоимость | кнопки */
-  grid-template-columns: auto 1fr auto;
+  /* показание с часами | цена и стоимость */
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 24px;
-  padding: 14px 20px;
+  padding: 12px 20px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
   border: 3px solid transparent;
@@ -103,15 +97,8 @@ const state = computed(() => {
 
 .readout {
   display: flex;
-  align-items: center;
-  gap: 18px;
-  min-width: 0;
-}
-
-.captions {
-  display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   min-width: 0;
 }
 
@@ -128,13 +115,24 @@ const state = computed(() => {
 .value {
   display: flex;
   align-items: baseline;
-  gap: 8px;
+  gap: 10px;
+}
+
+/* Подписи прижаты к низу числа: так они читаются как продолжение показания,
+   а не как отдельный столбец. */
+.notes {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-left: 6px;
+  min-width: 0;
 }
 
 .status {
   display: flex;
   align-items: center;
   gap: 10px;
+  width: 100%;
   font-size: calc(16px * var(--ui-weight, 1));
   color: var(--s2l-muted);
   white-space: nowrap;
@@ -152,10 +150,13 @@ const state = computed(() => {
   background: var(--s2l-accent);
 }
 
+/* Часы крупнее подписи связи: время смотрят чаще, чем состояние прибора */
 .status .clock {
   margin-left: auto;
+  padding-left: 18px;
+  font-size: calc(21px * var(--ui-weight, 1));
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--s2l-ink);
 }
 
@@ -202,6 +203,9 @@ const state = computed(() => {
   min-width: 0;
 }
 
+/* Цена и стоимость — то, ради чего покупатель кладёт товар на платформу, и
+   выглядят они соответственно: цена обведена акцентом, стоимость им залита.
+   Место освободилось от кнопок тары и нуля, ушедших в админку. */
 .figure {
   display: flex;
   flex: 1;
@@ -209,50 +213,73 @@ const state = computed(() => {
   justify-content: space-between;
   gap: 12px;
   min-width: 0;
-  padding: 10px 14px;
-  background: var(--s2l-soft);
-  border-radius: 12px;
+  padding: 10px 18px;
+  border-radius: 14px;
 }
 
 .figure dt {
   font-size: calc(17px * var(--ui-weight, 1));
-  color: var(--s2l-muted);
+  white-space: nowrap;
 }
 
 .figure dd {
   margin: 0;
-  font-size: calc(26px * var(--ui-weight, 1));
+  font-size: calc(30px * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
-.figure.cost {
-  background: var(--s2l-selected);
+.figure.price {
+  background: var(--s2l-panel);
+  border: 2px solid var(--s2l-accent);
 }
 
-.figure.cost dd {
-  font-size: calc(34px * var(--ui-weight, 1));
+.figure.price dt {
+  color: var(--s2l-muted);
+}
+
+.figure.price dd {
   color: var(--s2l-accent);
 }
 
-.actions {
-  display: flex;
-  gap: 12px;
-}
-
-.btn {
-  min-width: 128px;
-  min-height: 64px;
-  font-size: calc(22px * var(--ui-weight, 1));
-  font-weight: 600;
-  color: var(--s2l-ink);
+/* Пока товар не выбран, показывать нечего: акцент на прочерке обещал бы число,
+   которого нет. Блоки ждут выбора серыми. */
+.figure.empty {
   background: var(--s2l-soft);
-  border: none;
-  border-radius: 12px;
-  cursor: pointer;
+  border-color: transparent;
 }
 
-.btn:active {
-  background: var(--s2l-soft-active);
+.figure.empty dt,
+.figure.empty dd {
+  color: var(--s2l-muted);
+}
+
+/* Сумма — единственное число, которое покупатель уносит с собой, поэтому она
+   не подписана цветом, а залита им целиком. */
+.figure.cost {
+  background: var(--s2l-accent);
+  border: 2px solid var(--s2l-accent);
+}
+
+.figure.cost dt {
+  color: rgb(255 255 255 / 82%);
+}
+
+.figure.cost dd {
+  font-size: calc(38px * var(--ui-weight, 1));
+  color: #fff;
+}
+
+/* Заливку суммы снимаем адресно: правило `.figure.cost` идёт ниже общего
+   `.figure.empty` и иначе перебивает его. */
+.figure.cost.empty {
+  background: var(--s2l-soft);
+  border-color: transparent;
+}
+
+.figure.cost.empty dt,
+.figure.cost.empty dd {
+  color: var(--s2l-muted);
 }
 </style>
