@@ -114,7 +114,10 @@ const rows = computed(() =>
  * один ряд — остальное доступно листанием или после «Готово».
  */
 const visibleRows = computed(() => (keyboardOpen.value ? 1 : rows.value))
-const pageSize = computed(() => cols.value * visibleRows.value)
+// Блок цифр занимает правую часть каталога, и сетка на это время живёт в
+// оставшейся: иначе крайние карточки уезжают под панель и обрезаются ею.
+const visibleCols = computed(() => (showNumpad.value ? Math.min(cols.value, 2) : cols.value))
+const pageSize = computed(() => visibleCols.value * visibleRows.value)
 
 /**
  * Набранный код фильтрует каталог наравне со строкой поиска: результат виден
@@ -636,7 +639,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         />
       </header>
 
-      <section class="main" :class="{ 'kb-open': keyboardOpen }">
+      <section class="main" :class="{ 'kb-open': keyboardOpen, 'pad-open': showNumpad }">
         <!-- Отдельной шапки нет: строка состояния переехала в блок весов, за
              которым покупатель и так следит. Освободившаяся высота отдана карточкам. -->
 
@@ -720,7 +723,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <CategoryGrid
               v-if="showCategories"
               :categories="categoriesOn(page - 1)"
-              :cols="cols"
+              :cols="visibleCols"
               :rows="visibleRows"
             />
             <ProductGrid
@@ -728,7 +731,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :products="productsOn(page - 1)"
               :selected-id="selected?.id ?? null"
               :currency="currency"
-              :cols="cols"
+              :cols="visibleCols"
               :rows="visibleRows"
             />
           </div>
@@ -739,7 +742,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 v-if="showCategories"
                 :key="`groups:${page}`"
                 :categories="pagedCategories"
-                :cols="cols"
+                :cols="visibleCols"
                 :rows="visibleRows"
                 @open="openCategory"
               />
@@ -749,7 +752,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :products="pagedProducts"
                 :selected-id="selected?.id ?? null"
                 :currency="currency"
-                :cols="cols"
+                :cols="visibleCols"
                 :rows="visibleRows"
                 :calm="searching"
                 @select="selectProduct"
@@ -765,7 +768,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <CategoryGrid
               v-if="showCategories"
               :categories="categoriesOn(page + 1)"
-              :cols="cols"
+              :cols="visibleCols"
               :rows="visibleRows"
             />
             <ProductGrid
@@ -773,7 +776,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :products="productsOn(page + 1)"
               :selected-id="selected?.id ?? null"
               :currency="currency"
-              :cols="cols"
+              :cols="visibleCols"
               :rows="visibleRows"
             />
           </div>
@@ -1096,6 +1099,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .catalog-area,
   .grid-slot,
   .dive-enter-active,
   .dive-leave-active,
@@ -1345,6 +1349,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   position: relative;
   display: grid;
   min-height: 0;
+  /* Ширина цифрового блока нужна дважды: ему самому и отступу каталога под ним */
+  --s2l-pad-width: min(420px, 42%);
+  transition: padding-right 0.22s ease;
+}
+
+/* Панель лежит поверх карточек, но карточки под неё не заезжают: обрезанная
+   панелью карточка выглядит поломкой, а не перекрытием. Уходит только ширина —
+   ряды и нижняя панель остаются на месте. */
+.main.pad-open .catalog-area {
+  padding-right: var(--s2l-pad-width);
 }
 
 .pad {
@@ -1353,7 +1367,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   right: 0;
   bottom: 0;
   z-index: 2000;
-  width: min(420px, 42%);
+  width: var(--s2l-pad-width);
   border-radius: var(--s2l-radius);
   overflow: hidden;
   box-shadow: -10px 0 28px var(--s2l-shadow-strong);
