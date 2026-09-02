@@ -10,9 +10,11 @@ backend/.env
 node_modules/
 frontend/dist/
 
-# Личные заметки Claude Code
-CLAUDE.local.md
-
 # ОС
 .DS_Store
 Thumbs.db
+
+# Claude Code: указатель и скиллы живут локально, в репозитории им не место
+CLAUDE.md
+CLAUDE.local.md
+.claude/
