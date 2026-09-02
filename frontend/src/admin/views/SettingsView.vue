@@ -155,8 +155,9 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.photoProduct')">
           <el-input-number v-model="form.ui_photo_product" :min="30" :max="85" :step="5" />
         </el-form-item>
-        <el-form-item :label="t('admin.settings.plateWidth')">
-          <el-input-number v-model="form.ui_plate_width" :min="50" :max="100" :step="5" />
+        <el-form-item :label="t('admin.settings.plateHeight')">
+          <el-input-number v-model="form.ui_plate_height" :min="15" :max="60" :step="5" />
+          <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
         </el-form-item>
         <el-form-item :label="t('admin.settings.plateColor')">
           <el-color-picker v-model="form.ui_plate_color" />

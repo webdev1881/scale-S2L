@@ -87,7 +87,7 @@ const uiScales = computed<Record<string, string>>(() => {
   '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
     '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
-    '--ui-plate-width': String(settings.value?.ui_plate_width ?? 100),
+    '--ui-plate-height': String(settings.value?.ui_plate_height ?? 30),
     '--ui-plate-bg': settings.value?.ui_plate_color ?? '#1d2129',
     '--ui-plate-ink': plate.ink,
     '--ui-plate-accent': plate.accent,
@@ -511,9 +511,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <!-- Возврат живёт рядом с заголовком выбора: обе подписи
              про одно и то же — где покупатель находится. Строка сохраняет высоту
              и на верхнем уровне, иначе карточки меняли бы размер между экранами. -->
-        <!-- Голова каталога и поиск живут в одной обёртке: при выехавшей
-             клавиатуре они встают в строку, и ряд карточек получает обратно
-             высоту, которую забрал бы пустой заголовок. -->
+        <!-- Голова каталога и поиск живут в одной строке: пустое место слева от
+             заголовка дешевле, чем ряд карточек, сжатый до полоски. -->
         <div class="head-row">
           <div class="catalog-head">
             <button v-if="!showCategories" class="back" @click="backToCategories">
@@ -701,19 +700,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding-bottom: var(--s2l-kb-height);
 }
 
+/* Заголовок каталога и поиск стоят в одну строку: слева от заголовка всё равно
+   пусто, а ряду карточек эта высота нужнее — сжатая до полоски карточка не
+   читается. Заодно поиск прижимается к весам и уходит подальше от кнопки,
+   которая его открывает. */
 .head-row {
   display: grid;
-  gap: 10px;
-  min-width: 0;
-}
-
-/* При выехавшей клавиатуре заголовок и поиск встают в одну строку: слева от
-   заголовка всё равно пусто, а ряду карточек эта высота нужнее — сжатая до
-   полоски карточка не читается. */
-.main.kb-open .head-row {
   grid-template-columns: auto minmax(340px, 1fr);
   align-items: center;
   gap: 14px;
+  min-width: 0;
 }
 
 /* Итоговая панель на время набора уходит: выбранного товара в этот момент нет,
