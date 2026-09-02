@@ -109,10 +109,10 @@ def list_transactions(
 
 
 @router.get("/settings", response_model=DeviceSettings)
-def get_settings_route(db: Session = Depends(get_db)) -> DeviceSettings:
-    return load_settings(db)
+def get_settings_route() -> DeviceSettings:
+    return load_settings()
 
 
 @router.put("/settings", response_model=DeviceSettings)
-def put_settings_route(payload: DeviceSettings, db: Session = Depends(get_db)) -> DeviceSettings:
-    return save_settings(db, payload)
+def put_settings_route(payload: DeviceSettings) -> DeviceSettings:
+    return save_settings(payload)

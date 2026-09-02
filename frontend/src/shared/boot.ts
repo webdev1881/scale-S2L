@@ -7,7 +7,7 @@
 export const THEMES = ['dark', 'light'] as const
 export type Theme = (typeof THEMES)[number]
 
-export const DEFAULT_THEME: Theme = 'dark'
+export const DEFAULT_THEME: Theme = 'light'
 export const DEFAULT_SPLASH_MS = 3000
 
 const THEME_KEY = 's2l-theme'

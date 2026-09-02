@@ -51,11 +51,3 @@ class Transaction(Base):
 
     product: Mapped[Product] = relationship(back_populates="transactions")
 
-
-class AppSetting(Base):
-    """Настройки устройства в формате ключ-значение — правятся из админки без рестарта."""
-
-    __tablename__ = "app_settings"
-
-    key: Mapped[str] = mapped_column(String(60), primary_key=True)
-    value: Mapped[str] = mapped_column(Text, default="")

@@ -33,6 +33,8 @@ const settings = ref<DeviceSettings | null>(null)
 const search = ref('')
 const openedCategory = ref<Category | null>(null)
 const page = ref(0)
+/** Куда «едет» сетка при смене уровня: внутрь группы или обратно к списку. */
+const levelAnim = ref<'dive' | 'rise'>('dive')
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -170,7 +172,41 @@ async function refreshSettings() {
   }
 }
 
+function turnPage(delta: number) {
+  const next = page.value + delta
+  if (next < 0 || next >= pageCount.value) return false
+  page.value = next
+  return true
+}
+
+// Свайп по сетке — то же листание, что и стрелками пейджера: на витрине палец
+// тянется провести по карточкам раньше, чем искать кнопку.
+const SWIPE_MIN_PX = 60
+let swipeFrom: { x: number; y: number } | null = null
+// Браузер шлёт click даже после протяжки на сотню пикселей, поэтому выбор товара
+// после состоявшегося свайпа гасим вручную.
+let swipeJustHappened = false
+
+function onSwipeStart(event: PointerEvent) {
+  swipeFrom = { x: event.clientX, y: event.clientY }
+}
+
+function onSwipeEnd(event: PointerEvent) {
+  const from = swipeFrom
+  swipeFrom = null
+  if (!from) return
+  const dx = event.clientX - from.x
+  const dy = event.clientY - from.y
+  // Вертикальное движение свайпом не считаем: это попытка прокрутки или промах.
+  if (Math.abs(dx) < SWIPE_MIN_PX || Math.abs(dx) < Math.abs(dy)) return
+  if (turnPage(dx < 0 ? 1 : -1)) {
+    swipeJustHappened = true
+    window.setTimeout(() => (swipeJustHappened = false), 300)
+  }
+}
+
 function openCategory(category: Category) {
+  if (swipeJustHappened) return
   openedCategory.value = category
   selected.value = null
   page.value = 0
@@ -184,6 +220,7 @@ function backToCategories() {
 }
 
 function selectProduct(product: Product) {
+  if (swipeJustHappened) return
   selected.value = product
   showNumpad.value = false
   closeKeyboard()
@@ -313,6 +350,10 @@ onUnmounted(() => {
 
 watch([search, openedCategory, selected], bumpIdle)
 
+// Направление берём из самой смены уровня, а не из обработчиков: провалиться
+// в группу можно и кнопкой, и поиском, и набором кода.
+watch(showCategories, (toGroups) => (levelAnim.value = toGroups ? 'rise' : 'dive'))
+
 // Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
 watch([search, pageSize], () => (page.value = 0))
 watch(pageCount, (count) => {
@@ -384,22 +425,36 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             </button>
           </div>
 
-          <CategoryGrid
-            v-if="showCategories"
-            :categories="pagedCategories"
-            :cols="cols"
-            :rows="visibleRows"
-            @open="openCategory"
-          />
-          <ProductGrid
-            v-else
-            :products="pagedProducts"
-            :selected-id="selected?.id ?? null"
-            :currency="currency"
-            :cols="cols"
-            :rows="visibleRows"
-            @select="selectProduct"
-          />
+        <div
+          class="grid-slot"
+          @pointerdown="onSwipeStart"
+          @pointerup="onSwipeEnd"
+          @pointercancel="swipeFrom = null"
+        >
+          <!-- Без mode="out-in": уходящая и приходящая сетки лежат в одной ячейке и
+               меняются внахлёст. Последовательный режим требует, чтобы уход
+               обязательно завершился, и любая заминка оставила бы каталог пустым. -->
+          <Transition :name="levelAnim">
+            <CategoryGrid
+              v-if="showCategories"
+              key="groups"
+              :categories="pagedCategories"
+              :cols="cols"
+              :rows="visibleRows"
+              @open="openCategory"
+            />
+            <ProductGrid
+              v-else
+              key="products"
+              :products="pagedProducts"
+              :selected-id="selected?.id ?? null"
+              :currency="currency"
+              :cols="cols"
+              :rows="visibleRows"
+              @select="selectProduct"
+            />
+          </Transition>
+        </div>
 
         <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
 
@@ -572,6 +627,58 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.grid-slot {
+  min-height: 0;
+  display: grid;
+}
+
+/* Обе сетки занимают одну и ту же ячейку: во время перехода они наложены,
+   а не выстроены друг за другом, поэтому высота кадра не скачет. */
+.grid-slot > * {
+  grid-area: 1 / 1;
+  min-height: 0;
+}
+
+/* Провал в группу и возврат: приближение внутрь и отдаление наружу. Направление
+   читается само, без подписей и стрелок. */
+.dive-enter-active,
+.dive-leave-active,
+.rise-enter-active,
+.rise-leave-active {
+  transition:
+    opacity 0.18s ease,
+    transform 0.22s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+.dive-enter-from {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+.dive-leave-to {
+  opacity: 0;
+  transform: scale(1.05);
+}
+
+.rise-enter-from {
+  opacity: 0;
+  transform: scale(1.05);
+}
+
+.rise-leave-to {
+  opacity: 0;
+  transform: scale(0.94);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dive-enter-active,
+  .dive-leave-active,
+  .rise-enter-active,
+  .rise-leave-active {
+    transition: none;
+  }
 }
 
 .search-row {

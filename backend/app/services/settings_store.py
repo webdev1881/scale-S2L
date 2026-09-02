@@ -1,22 +1,28 @@
-"""Настройки устройства: одна JSON-строка в БД, правится из админки без рестарта."""
+"""Настройки устройства: JSON-файл рядом с базой, правится из админки без рестарта.
+
+Файл, а не строка в БД: настройки прибора — это то, что переносят на новый
+экземпляр, кладут в резервную копию и правят руками, когда админка недоступна.
+Ради этого они не должны быть заперты внутри SQLite вместе с товарами.
+
+Запись атомарна: сначала временный файл, затем замена. Иначе обесточивание
+киоска в момент сохранения оставило бы обрезанный JSON, а с ним прибор
+поднялся бы на значениях по умолчанию.
+"""
 from __future__ import annotations
 
 import json
+import os
 
 from pydantic import BaseModel, Field
-from sqlalchemy.orm import Session
 
-from ..models import AppSetting
-
-SETTINGS_KEY = "device"
+from ..config import SETTINGS_FILE
 
 
 class DeviceSettings(BaseModel):
     # Язык киоска, админки и печатной этикетки. Переключается в настройках админки.
     language: str = Field(default="uk", pattern="^(uk|ru)$")
-    # Тема киоска. Тёмная по умолчанию: экран прибора светит покупателю в лицо
-    # весь день, и белая заливка на 15.6" утомляет сильнее.
-    theme: str = Field(default="dark", pattern="^(dark|light)$")
+    # Тема киоска.
+    theme: str = Field(default="light", pattern="^(dark|light)$")
     store_name: str = "Рулька"
     currency: str = "₴"
     # Печатающий узел Aurora S2 берёт ленту шириной не более 56 мм
@@ -53,28 +59,26 @@ class DeviceSettings(BaseModel):
     grid_rows: int = Field(default=2, ge=1, le=5)
 
 
-def load_settings(db: Session) -> DeviceSettings:
-    row = db.get(AppSetting, SETTINGS_KEY)
-    if row is None or not row.value:
-        return DeviceSettings()
+def load_settings() -> DeviceSettings:
+    if not SETTINGS_FILE.exists():
+        # Первый запуск: кладём файл на диск, чтобы его было что открыть и поправить.
+        return save_settings(DeviceSettings())
     try:
-        data = json.loads(row.value)
+        data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         # Ширина этикетки могла быть сохранена до того, как появился предел принтера.
-        # Подрезаем её, а не роняем всю запись в дефолты.
+        # Подрезаем её, а не роняем весь файл в значения по умолчанию.
         if isinstance(data, dict) and isinstance(data.get("label_width_mm"), (int, float)):
             data["label_width_mm"] = min(float(data["label_width_mm"]), 56)
         return DeviceSettings.model_validate(data)
-    except (ValueError, json.JSONDecodeError):
-        # Битая запись не должна ронять киоск — откатываемся на значения по умолчанию.
+    except (OSError, ValueError, json.JSONDecodeError):
+        # Битый или недоступный файл не должен ронять киоск.
         return DeviceSettings()
 
 
-def save_settings(db: Session, settings: DeviceSettings) -> DeviceSettings:
-    row = db.get(AppSetting, SETTINGS_KEY)
-    payload = json.dumps(settings.model_dump(), ensure_ascii=False)
-    if row is None:
-        db.add(AppSetting(key=SETTINGS_KEY, value=payload))
-    else:
-        row.value = payload
-    db.commit()
+def save_settings(settings: DeviceSettings) -> DeviceSettings:
+    SETTINGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(settings.model_dump(), ensure_ascii=False, indent=2)
+    temp = SETTINGS_FILE.with_suffix(".json.tmp")
+    temp.write_text(payload + "\n", encoding="utf-8")
+    os.replace(temp, SETTINGS_FILE)
     return settings

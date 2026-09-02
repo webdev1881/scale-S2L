@@ -11,6 +11,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 LABELS_DIR = DATA_DIR / "labels"
+# Настройки прибора лежат отдельным файлом: их удобно посмотреть, положить
+# в резервную копию и подложить на новый прибор, не трогая базу.
+SETTINGS_FILE = DATA_DIR / "settings.json"
 
 
 class Settings(BaseSettings):

@@ -10,11 +10,17 @@ defineEmits<{ open: [category: Category] }>()
 </script>
 
 <template>
-  <div class="grid" :style="{ '--cols': props.cols, '--rows': props.rows }">
+  <TransitionGroup
+    tag="div"
+    name="card"
+    class="grid"
+    :style="{ '--cols': props.cols, '--rows': props.rows }"
+  >
     <button
-      v-for="category in categories"
+      v-for="(category, index) in categories"
       :key="category.name"
       class="card"
+      :style="{ '--i': index }"
       @click="$emit('open', category)"
     >
       <div class="photo">
@@ -25,8 +31,8 @@ defineEmits<{ open: [category: Category] }>()
       </div>
     </button>
 
-    <p v-if="!categories.length" class="empty">{{ t('kiosk.nothingFound') }}</p>
-  </div>
+    <p v-if="!categories.length" key="empty" class="empty">{{ t('kiosk.nothingFound') }}</p>
+  </TransitionGroup>
 </template>
 
 <style scoped>
@@ -98,5 +104,43 @@ defineEmits<{ open: [category: Category] }>()
   text-align: center;
   color: var(--s2l-muted);
   font-size: 20px;
+}
+
+/* Фильтрация и листание анимируются самими карточками: TransitionGroup даёт
+   перестановку соседей (move), а лесенка задержек превращает подмену страницы
+   в проявление, а не в мгновенную подмену. */
+.card-enter-active {
+  transition:
+    opacity 0.26s ease,
+    transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
+  transition-delay: calc(var(--i, 0) * 22ms);
+}
+
+.card-leave-active {
+  transition:
+    opacity 0.14s ease,
+    transform 0.14s ease;
+}
+
+.card-enter-from {
+  opacity: 0;
+  transform: translateY(14px) scale(0.96);
+}
+
+.card-leave-to {
+  opacity: 0;
+  transform: scale(0.96);
+}
+
+.card-move {
+  transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter-active,
+  .card-leave-active,
+  .card-move {
+    transition: none;
+  }
 }
 </style>

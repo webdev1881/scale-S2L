@@ -75,7 +75,7 @@ async def print_label(
     product = db.get(Product, payload.product_id)
     if product is None or not product.active:
         raise HTTPException(404, "Товар не найден")
-    settings = load_settings(db)
+    settings = load_settings()
     try:
         tx = await weigh_and_print(
             db, devices, settings, product, payload.weight_g, payload.copies
@@ -104,7 +104,7 @@ def label_preview(
     product = db.get(Product, payload.product_id)
     if product is None:
         raise HTTPException(404, "Товар не найден")
-    settings = load_settings(db)
+    settings = load_settings()
     total = compute_total(product, payload.weight_g)
     now = datetime.now()
     data = LabelData(
