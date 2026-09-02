@@ -116,12 +116,18 @@ const rows = computed(() =>
 const visibleRows = computed(() => (keyboardOpen.value ? 1 : rows.value))
 const pageSize = computed(() => cols.value * visibleRows.value)
 
-const searching = computed(() => search.value.trim().length > 0)
+/**
+ * Набранный код фильтрует каталог наравне со строкой поиска: результат виден
+ * сразу, а не после нажатия «Знайти» — покупатель набирает цифру и тут же видит,
+ * туда ли он идёт.
+ */
+const searching = computed(() => search.value.trim().length > 0 || pluInput.value.length > 0)
 /** Группы показываются, пока покупатель не провалился внутрь и не начал искать. */
 const showCategories = computed(() => !searching.value && openedCategory.value === null)
 
 const visibleProducts = computed(() => {
   const needle = search.value.trim().toLowerCase()
+  const code = pluInput.value
   return products.value.filter((product) => {
     if (
       !searching.value &&
@@ -130,6 +136,7 @@ const visibleProducts = computed(() => {
     ) {
       return false
     }
+    if (code && !String(product.plu).startsWith(code)) return false
     if (!needle) return true
     return product.name.toLowerCase().includes(needle) || String(product.plu).startsWith(needle)
   })
@@ -140,6 +147,9 @@ const visibleProducts = computed(() => {
  * карточки говорят сами за себя, и подпись над ними — лишний шум.
  */
 const catalogTitle = computed(() => {
+  // Код показываем в заголовке: строки с ним на экране нет, и без подписи
+  // отфильтрованный каталог выглядел бы поредевшим сам по себе.
+  if (pluInput.value) return t('kiosk.codeResults', { code: pluInput.value })
   if (searching.value) return t('kiosk.searchResults')
   if (openedCategory.value) return openedCategory.value.name
   return ''
@@ -378,13 +388,22 @@ function backToCategories() {
   openedCategory.value = null
   selected.value = null
   search.value = ''
+  pluInput.value = ''
   page.value = 0
 }
 
 function selectProduct(product: Product) {
   if (swipeJustHappened) return
   selected.value = product
-  showNumpad.value = false
+  // Товар выбран по коду — показываем, где он лежит, и снимаем фильтр: иначе в
+  // каталоге осталась бы одна карточка, а строки с кодом на экране уже нет.
+  if (pluInput.value) {
+    openedCategory.value =
+      categories.value.find((category) => category.name === product.category) ?? null
+    page.value = 0
+    pluInput.value = ''
+  }
+  closeNumpad()
   closeKeyboard()
 }
 
@@ -396,6 +415,31 @@ let beforeSearch: { search: string; category: Category | null; page: number } | 
 function keyPress(char: string) {
   if (search.value.length >= SEARCH_MAX_LENGTH) return
   search.value += char
+}
+
+/** Снимок экрана до набора кода — на случай отказа от него. */
+let beforeCode: { category: Category | null; page: number } | null = null
+
+function openNumpad() {
+  if (!showNumpad.value) beforeCode = { category: openedCategory.value, page: page.value }
+  showNumpad.value = true
+  keyboardOpen.value = false
+}
+
+/** Набор кода завершён — найденное остаётся на экране. */
+function closeNumpad() {
+  showNumpad.value = false
+  beforeCode = null
+}
+
+/** Набор брошен — возвращаем экран туда, откуда покупатель начал набирать. */
+function cancelNumpad() {
+  if (beforeCode) {
+    openedCategory.value = beforeCode.category
+    page.value = beforeCode.page
+  }
+  pluInput.value = ''
+  closeNumpad()
 }
 
 function openKeyboard() {
@@ -434,9 +478,15 @@ function cancelKeyboard() {
 }
 
 function onPointerDown(event: PointerEvent) {
-  if (!keyboardOpen.value) return
   const target = event.target as HTMLElement | null
   if (!target) return
+  if (showNumpad.value && !target.closest('.pad') && !target.closest('.toggle')) {
+    // Касание результатов — продолжение набора: блок уходит, найденное остаётся.
+    // Всё остальное — отказ, и экран возвращается к состоянию до набора.
+    if (target.closest('.grid-slot')) closeNumpad()
+    else cancelNumpad()
+  }
+  if (!keyboardOpen.value) return
   if (target.closest('.keyboard') || target.closest('.search-field')) return
   // Кнопка поиска — часть набора, а не касание мимо: иначе повторное нажатие
   // сначала отменяло бы поиск, а потом открывало его заново.
@@ -455,22 +505,20 @@ function padKey(key: string) {
   pluInput.value += key
 }
 
+/**
+ * Каталог уже отфильтрован набранным кодом, поэтому кнопка только подтверждает
+ * выбор: берём точное совпадение, а если его нет — единственный оставшийся товар.
+ */
 function findByPlu() {
   const plu = Number(pluInput.value)
-  const found = products.value.find((product) => product.plu === plu)
+  const exact = products.value.find((product) => product.plu === plu)
+  const found = exact ?? (visibleProducts.value.length === 1 ? visibleProducts.value[0] : null)
   if (!found) {
     ElMessage.warning(t('kiosk.pluNotFound', { plu: pluInput.value }))
     return
   }
-  // Проваливаемся в группу найденного товара, чтобы покупатель понимал, где он.
-  openedCategory.value =
-    categories.value.find((category) => category.name === found.category) ?? null
-  page.value = 0
+  // selectProduct сам провалится в группу товара и снимет фильтр по коду.
   selectProduct(found)
-  pluInput.value = ''
-  // Код набран, товар найден — блок цифр больше не нужен и только закрывает
-  // собой итоговую панель, ради которой покупатель его и набирал.
-  showNumpad.value = false
 }
 
 async function print() {
@@ -615,7 +663,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <button
               class="toggle"
               :class="{ on: showNumpad }"
-              @click="((showNumpad = !showNumpad), (keyboardOpen = false))"
+              @click="showNumpad ? cancelNumpad() : openNumpad()"
             >
               123
             </button>
