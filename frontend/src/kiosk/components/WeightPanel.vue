@@ -9,6 +9,7 @@ import type { Product, WeightReading } from '@/shared/types'
 const props = defineProps<{
   reading: WeightReading
   connected: boolean
+  clock: string
   currency: string
   product: Product | null
   total: number
@@ -44,6 +45,15 @@ const state = computed(() => {
 
 <template>
   <div class="weight-panel" :class="`tone-${state.tone}`">
+    <!-- Состояние связи показывается здесь, а не отдельной шапкой: покупатель
+         и так смотрит на этот блок, а экран на 768 px не может позволить себе
+         строку ради трёх слов. -->
+    <div class="status">
+      <span class="dot" :class="{ ok: connected }"></span>
+      <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
+      <span class="clock">{{ clock }}</span>
+    </div>
+
     <div class="value">
       <span class="digits">{{ netKg }}</span>
       <span class="unit">кг</span>
@@ -78,7 +88,7 @@ const state = computed(() => {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  padding: 24px;
+  padding: 20px 24px 24px;
   height: 100%;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
@@ -107,8 +117,36 @@ const state = computed(() => {
   min-height: 0;
 }
 
+.status {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: calc(16px * var(--ui-weight, 1));
+  color: var(--s2l-muted);
+  white-space: nowrap;
+}
+
+.status .dot {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--s2l-danger);
+}
+
+.status .dot.ok {
+  background: var(--s2l-accent);
+}
+
+.status .clock {
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  color: var(--s2l-ink);
+}
+
 .digits {
-  font-size: clamp(56px, 9vw, 132px);
+  font-size: calc(clamp(56px, 9vw, 132px) * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -116,13 +154,13 @@ const state = computed(() => {
 }
 
 .unit {
-  font-size: clamp(20px, 2.4vw, 34px);
+  font-size: calc(clamp(20px, 2.4vw, 34px) * var(--ui-weight, 1));
   color: var(--s2l-muted);
 }
 
 .state {
   text-align: center;
-  font-size: clamp(15px, 1.6vw, 20px);
+  font-size: calc(clamp(16px, 1.7vw, 22px) * var(--ui-weight, 1));
   color: var(--s2l-muted);
   min-height: 1.4em;
 }
@@ -139,7 +177,7 @@ const state = computed(() => {
 
 .tare {
   text-align: center;
-  font-size: 15px;
+  font-size: calc(16px * var(--ui-weight, 1));
   color: var(--s2l-muted);
 }
 
@@ -161,13 +199,13 @@ const state = computed(() => {
 }
 
 .figure dt {
-  font-size: 15px;
+  font-size: calc(17px * var(--ui-weight, 1));
   color: var(--s2l-muted);
 }
 
 .figure dd {
   margin: 0;
-  font-size: 22px;
+  font-size: calc(26px * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
@@ -177,7 +215,7 @@ const state = computed(() => {
 }
 
 .figure.cost dd {
-  font-size: 30px;
+  font-size: calc(34px * var(--ui-weight, 1));
   color: var(--s2l-accent);
 }
 
@@ -190,7 +228,7 @@ const state = computed(() => {
 .btn {
   flex: 1;
   min-height: 64px;
-  font-size: 20px;
+  font-size: calc(22px * var(--ui-weight, 1));
   font-weight: 600;
   color: var(--s2l-ink);
   background: var(--s2l-soft);

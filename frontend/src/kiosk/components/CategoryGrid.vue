@@ -62,8 +62,10 @@ defineEmits<{ open: [category: Category] }>()
 }
 
 .photo {
-  /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
-  flex: 1;
+  /* Доля высоты карточки под фото задаётся в настройках прибора */
+  /* Ровно заданная доля высоты, а не остаток: иначе крупная подпись
+     съедает фотографию и настройка перестаёт означать обещанное */
+  flex: 0 0 calc(var(--ui-photo-group, 60) * 1%);
   min-height: 0;
   background: var(--s2l-soft);
 }
@@ -77,13 +79,15 @@ defineEmits<{ open: [category: Category] }>()
 
 .body {
   display: flex;
+  min-height: 0;
+  overflow: hidden;
   flex-direction: column;
   gap: 2px;
   padding: 10px 12px 12px;
 }
 
 .name {
-  font-size: 20px;
+  font-size: calc(26px * var(--ui-group-title, 1));
   font-weight: 700;
   line-height: 1.2;
 }

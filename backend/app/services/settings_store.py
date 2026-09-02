@@ -33,6 +33,18 @@ class DeviceSettings(BaseModel):
     kiosk_idle_reset_s: int = 45
     # Длительность стартовой заставки. 0 — не показывать её вовсе.
     splash_seconds: float = Field(default=3.0, ge=0, le=10)
+
+    # Масштабы подписей и доля высоты карточки под фотографию. Экран прибора стоит
+    # от покупателя дальше, чем монитор от разработчика, и подходящий размер
+    # подбирается на месте, а не подгоняется в вёрстке.
+    ui_scale_weight: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_scale_group_title: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_scale_product_name: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_scale_product_price: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_scale_product_code: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_scale_footer: float = Field(default=1.0, ge=0.7, le=2.0)
+    ui_photo_group: int = Field(default=60, ge=30, le=85)
+    ui_photo_product: int = Field(default=60, ge=30, le=85)
     # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
     # поэтому вынесено в настройки, а не зашито в вёрстку.
     # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка

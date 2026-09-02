@@ -49,6 +49,22 @@ let idleTimer: number | undefined
 let labelTimer: number | undefined
 
 const currency = computed(() => settings.value?.currency ?? '₴')
+
+/**
+ * Масштабы подписей и доля фото уезжают в CSS-переменные корня киоска: вёрстка
+ * считает размеры от них, а значения приходят из настроек прибора. Без этого
+ * каждый размер пришлось бы пробрасывать пропом до каждой карточки.
+ */
+const uiScales = computed<Record<string, string>>(() => ({
+  '--ui-weight': String(settings.value?.ui_scale_weight ?? 1),
+  '--ui-group-title': String(settings.value?.ui_scale_group_title ?? 1),
+  '--ui-name': String(settings.value?.ui_scale_product_name ?? 1),
+  '--ui-price': String(settings.value?.ui_scale_product_price ?? 1),
+  '--ui-code': String(settings.value?.ui_scale_product_code ?? 1),
+  '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
+  '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
+  '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
+}))
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 
@@ -311,7 +327,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
 
-    <div class="kiosk">
+    <div class="kiosk" :style="uiScales">
       <!-- Весы занимают всю высоту экрана и не сжимаются ничем: ни шапкой,
            ни выехавшей клавиатурой. Это единственный блок, за которым покупатель
            следит непрерывно. -->
@@ -319,6 +335,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <WeightPanel
           :reading="weight.reading"
           :connected="weight.connected"
+          :clock="clock.toLocaleTimeString(localeTag())"
           :currency="currency"
           :product="selected"
           :total="total"
@@ -328,17 +345,10 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
       </aside>
 
       <section class="main" :class="{ 'kb-open': keyboardOpen || showNumpad }">
-        <!-- Шапка сведена к одной строке статуса: на 768 px каждая строка
-             отнимает высоту у карточек. -->
-        <header class="statusbar">
-          <span class="dot" :class="{ ok: weight.connected }"></span>
-          <span class="conn">{{
-            weight.connected ? t('kiosk.connected') : t('kiosk.disconnected')
-          }}</span>
-          <span class="clock">{{ clock.toLocaleTimeString(localeTag()) }}</span>
-        </header>
+        <!-- Отдельной шапки нет: строка состояния переехала в блок весов, за
+             которым покупатель и так следит. Освободившаяся высота отдана карточкам. -->
 
-        <!-- Возврат живёт рядом с заголовком выбора, а не в шапке: обе подписи
+        <!-- Возврат живёт рядом с заголовком выбора: обе подписи
              про одно и то же — где покупатель находится. Строка сохраняет высоту
              и на верхнем уровне, иначе карточки меняли бы размер между экранами. -->
         <div class="catalog-head">
@@ -484,8 +494,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .main {
   position: relative;
   display: grid;
-  /* статус / возврат с заголовком / поиск / сетка / пагинация / итог */
-  grid-template-rows: auto auto auto 1fr auto auto;
+  /* возврат с заголовком / поиск / сетка / пагинация / итог */
+  grid-template-rows: auto auto 1fr auto auto;
   gap: 10px;
   min-height: 0;
   /* Клавиатура выезжает внутри этой колонки и поджимает только её */
@@ -494,18 +504,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .main.kb-open {
   padding-bottom: var(--s2l-kb-height);
-}
-
-.statusbar {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 10px;
-  height: 24px;
-  padding: 0 6px;
-  font-size: 14px;
-  color: var(--s2l-muted);
-  white-space: nowrap;
 }
 
 /* Строка сохраняет высоту и при пустом содержимом: иначе карточки меняли бы
@@ -518,28 +516,33 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding: 0 4px;
 }
 
+/* Возврат — основной путь назад, поэтому он окрашен акцентом, а не выглядит
+   вспомогательной серой кнопкой рядом с крупным заголовком */
 .back {
   display: flex;
   flex: none;
   align-items: center;
-  gap: 10px;
-  min-height: 52px;
-  padding: 0 20px;
-  font-size: 18px;
-  font-weight: 600;
-  color: var(--s2l-ink);
-  background: var(--s2l-soft);
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 26px;
+  font-size: 20px;
+  font-weight: 700;
+  color: #fff;
+  background: var(--s2l-accent);
   border: none;
-  border-radius: 12px;
+  border-radius: 14px;
+  box-shadow: 0 2px 0 var(--s2l-accent-dark);
   cursor: pointer;
 }
 
 .back:active {
-  background: var(--s2l-soft-active);
+  background: var(--s2l-accent-dark);
+  box-shadow: none;
+  transform: translateY(2px);
 }
 
 .arrow {
-  font-size: 22px;
+  font-size: 26px;
   line-height: 1;
 }
 
@@ -563,7 +566,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .catalog-title {
   margin: 0;
-  font-size: 22px;
+  font-size: calc(24px * var(--ui-group-title, 1));
   font-weight: 700;
   line-height: 1.2;
   overflow: hidden;
@@ -672,13 +675,13 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .pick-name {
-  font-size: 21px;
+  font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 600;
 }
 
 .pick-meta,
 .pick-empty {
-  font-size: 15px;
+  font-size: calc(17px * var(--ui-footer, 1));
   color: var(--s2l-muted);
 }
 
@@ -689,12 +692,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 .sum-label {
-  font-size: 14px;
+  font-size: calc(16px * var(--ui-footer, 1));
   color: var(--s2l-muted);
 }
 
 .sum-value {
-  font-size: 38px;
+  font-size: calc(42px * var(--ui-footer, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1.1;
@@ -704,7 +707,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   min-width: 330px;
   min-height: 84px;
   padding: 0 26px;
-  font-size: 22px;
+  font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 700;
   color: #fff;
   background: var(--s2l-accent);

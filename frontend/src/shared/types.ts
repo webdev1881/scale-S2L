@@ -75,6 +75,14 @@ export interface DeviceSettings {
   require_stable: boolean
   kiosk_idle_reset_s: number
   splash_seconds: number
+  ui_scale_weight: number
+  ui_scale_group_title: number
+  ui_scale_product_name: number
+  ui_scale_product_price: number
+  ui_scale_product_code: number
+  ui_scale_footer: number
+  ui_photo_group: number
+  ui_photo_product: number
   grid_cols: number
   grid_rows: number
 }

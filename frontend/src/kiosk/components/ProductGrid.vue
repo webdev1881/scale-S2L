@@ -28,20 +28,19 @@ defineEmits<{ select: [product: Product] }>()
       <div class="photo">
         <img v-if="product.image" :src="`/products/${product.image}`" :alt="product.name" />
         <span v-else class="emoji">{{ product.emoji || '🏷️' }}</span>
+        <!-- Код лежит поверх фотографии без подложки: он нужен тем, кто набирает
+             его на клавиатуре, и не должен занимать строку в подписи. -->
+        <span class="code">{{ t('kiosk.code') }} {{ product.plu }}</span>
       </div>
 
+      <!-- Название слева, цена справа: взгляд идёт по строке от «что» к «сколько» -->
       <div class="body">
         <span class="name">{{ product.name }}</span>
-        <!-- цена и код в одну строку: на экране прибора каждая лишняя строка
-             подписи отнимает высоту у фотографии -->
-        <div class="meta">
-          <span class="price">
-            {{ formatMoney(product.price) }} {{ currency }}/{{
-              product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-            }}
-          </span>
-          <span class="plu">{{ t('kiosk.code') }} {{ product.plu }}</span>
-        </div>
+        <span class="price">
+          {{ formatMoney(product.price) }} {{ currency }}/{{
+            product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+          }}
+        </span>
       </div>
     </button>
 
@@ -85,13 +84,28 @@ defineEmits<{ select: [product: Product] }>()
 }
 
 .photo {
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Фото забирает остаток высоты ряда, подпись всегда помещается целиком */
-  flex: 1;
+  /* Доля высоты карточки под фото задаётся в настройках прибора */
+  /* Ровно заданная доля высоты, а не остаток: иначе крупная подпись
+     съедает фотографию и настройка перестаёт означать обещанное */
+  flex: 0 0 calc(var(--ui-photo-product, 60) * 1%);
   min-height: 0;
   background: var(--s2l-soft);
+}
+
+.code {
+  position: absolute;
+  top: 6px;
+  left: 8px;
+  font-size: calc(14px * var(--ui-code, 1));
+  font-weight: 600;
+  color: #46505f;
+  /* Подложки нет — снимки на белом, а лёгкая тень удерживает читаемость,
+     если фотографию заменят на тёмную */
+  text-shadow: 0 1px 2px rgb(255 255 255 / 85%);
 }
 
 .photo img {
@@ -108,34 +122,32 @@ defineEmits<{ select: [product: Product] }>()
 
 .body {
   display: flex;
-  flex-direction: column;
-  padding: 8px 10px 10px;
+  min-height: 0;
+  overflow: hidden;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 8px 12px 10px;
 }
 
 .name {
-  font-size: 16px;
+  flex: 1;
+  min-width: 0;
+  font-size: calc(19px * var(--ui-name, 1));
   font-weight: 600;
   line-height: 1.2;
-}
-
-.meta {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-top: 4px;
+  /* Длинное название переносится на вторую строку, дальше — многоточие */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .price {
-  font-size: 16px;
+  flex: none;
+  font-size: calc(19px * var(--ui-price, 1));
   font-weight: 700;
   color: var(--s2l-accent);
-  white-space: nowrap;
-}
-
-.plu {
-  font-size: 12px;
-  color: var(--s2l-muted);
   white-space: nowrap;
 }
 
