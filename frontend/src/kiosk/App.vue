@@ -608,6 +608,21 @@ watch([showCategories, page], ([toGroups, next], [wasGroups, prev]) => {
   pageTurnSilent = false
 })
 
+/**
+ * Пока меняется сама сетка — столбцы под выехавшей панелью, ряды под клавиатурой —
+ * карточки не анимируются. Это не изменение списка, а изменение раскладки: влёт
+ * снизу со ступенчатой задержкой поверх меняющейся ширины выглядит рывком.
+ */
+const layoutCalm = ref(false)
+let layoutCalmTimer = 0
+watch([visibleCols, visibleRows], () => {
+  layoutCalm.value = true
+  window.clearTimeout(layoutCalmTimer)
+  layoutCalmTimer = window.setTimeout(() => (layoutCalm.value = false), 350)
+})
+
+const calmCards = computed(() => searching.value || layoutCalm.value)
+
 // Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
 watch([search, pageSize], () => (page.value = 0))
 watch(pageCount, (count) => {
@@ -744,6 +759,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :categories="pagedCategories"
                 :cols="visibleCols"
                 :rows="visibleRows"
+                :calm="calmCards"
                 @open="openCategory"
               />
               <ProductGrid
@@ -754,7 +770,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :currency="currency"
                 :cols="visibleCols"
                 :rows="visibleRows"
-                :calm="searching"
+                :calm="calmCards"
                 @select="selectProduct"
               />
             </Transition>
@@ -1351,7 +1367,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   min-height: 0;
   /* Ширина цифрового блока нужна дважды: ему самому и отступу каталога под ним */
   --s2l-pad-width: min(420px, 42%);
-  transition: padding-right 0.22s ease;
 }
 
 /* Панель лежит поверх карточек, но карточки под неё не заезжают: обрезанная

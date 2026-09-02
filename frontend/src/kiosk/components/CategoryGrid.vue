@@ -5,7 +5,13 @@ import type { Category } from '@/shared/types'
 
 const { t } = useI18n()
 
-const props = defineProps<{ categories: Category[]; cols: number; rows: number }>()
+const props = defineProps<{
+  categories: Category[]
+  cols: number
+  rows: number
+  /** Меняется сама сетка, а не список: карточки не переставляются. */
+  calm?: boolean
+}>()
 defineEmits<{ open: [category: Category] }>()
 </script>
 
@@ -14,6 +20,7 @@ defineEmits<{ open: [category: Category] }>()
     tag="div"
     name="card"
     class="grid"
+    :class="{ calm: props.calm }"
     :style="{ '--cols': props.cols, '--rows': props.rows }"
   >
     <button
@@ -157,6 +164,28 @@ defineEmits<{ open: [category: Category] }>()
 
 .card-move {
   transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Спокойный режим: карточки не переставляются и не влетают, только проявляются.
+   Отсутствие перехода у `.card-move` — не украшение: Vue проверяет, есть ли у
+   класса перестановки переход, и без него пропускает FLIP целиком. */
+.grid.calm .card-move,
+.grid.calm .card-leave-active {
+  transition: none;
+}
+
+.grid.calm .card-leave-active {
+  display: none;
+}
+
+.grid.calm .card-enter-active {
+  transition: opacity 0.12s ease;
+  transition-delay: 0s;
+}
+
+.grid.calm .card-enter-from {
+  opacity: 0;
+  transform: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
