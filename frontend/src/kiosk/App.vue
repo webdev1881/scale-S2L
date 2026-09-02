@@ -1211,8 +1211,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   gap: 2px;
   min-width: 0;
   /* Отступы скромнее, чем в шапке: шапка и футер вдвоём и так забирают у
-     карточек больше трети экрана прибора. */
-  padding: 8px 16px;
+     карточек больше трети экрана прибора. Масштабируются вместе со шрифтом. */
+  padding: calc(8px * var(--ui-footer, 1)) calc(16px * var(--ui-footer, 1));
   border: 2px solid transparent;
   border-radius: 14px;
 }
@@ -1274,8 +1274,13 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   flex-direction: row;
   justify-content: center;
   gap: 14px;
-  min-width: 330px;
-  padding: 0 26px;
+  /* Размеры тянутся тем же ползунком, что и шрифт: зашитые пиксели означали бы,
+     что настройка масштаба меняет надпись, но не кнопку под ней. */
+  /* Верхний предел считается от ширины экрана, а не от строки: доля строки для
+     grid-элемента считается от его же ячейки, и кнопка вместо ограничения
+     получала произвольное число. */
+  min-width: min(calc(330px * var(--ui-footer, 1)), 36vw);
+  padding: 0 calc(26px * var(--ui-footer, 1));
   font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 700;
   color: #fff;
@@ -1297,15 +1302,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 }
 
 /* Поиск шире печати на 300 px: пока товар не выбран, это единственное, что
-   покупателю нужно нажать, и промахнуться по нему нельзя. */
+   покупателю нужно нажать, и промахнуться по нему нельзя. Ширина масштабируется
+   вместе со всем футером. */
 .bottom .search-cta {
-  min-width: 630px;
+  min-width: min(calc(630px * var(--ui-footer, 1)), 62vw);
 }
 
 .cta-icon {
   flex: none;
-  width: 30px;
-  height: 30px;
+  width: calc(30px * var(--ui-footer, 1));
+  height: calc(30px * var(--ui-footer, 1));
   fill: none;
   stroke: currentcolor;
   stroke-width: 2.4;

@@ -124,7 +124,9 @@ const state = computed(() => {
   justify-content: center;
   gap: 2px;
   min-width: 0;
-  padding: 10px 18px;
+  /* Отступы плиток идут за тем же ползунком, что и цифры: иначе увеличенное
+     показание упирается в края собственной плитки. */
+  padding: calc(10px * var(--ui-weight, 1)) calc(18px * var(--ui-weight, 1));
   border: 2px solid transparent;
   border-radius: 14px;
 }
@@ -242,7 +244,7 @@ const state = computed(() => {
   align-items: center;
   flex-direction: row;
   gap: 12px;
-  min-width: 190px;
+  min-width: calc(190px * var(--ui-weight, 1));
   font-size: calc(20px * var(--ui-weight, 1));
   font-weight: 700;
   color: var(--ui-plate-ink, #f4f7fb);
@@ -253,8 +255,8 @@ const state = computed(() => {
 
 .code-icon {
   flex: none;
-  width: 24px;
-  height: 24px;
+  width: calc(24px * var(--ui-weight, 1));
+  height: calc(24px * var(--ui-weight, 1));
   fill: currentcolor;
 }
 
