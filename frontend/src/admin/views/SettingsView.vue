@@ -115,6 +115,18 @@ onMounted(load)
             {{ t('admin.settings.gridHint', { count: form.grid_cols * form.grid_rows }) }}
           </div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.gridProducts')">
+          <el-input-number v-model="form.product_grid_cols" :min="2" :max="6" />
+          <span class="times">×</span>
+          <el-input-number v-model="form.product_grid_rows" :min="1" :max="5" />
+          <div class="hint">
+            {{
+              t('admin.settings.gridProductsHint', {
+                count: form.product_grid_cols * form.product_grid_rows,
+              })
+            }}
+          </div>
+        </el-form-item>
       </el-form>
     </el-card>
 

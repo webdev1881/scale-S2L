@@ -60,8 +60,11 @@ class DeviceSettings(BaseModel):
     # поэтому вынесено в настройки, а не зашито в вёрстку.
     # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка
     # сжимается до 131 px и фото товара перестаёт читаться.
+    # Сетки разные: групп мало и они могут быть крупными, товаров в группе больше.
     grid_cols: int = Field(default=4, ge=2, le=6)
     grid_rows: int = Field(default=2, ge=1, le=5)
+    product_grid_cols: int = Field(default=4, ge=2, le=6)
+    product_grid_rows: int = Field(default=2, ge=1, le=5)
 
 
 def load_settings() -> DeviceSettings:

@@ -87,4 +87,6 @@ export interface DeviceSettings {
   ui_plate_color: string
   grid_cols: number
   grid_rows: number
+  product_grid_cols: number
+  product_grid_rows: number
 }

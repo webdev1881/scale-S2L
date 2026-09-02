@@ -22,5 +22,7 @@
   "ui_plate_width": 100,
   "ui_plate_color": "#1d2129",
   "grid_cols": 4,
-  "grid_rows": 2
+  "grid_rows": 2,
+  "product_grid_cols": 4,
+  "product_grid_rows": 2
 }

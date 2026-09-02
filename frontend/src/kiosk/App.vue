@@ -92,8 +92,18 @@ const uiScales = computed<Record<string, string>>(() => {
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 
-const cols = computed(() => settings.value?.grid_cols ?? 4)
-const rows = computed(() => settings.value?.grid_rows ?? 2)
+// Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
+// товаров в группе больше и плотность нужна другая.
+const cols = computed(() =>
+  showCategories.value
+    ? (settings.value?.grid_cols ?? 4)
+    : (settings.value?.product_grid_cols ?? 4),
+)
+const rows = computed(() =>
+  showCategories.value
+    ? (settings.value?.grid_rows ?? 2)
+    : (settings.value?.product_grid_rows ?? 2),
+)
 /**
  * Открытая клавиатура забирает нижнюю половину экрана. Если оставить прежнее число
  * строк, карточки сожмутся до нечитаемых полосок, поэтому во время набора показываем
