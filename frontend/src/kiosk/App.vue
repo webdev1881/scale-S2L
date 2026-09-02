@@ -239,10 +239,12 @@ function turnPage(delta: number, animated = true) {
 }
 
 // Свайп по сетке — равноправная замена пейджеру: у витрины палец тянется провести
-// по карточкам раньше, чем искать кнопку. Страницы идут лентой: соседняя стоит
-// вплотную и едет вместе с текущей один в один за пальцем, а после отпускания
-// лента доезжает до места. Подмена страницы «на месте» ощущалась рывком именно
-// потому, что палец вёл одно, а на экране в конце оказывалось другое.
+// по карточкам раньше, чем искать кнопку. Страницы идут лентой: соседние стоят
+// вплотную слева и справа и едут вместе с текущей один в один за пальцем.
+//
+// Под пальцем лента двигается в обход Vue — сдвиги пишутся прямо в стиль трёх
+// элементов. Через реактивное состояние каждое движение пальца перерисовывало бы
+// весь киоск, и лента дёргалась бы именно там, где обязана быть гладкой.
 const SWIPE_START_PX = 8 // с какого сдвига считаем, что ведут, а не промахнулись
 const SWIPE_COMMIT_RATIO = 0.25 // четверть ширины — страница пролистана
 // На широком экране четверть — это уже 340 px, длиннее удобного движения кистью,
@@ -253,53 +255,60 @@ const SWIPE_FLICK_SPEED = 0.5 // px/мс
 const SWIPE_EDGE_RATIO = 0.12 // на краю каталога лента почти не поддаётся
 const SWIPE_EDGE_MAX = 56
 const SETTLE_MS = 280 // столько лента доезжает после отпускания
+const SETTLE_EASE = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
 
-let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
-/** Сдвиг ленты в пикселях: под пальцем — один в один, после отпускания доезжает. */
-const dragX = ref(0)
+const ribbonPrev = ref<HTMLElement | null>(null)
+const ribbonCurrent = ref<HTMLElement | null>(null)
+const ribbonNext = ref<HTMLElement | null>(null)
+
+/**
+ * Соседние страницы висят в разметке всё время жеста, а не появляются на первом
+ * движении: собрать восемь карточек с фотографиями посреди движения — это
+ * пропущенный кадр ровно там, где палец пошёл. На касании же пауза незаметна.
+ */
+const dragActive = ref(false)
 const swipeDragging = ref(false)
-/** Какая страница подставлена рядом: 1 — следующая справа, -1 — предыдущая слева. */
-const dragDir = ref(0)
+let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
 let settleTimer = 0
 // Браузер шлёт click даже после протяжки на сотню пикселей, поэтому выбор товара
 // после состоявшегося жеста гасим вручную.
 let swipeJustHappened = false
 
-/** Пока лента доезжает сама, новый жест её не перехватывает. */
-const settling = computed(() => !swipeDragging.value && dragDir.value !== 0)
+const reducedMotion = () =>
+  window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-const ribbonMotion = computed(() =>
-  swipeDragging.value ? 'none' : `transform ${SETTLE_MS}ms cubic-bezier(0.2, 0.7, 0.2, 1)`,
-)
+/** Три полосы ленты: предыдущая, текущая, следующая. */
+function ribbonParts() {
+  return [
+    { el: ribbonPrev.value, base: '-100%' },
+    { el: ribbonCurrent.value, base: '0px' },
+    { el: ribbonNext.value, base: '100%' },
+  ]
+}
 
-/**
- * Текущая страница ленты. Стиль появляется только на время жеста, чтобы не
- * спорить с переходом, которым листают кнопки пейджера.
- */
-const trackStyle = computed(() =>
-  dragX.value || dragDir.value
-    ? { transform: `translateX(${dragX.value}px)`, transition: ribbonMotion.value }
-    : undefined,
-)
+function moveRibbon(shift: number, motion: string) {
+  for (const { el, base } of ribbonParts()) {
+    if (!el) continue
+    el.style.transition = motion
+    el.style.transform = `translateX(calc(${base} + ${shift}px))`
+  }
+}
 
-/** Соседняя страница стоит вплотную к текущей и едет тем же сдвигом. */
-const neighbourStyle = computed(() => ({
-  transform: `translateX(calc(${dragX.value}px + ${dragDir.value * 100}%))`,
-  transition: ribbonMotion.value,
-}))
+function restRibbon() {
+  for (const { el } of ribbonParts()) {
+    if (!el) continue
+    el.style.transition = ''
+    el.style.transform = ''
+  }
+}
 
 function onSwipeStart(event: PointerEvent) {
   // Второй палец в жесте не участвует: это масштабирование или случайное касание.
-  if (!event.isPrimary || settling.value) return
+  if (!event.isPrimary || settleTimer) return
   const width = (event.currentTarget as HTMLElement).getBoundingClientRect().width
-  swipeFrom = {
-    x: event.clientX,
-    y: event.clientY,
-    at: event.timeStamp,
-    id: event.pointerId,
-    width,
-  }
+  swipeFrom = { x: event.clientX, y: event.clientY, at: event.timeStamp, id: event.pointerId, width }
   swipeDragging.value = false
+  if (pageCount.value > 1) dragActive.value = true
 }
 
 function onSwipeMove(event: PointerEvent) {
@@ -319,35 +328,31 @@ function onSwipeMove(event: PointerEvent) {
       /* указатель уже отпущен — жест доживёт и без захвата */
     }
   }
-  const dir = dx < 0 ? 1 : -1
-  const exists = dir > 0 ? page.value < pageCount.value - 1 : page.value > 0
-  dragDir.value = exists ? dir : 0
   // На краю каталога подставлять нечего, и лента почти не поддаётся — это и есть
   // ответ «дальше ничего нет», понятный без подписи.
-  dragX.value = exists
-    ? dx
-    : Math.max(-SWIPE_EDGE_MAX, Math.min(SWIPE_EDGE_MAX, dx * SWIPE_EDGE_RATIO))
+  const edge = (dx < 0 && page.value >= pageCount.value - 1) || (dx > 0 && page.value <= 0)
+  const shift = edge
+    ? Math.max(-SWIPE_EDGE_MAX, Math.min(SWIPE_EDGE_MAX, dx * SWIPE_EDGE_RATIO))
+    : dx
+  moveRibbon(shift, 'none')
 }
 
 function onSwipeEnd(event: PointerEvent) {
   const from = swipeFrom
   const dragged = swipeDragging.value
-  const dir = dragDir.value
   swipeFrom = null
   swipeDragging.value = false
+  let dir = 0
   if (from && event.pointerId === from.id) {
     const dx = event.clientX - from.x
     const speed = Math.abs(dx) / Math.max(event.timeStamp - from.at, 1)
     const flick = Math.abs(dx) >= SWIPE_FLICK_PX && speed >= SWIPE_FLICK_SPEED
     const enough = Math.min(from.width * SWIPE_COMMIT_RATIO, SWIPE_COMMIT_MAX_PX)
-    const commit = dir !== 0 && (Math.abs(dx) >= enough || flick)
-    // Доезжаем в ту же сторону, куда вели: страница уже почти ушла, и возврат
-    // читался бы как отказ прибора листать.
-    dragX.value = commit ? -dir * from.width : 0
-  } else {
-    dragX.value = 0
+    const wanted = dx < 0 ? 1 : -1
+    const exists = wanted > 0 ? page.value < pageCount.value - 1 : page.value > 0
+    if (exists && (Math.abs(dx) >= enough || flick)) dir = wanted
   }
-  settleLater()
+  settleRibbon(dir, from?.width ?? 0)
   // Гасим выбор после любой протяжки, а не только после смены страницы: палец
   // отпущен над чужой карточкой, и её открытие выглядело бы промахом прибора.
   if (dragged) {
@@ -357,24 +362,29 @@ function onSwipeEnd(event: PointerEvent) {
 }
 
 /**
- * Лента доехала: страницу подменяем без перехода и обнуляем сдвиг в одном кадре.
- * Соседняя уже стоит ровно там, где окажется новая текущая, поэтому подмены не
- * видно.
+ * Лента доезжает до места и только в конце меняет страницу: соседняя к этому
+ * моменту стоит ровно там, где окажется новая текущая, поэтому подмены не видно.
+ * Доводим в ту же сторону, куда вели, — возврат почти ушедшей страницы читался бы
+ * как отказ прибора листать.
  */
-function settleLater() {
+function settleRibbon(dir: number, width: number) {
   window.clearTimeout(settleTimer)
-  settleTimer = window.setTimeout(() => {
-    if (dragX.value !== 0 && dragDir.value !== 0) turnPage(dragDir.value, false)
-    dragX.value = 0
-    dragDir.value = 0
-  }, SETTLE_MS)
+  const finish = () => {
+    settleTimer = 0
+    if (dir !== 0) turnPage(dir, false)
+    restRibbon()
+    dragActive.value = false
+  }
+  if (reducedMotion()) return finish()
+  moveRibbon(dir === 0 ? 0 : -dir * width, `transform ${SETTLE_MS}ms ${SETTLE_EASE}`)
+  settleTimer = window.setTimeout(finish, SETTLE_MS)
 }
 
 function cancelSwipe() {
+  const width = swipeFrom?.width ?? 0
   swipeFrom = null
   swipeDragging.value = false
-  dragX.value = 0
-  settleLater()
+  settleRibbon(0, width)
 }
 
 function openCategory(category: Category) {
@@ -687,50 +697,69 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                Номер страницы входит в ключ: страница уезжает целиком, а не
                карточка за карточкой. Иначе на время перехода в сетке оказывается
                вдвое больше карточек, ряды пересобираются и кадр дёргается. -->
-          <Transition :name="gridAnim">
+          <!-- Соседние страницы ленты: висят по краям всё время жеста и едут
+               вместе с текущей. Касаний не ловят — палец в этот момент ведёт
+               ленту, а не выбирает товар. -->
+          <div v-if="dragActive && page > 0" ref="ribbonPrev" class="page side prev">
             <CategoryGrid
               v-if="showCategories"
-              :key="`groups:${page}`"
-              :categories="pagedCategories"
+              :categories="categoriesOn(page - 1)"
               :cols="cols"
               :rows="visibleRows"
-              :style="trackStyle"
-              @open="openCategory"
             />
             <ProductGrid
               v-else
-              :key="`products:${page}`"
-              :products="pagedProducts"
+              :products="productsOn(page - 1)"
               :selected-id="selected?.id ?? null"
               :currency="currency"
               :cols="cols"
               :rows="visibleRows"
-              :style="trackStyle"
-              @select="selectProduct"
             />
-          </Transition>
+          </div>
 
-          <!-- Соседняя страница живёт только на время жеста: она стоит вплотную
-               к текущей и едет вместе с ней, поэтому листание видно целиком, а
-               не появляется готовым результатом. -->
-          <CategoryGrid
-            v-if="dragDir && showCategories"
-            class="neighbour"
-            :categories="categoriesOn(page + dragDir)"
-            :cols="cols"
-            :rows="visibleRows"
-            :style="neighbourStyle"
-          />
-          <ProductGrid
-            v-else-if="dragDir"
-            class="neighbour"
-            :products="productsOn(page + dragDir)"
-            :selected-id="selected?.id ?? null"
-            :currency="currency"
-            :cols="cols"
-            :rows="visibleRows"
-            :style="neighbourStyle"
-          />
+          <div ref="ribbonCurrent" class="page">
+            <Transition :name="gridAnim">
+              <CategoryGrid
+                v-if="showCategories"
+                :key="`groups:${page}`"
+                :categories="pagedCategories"
+                :cols="cols"
+                :rows="visibleRows"
+                @open="openCategory"
+              />
+              <ProductGrid
+                v-else
+                :key="`products:${page}`"
+                :products="pagedProducts"
+                :selected-id="selected?.id ?? null"
+                :currency="currency"
+                :cols="cols"
+                :rows="visibleRows"
+                @select="selectProduct"
+              />
+            </Transition>
+          </div>
+
+          <div
+            v-if="dragActive && page < pageCount - 1"
+            ref="ribbonNext"
+            class="page side next"
+          >
+            <CategoryGrid
+              v-if="showCategories"
+              :categories="categoriesOn(page + 1)"
+              :cols="cols"
+              :rows="visibleRows"
+            />
+            <ProductGrid
+              v-else
+              :products="productsOn(page + 1)"
+              :selected-id="selected?.id ?? null"
+              :currency="currency"
+              :cols="cols"
+              :rows="visibleRows"
+            />
+          </div>
           </div>
 
           <!-- Цифры выезжают справа поверх карточек: блок узкий, и поджимать ради
@@ -957,10 +986,33 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   touch-action: pan-y;
 }
 
-/* Соседняя страница ленты касаний не ловит: палец в этот момент ведёт ленту,
-   а не выбирает товар. */
-.neighbour {
+/* Полосы ленты лежат в одной ячейке; боковые сдвинуты на свою ширину и видны
+   только когда лента поехала. Сдвиг задан в CSS, а не в стиле элемента: до
+   первого движения пальца писать в стиль некому. */
+.page {
+  display: grid;
+  min-height: 0;
+  /* Свой слой: браузер не пересобирает страницу на каждом кадре жеста */
+  will-change: transform;
+}
+
+/* Уходящая и приходящая сетки внутри полосы лежат в одной ячейке: без этого
+   переход между уровнями каталога выстроил бы их в два ряда. */
+.page > * {
+  grid-area: 1 / 1;
+  min-height: 0;
+}
+
+.side {
   pointer-events: none;
+}
+
+.prev {
+  transform: translateX(-100%);
+}
+
+.next {
+  transform: translateX(100%);
 }
 
 /* Обе сетки занимают одну и ту же ячейку: во время перехода они наложены,
