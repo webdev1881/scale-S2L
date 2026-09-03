@@ -114,10 +114,7 @@ const rows = computed(() =>
  * один ряд — остальное доступно листанием или после «Готово».
  */
 const visibleRows = computed(() => (keyboardOpen.value ? 1 : rows.value))
-// Блок цифр занимает правую часть каталога, и сетка на это время живёт в
-// оставшейся: иначе крайние карточки уезжают под панель и обрезаются ею.
-const visibleCols = computed(() => (showNumpad.value ? Math.min(cols.value, 2) : cols.value))
-const pageSize = computed(() => visibleCols.value * visibleRows.value)
+const pageSize = computed(() => cols.value * visibleRows.value)
 
 /**
  * Набранный код фильтрует каталог наравне со строкой поиска: результат виден
@@ -622,7 +619,7 @@ watch([showCategories, page], ([toGroups, next], [wasGroups, prev]) => {
  */
 const layoutCalm = ref(false)
 let layoutCalmTimer = 0
-watch([visibleCols, visibleRows], () => {
+watch([cols, visibleRows], () => {
   layoutCalm.value = true
   window.clearTimeout(layoutCalmTimer)
   layoutCalmTimer = window.setTimeout(() => (layoutCalm.value = false), 350)
@@ -661,7 +658,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         />
       </header>
 
-      <section class="main" :class="{ 'kb-open': keyboardOpen, 'pad-open': showNumpad }">
+      <section class="main" :class="{ 'kb-open': keyboardOpen }">
         <!-- Отдельной шапки нет: строка состояния переехала в блок весов, за
              которым покупатель и так следит. Освободившаяся высота отдана карточкам. -->
 
@@ -730,7 +727,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <CategoryGrid
               v-if="showCategories"
               :categories="categoriesOn(page - 1)"
-              :cols="visibleCols"
+              :cols="cols"
               :rows="visibleRows"
             />
             <ProductGrid
@@ -738,7 +735,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :products="productsOn(page - 1)"
               :selected-id="selected?.id ?? null"
               :currency="currency"
-              :cols="visibleCols"
+              :cols="cols"
               :rows="visibleRows"
             />
           </div>
@@ -749,7 +746,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 v-if="showCategories"
                 :key="`groups:${page}`"
                 :categories="pagedCategories"
-                :cols="visibleCols"
+                :cols="cols"
                 :rows="visibleRows"
                 :calm="calmCards"
                 @open="openCategory"
@@ -760,7 +757,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :products="pagedProducts"
                 :selected-id="selected?.id ?? null"
                 :currency="currency"
-                :cols="visibleCols"
+                :cols="cols"
                 :rows="visibleRows"
                 :calm="calmCards"
                 @select="selectProduct"
@@ -776,7 +773,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <CategoryGrid
               v-if="showCategories"
               :categories="categoriesOn(page + 1)"
-              :cols="visibleCols"
+              :cols="cols"
               :rows="visibleRows"
             />
             <ProductGrid
@@ -784,26 +781,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :products="productsOn(page + 1)"
               :selected-id="selected?.id ?? null"
               :currency="currency"
-              :cols="visibleCols"
+              :cols="cols"
               :rows="visibleRows"
             />
           </div>
           </div>
 
-          <!-- Цифры выезжают справа поверх карточек: блок узкий, и поджимать ради
-               него весь каталог незачем — набирающий код смотрит в него, а не в
-               сетку, а остальным карточки остаются видны. -->
-          <Transition name="pad">
-            <Numpad
-              v-if="showNumpad"
-              :value="pluInput"
-              class="pad"
-              @key="padKey"
-              @backspace="pluInput = pluInput.slice(0, -1)"
-              @clear="pluInput = ''"
-              @submit="findByPlu"
-            />
-          </Transition>
         </div>
 
         <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
@@ -872,6 +855,25 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           />
         </Transition>
       </section>
+
+      <!-- Цифровой блок — модалка: он выходит поверх всего экрана и ничего под
+           собой не двигает. Карточки остаются на своих местах, а затемнение
+           объясняет, почему часть из них не нажимается: они за панелью, а не
+           обрезаны ею. Касание по затемнению закрывает набор. -->
+      <Transition name="fade">
+        <div v-if="showNumpad" class="pad-backdrop"></div>
+      </Transition>
+      <Transition name="pad">
+        <Numpad
+          v-if="showNumpad"
+          :value="pluInput"
+          class="pad"
+          @key="padKey"
+          @backspace="pluInput = pluInput.slice(0, -1)"
+          @clear="pluInput = ''"
+          @submit="findByPlu"
+        />
+      </Transition>
 
       <el-dialog
         v-model="labelVisible"
@@ -1377,27 +1379,37 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   position: relative;
   display: grid;
   min-height: 0;
-  /* Ширина цифрового блока нужна дважды: ему самому и отступу каталога под ним */
-  --s2l-pad-width: min(420px, 42%);
 }
 
-/* Панель лежит поверх карточек, но карточки под неё не заезжают: обрезанная
-   панелью карточка выглядит поломкой, а не перекрытием. Уходит только ширина —
-   ряды и нижняя панель остаются на месте. */
-.main.pad-open .catalog-area {
-  padding-right: var(--s2l-pad-width);
+/* Затемнение и панель прижаты к экрану, а не к колонке каталога: набор кода
+   перекрывает весь киоск, поэтому сетке не нужно ни сжиматься, ни сдвигаться. */
+.pad-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 2900;
+  background: rgb(9 12 18 / 45%);
 }
 
 .pad {
-  position: absolute;
-  top: 0;
-  right: 0;
-  bottom: 0;
-  z-index: 2000;
-  width: var(--s2l-pad-width);
+  position: fixed;
+  top: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 3000;
+  width: min(420px, 42%);
   border-radius: var(--s2l-radius);
   overflow: hidden;
-  box-shadow: -10px 0 28px var(--s2l-shadow-strong);
+  box-shadow: -14px 0 40px var(--s2l-shadow-strong);
+}
+
+.fade-enter-active,
+.fade-leave-active {
+  transition: opacity 0.22s ease;
+}
+
+.fade-enter-from,
+.fade-leave-to {
+  opacity: 0;
 }
 
 .pad-enter-active,
