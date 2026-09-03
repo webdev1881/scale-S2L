@@ -734,7 +734,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               :aria-hidden="showCategories"
               @click="backToCategories"
             >
-              {{ t('kiosk.allGroups') }}
+              {{ t('kiosk.allProducts') }}
             </button>
           </div>
         </div>
