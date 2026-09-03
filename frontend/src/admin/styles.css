@@ -1,0 +1,78 @@
+/**
+ * Оформление блоков админки. Живёт глобально, а не в scoped-стилях страниц:
+ * блоки собраны из компонентов Element Plus, а до их внутренней разметки
+ * scoped-правила не достают. Всё под `.admin`, чтобы ничего не утекло в киоск.
+ */
+
+/* Страница админки — набор блоков на общем фоне, а не сплошная простыня формы.
+   Рамка отделяет блок от фона, тень приподнимает его, скруглением он совпадает
+   с карточками киоска. */
+.admin .el-card {
+  border: 1px solid var(--s2l-line);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgb(29 33 41 / 4%),
+    0 10px 26px rgb(29 33 41 / 6%);
+  overflow: hidden;
+}
+
+/* Заголовок блока — его главная примета, поэтому он крупнее текста внутри,
+   лежит на своей подложке и помечен полосой акцента: раздел видно с первого
+   взгляда, без вчитывания. */
+.admin .el-card__header {
+  position: relative;
+  padding: 14px 18px 14px 28px;
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--s2l-ink);
+  background: var(--s2l-soft);
+  border-bottom: 1px solid var(--s2l-line);
+}
+
+.admin .el-card__header::before {
+  content: '';
+  position: absolute;
+  top: 12px;
+  bottom: 12px;
+  left: 0;
+  width: 4px;
+  border-radius: 0 3px 3px 0;
+  background: var(--s2l-accent);
+}
+
+.admin .el-card__body {
+  padding: 20px 18px 8px;
+}
+
+/* Таблицы товаров и операций — такой же блок, как карточки настроек: иначе
+   страница распадается на «карточки здесь, голая таблица там». */
+.admin .el-table {
+  border: 1px solid var(--s2l-line);
+  border-radius: 14px;
+  box-shadow:
+    0 1px 2px rgb(29 33 41 / 4%),
+    0 10px 26px rgb(29 33 41 / 6%);
+  overflow: hidden;
+}
+
+.admin .el-table th.el-table__cell {
+  font-weight: 700;
+  color: var(--s2l-ink);
+  background: var(--s2l-soft);
+}
+
+/* Поля в блоке стоят просторнее: подписи к ним длинные, и слипшиеся строки
+   формы читаются как сплошной текст. */
+.admin .el-form-item {
+  margin-bottom: 18px;
+}
+
+.admin .el-form-item__label {
+  font-weight: 600;
+  color: var(--s2l-ink);
+}
+
+/* Шапка админки принадлежит той же системе: та же линия, что у блоков. */
+.admin .header {
+  border-bottom: 1px solid var(--s2l-line);
+}
