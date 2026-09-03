@@ -44,8 +44,11 @@ const state = computed(() => {
 </script>
 
 <template>
-  <div class="weight-panel" :class="`tone-${state.tone}`">
-    <div class="tile readout">
+  <div class="weight-panel">
+    <!-- Состояние весов красит рамку самой плитки показания, а не всей шапки:
+         дрожание веса — свойство показания, а цена, сумма и набор кода к нему
+         отношения не имеют. -->
+    <div class="tile readout" :class="`tone-${state.tone}`">
       <!-- Часы и связь стоят строкой над показанием: за ними следят краем глаза,
            а вес — то, ради чего на этот блок смотрят. Кнопок тары и нуля здесь
            нет: это работа оператора, и её место в админке. -->
@@ -112,8 +115,6 @@ const state = computed(() => {
   padding: 12px;
   background: var(--s2l-panel);
   border-radius: var(--s2l-radius);
-  border: 3px solid transparent;
-  transition: border-color 0.2s;
 }
 
 /* Общая форма всех блоков шапки: один радиус, одни отступы, одна высота. */
@@ -131,19 +132,25 @@ const state = computed(() => {
 }
 
 /* Показание обведено второстепенным цветом: та же рамка, что у цены и суммы,
-   так что три плитки шапки читаются как один ряд, а не как разные блоки. */
+   так что три плитки шапки читаются как один ряд, а не как разные блоки.
+   Эта же рамка сообщает состояние весов — цветом, а не отдельным значком. */
 .readout {
   background: var(--s2l-soft);
   border-color: var(--s2l-accent);
+  transition: border-color 0.2s;
 }
 
-.tone-ok {
+/* Спокойное состояние — тот же цвет, что и у соседних плиток: «стабильно» это
+   норма, а не событие, ради которого шапке стоит менять вид. */
+.readout.tone-ok {
   border-color: var(--s2l-accent);
 }
-.tone-busy {
+
+.readout.tone-busy {
   border-color: var(--s2l-warn);
 }
-.tone-error {
+
+.readout.tone-error {
   border-color: var(--s2l-danger);
 }
 
