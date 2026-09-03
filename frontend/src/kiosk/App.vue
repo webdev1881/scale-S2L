@@ -397,7 +397,13 @@ function openCategory(category: Category) {
   page.value = 0
 }
 
+// Клик по возврату браузер может продублировать по элементу, оказавшемуся под
+// пальцем. Короткое окно после возврата гасит такой «сквозной» фокус в поле.
+let backJustHappened = false
+
 function backToCategories() {
+  backJustHappened = true
+  window.setTimeout(() => (backJustHappened = false), 350)
   openedCategory.value = null
   selected.value = null
   search.value = ''
@@ -456,6 +462,7 @@ function cancelNumpad() {
 }
 
 function openKeyboard() {
+  if (backJustHappened) return searchInput.value?.blur()
   if (!keyboardOpen.value) {
     beforeSearch = { search: search.value, category: openedCategory.value, page: page.value }
   }
@@ -688,7 +695,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <!-- Возврат стоит рядом с полем поиска: обе кнопки про одно и то же —
                  как покупатель ищет товар. Стрелка не нужна, надпись и так
                  говорит, куда ведёт. Набор кода переехал в шапку. -->
-            <button v-if="!showCategories" class="back" @click="backToCategories">
+            <button
+              class="back"
+              :class="{ hidden: showCategories }"
+              :aria-hidden="showCategories"
+              @click="backToCategories"
+            >
               {{ t('kiosk.allGroups') }}
             </button>
           </div>
@@ -945,6 +957,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 /* Возврат — основной путь назад, поэтому он окрашен акцентом, а не выглядит
    вспомогательной серой кнопкой. Ростом он в строку поиска, рядом с которой стоит. */
+/* На верхнем уровне кнопка не исчезает, а гаснет: исчезни она — поле поиска
+   тут же займёт её место под пальцем, и отпускание попадёт уже по полю,
+   открыв клавиатуру вместо возврата. */
+.back.hidden {
+  visibility: hidden;
+  pointer-events: none;
+}
+
 .back {
   display: flex;
   flex: none;
