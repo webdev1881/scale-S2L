@@ -627,6 +627,17 @@ watch([cols, visibleRows], () => {
 
 const calmCards = computed(() => searching.value || layoutCalm.value)
 
+/**
+ * Как только набранный код оставил один товар, панель уходит сама: искали именно
+ * его, а нажать по карточке, накрытой панелью, нельзя. Фильтр при этом остаётся —
+ * на экране ровно та карточка, ради которой набирали код.
+ */
+watch([pluInput, visibleProducts], () => {
+  if (showNumpad.value && pluInput.value.length > 0 && visibleProducts.value.length === 1) {
+    closeNumpad()
+  }
+})
+
 // Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
 watch([search, pageSize], () => (page.value = 0))
 watch(pageCount, (count) => {
