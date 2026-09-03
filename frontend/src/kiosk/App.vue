@@ -820,7 +820,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <!-- Футер собран теми же плитками, что и шапка: сумма слева, выбранный
              товар посередине, действие справа — под большой палец. -->
         <footer class="bottom">
-          <div class="tile sum" :class="{ empty: !selected }">
+          <div class="tile sum">
             <span class="sum-label">{{ t('kiosk.total') }}</span>
             <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
           </div>
@@ -1255,11 +1255,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   border-color: var(--s2l-accent);
 }
 
-.bottom .sum.empty {
-  background: var(--s2l-soft);
-  border-color: transparent;
-}
-
 .sum-label {
   font-size: calc(16px * var(--ui-footer, 1));
   color: var(--s2l-muted);
@@ -1272,10 +1267,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   line-height: 1.1;
   color: var(--s2l-accent);
   white-space: nowrap;
-}
-
-.sum.empty .sum-value {
-  color: var(--s2l-muted);
 }
 
 .pick {

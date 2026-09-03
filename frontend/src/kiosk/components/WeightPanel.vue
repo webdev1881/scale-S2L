@@ -21,17 +21,16 @@ const { t } = useI18n()
 
 const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
 
+// Пока товар не выбран, показываем нули, а не прочерк: место числа занято
+// числом, и при выборе меняется только значение, а не вид блока.
 const priceText = computed(() => {
-  if (!props.product) return '—'
-  const per = props.product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-  return `${formatMoney(props.product.price)} ${props.currency}/${per}`
+  const per = props.product?.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+  return `${formatMoney(props.product?.price ?? 0)} ${props.currency}/${per}`
 })
 
 // Стоимость пересчитывается на каждый отсчёт весов — покупатель видит сумму
 // ещё до печати, а не узнаёт её из этикетки.
-const costText = computed(() =>
-  props.product ? `${formatMoney(props.total)} ${props.currency}` : '—',
-)
+const costText = computed(() => `${formatMoney(props.total)} ${props.currency}`)
 
 const state = computed(() => {
   if (!props.connected) return { text: translateError('scale.no_link'), tone: 'error' as const }
@@ -72,11 +71,11 @@ const state = computed(() => {
     </div>
 
     <dl class="figures">
-      <div class="tile figure price" :class="{ empty: !product }">
+      <div class="tile figure price">
         <dt>{{ t('weight.price') }}</dt>
         <dd>{{ priceText }}</dd>
       </div>
-      <div class="tile figure cost" :class="{ empty: !product }">
+      <div class="tile figure cost">
         <dt>{{ t('weight.cost') }}</dt>
         <dd>{{ costText }}</dd>
       </div>
@@ -301,18 +300,6 @@ const state = computed(() => {
   color: var(--s2l-accent);
 }
 
-/* Пока товар не выбран, показывать нечего: акцент на прочерке обещал бы число,
-   которого нет. Блоки ждут выбора серыми. */
-.figure.empty {
-  background: var(--s2l-soft);
-  border-color: transparent;
-}
-
-.figure.empty dt,
-.figure.empty dd {
-  color: var(--s2l-muted);
-}
-
 /* Сумма — единственное число, которое покупатель уносит с собой, поэтому она
    не подписана цветом, а залита им целиком. */
 .figure.cost {
@@ -327,17 +314,5 @@ const state = computed(() => {
 .figure.cost dd {
   font-size: calc(38px * var(--ui-weight, 1));
   color: #fff;
-}
-
-/* Заливку суммы снимаем адресно: правило `.figure.cost` идёт ниже общего
-   `.figure.empty` и иначе перебивает его. */
-.figure.cost.empty {
-  background: var(--s2l-soft);
-  border-color: transparent;
-}
-
-.figure.cost.empty dt,
-.figure.cost.empty dd {
-  color: var(--s2l-muted);
 }
 </style>
