@@ -140,9 +140,7 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.scaleGroupTitle')">
           <el-input-number v-model="form.ui_scale_group_title" :min="0.7" :max="2" :step="0.1" />
         </el-form-item>
-        <el-form-item :label="t('admin.settings.photoGroup')">
-          <el-input-number v-model="form.ui_photo_group" :min="30" :max="85" :step="5" />
-        </el-form-item>
+
         <el-form-item :label="t('admin.settings.scaleProductName')">
           <el-input-number v-model="form.ui_scale_product_name" :min="0.7" :max="2" :step="0.1" />
         </el-form-item>
@@ -152,11 +150,9 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.scaleProductCode')">
           <el-input-number v-model="form.ui_scale_product_code" :min="0.7" :max="2" :step="0.1" />
         </el-form-item>
-        <el-form-item :label="t('admin.settings.photoProduct')">
-          <el-input-number v-model="form.ui_photo_product" :min="30" :max="85" :step="5" />
-        </el-form-item>
+
         <el-form-item :label="t('admin.settings.plateHeight')">
-          <el-input-number v-model="form.ui_plate_height" :min="5" :max="60" :step="1" />
+          <el-input-number v-model="form.ui_plate_height" :min="1" :max="60" :step="1" />
           <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
         </el-form-item>
         <el-form-item :label="t('admin.settings.primaryColor')">

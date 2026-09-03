@@ -113,6 +113,9 @@ const uiScales = computed<Record<string, string>>(() => {
     '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
     '--ui-plate-height': String(settings.value?.ui_plate_height ?? 30),
+    // На низкой плашке две строки не помещаются, и вторая срезалась бы посередине
+    // букв. Ниже порога подпись сворачивается в одну строку с многоточием.
+    '--ui-plate-lines': (settings.value?.ui_plate_height ?? 30) < 18 ? '1' : '2',
     '--ui-plate-bg': primary,
     '--ui-plate-ink': inkOn(primary, '#1d2129'),
     '--ui-plate-accent': plateAccent(primary),

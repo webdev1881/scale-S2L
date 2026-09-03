@@ -112,8 +112,9 @@ defineEmits<{ select: [product: Product] }>()
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Фото занимает заданную долю высоты, плашка забирает весь остаток */
-  flex: 0 1 calc(var(--ui-photo-product, 60) * 1%);
+  /* Фотография забирает всё, что осталось от плашки: две настройки на одну и ту же
+     высоту всегда спорят, и одна из них оказывается обманом. */
+  flex: 1 1 auto;
   min-height: 0;
   background: var(--s2l-soft);
 }
@@ -147,15 +148,11 @@ defineEmits<{ select: [product: Product] }>()
   /* Плашка занимает всю текстовую часть карточки, а не только строку под текстом:
      подпись читается как отдельная панель, а не как надпись на белом поле.
      Ширина и цвет — из настроек прибора, цвет текста выводится из яркости заливки. */
-  flex: 1;
-  /* Плашка не бывает ниже двух строк подписи и ниже доли, заданной в настройках.
-     Название клампится в две строки, и плашка ростом в полторы срезает вторую
-     посередине букв — это читается как поломка. Доля высоты под фото —
-     желаемая, поэтому уступает именно фотография. */
-  min-height: max(
-    calc(19px * var(--ui-name, 1) * 1.25 * 2 + 16px),
-    calc(var(--ui-plate-height, 30) * 1%)
-  );
+  /* Высота плашки — ровно та, что задана в настройках: остаток карточки забирает
+     фотография. Пола в две строки больше нет — он и был тем барьером, из-за
+     которого ползунок ниже определённого значения переставал что-либо менять. */
+  flex: 0 0 calc(var(--ui-plate-height, 30) * 1%);
+  min-height: 0;
   overflow: hidden;
   align-items: center;
   justify-content: space-between;
@@ -177,7 +174,7 @@ defineEmits<{ select: [product: Product] }>()
 
 .name {
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: var(--ui-plate-lines, 2);
   -webkit-box-orient: vertical;
   overflow: hidden;
   font-size: calc(19px * var(--ui-name, 1));
