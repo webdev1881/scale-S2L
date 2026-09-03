@@ -13,6 +13,10 @@ const props = defineProps<{
   rows: number
   /** Набор идёт прямо сейчас: карточки не переставляются, а просто проявляются. */
   calm?: boolean
+  /** Единственная карточка: растёт по высоте блока, сохраняя свои пропорции. */
+  single?: boolean
+  /** Отношение сторон обычной карточки: ряды ÷ столбцы обычной сетки. */
+  ratio?: number
 }>()
 defineEmits<{ select: [product: Product] }>()
 </script>
@@ -22,8 +26,8 @@ defineEmits<{ select: [product: Product] }>()
     tag="div"
     name="card"
     class="grid"
-    :class="{ calm: props.calm }"
-    :style="{ '--cols': props.cols, '--rows': props.rows }"
+    :class="{ calm: props.calm, single: props.single }"
+    :style="{ '--cols': props.cols, '--rows': props.rows, '--ratio': props.ratio ?? 1 }"
   >
     <button
       v-for="(product, index) in products"
@@ -226,6 +230,14 @@ defineEmits<{ select: [product: Product] }>()
 
 .card-move {
   transition: transform 0.28s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+
+/* Развёрнутая карточка растёт только по высоте: ширина считается из пропорций
+   обычной карточки — ширина блока, умноженная на число рядов и делённая на число
+   столбцов. Растянутая на всю ширину карточка превращает фотографию в полосу. */
+.grid.single .card {
+  width: calc(100% * var(--ratio, 1));
+  justify-self: center;
 }
 
 /* Пока набирают код или название, список пересобирается на каждой цифре.

@@ -819,6 +819,8 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :selected-id="selected.id"
                 :cols="1"
                 :rows="1"
+                single
+                :ratio="visibleRows / cols"
                 @select="selectProduct"
               />
               <ProductGrid
