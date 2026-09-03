@@ -9,7 +9,6 @@ const { t } = useI18n()
 const props = defineProps<{
   products: Product[]
   selectedId: number | null
-  currency: string
   cols: number
   rows: number
   /** Набор идёт прямо сейчас: карточки не переставляются, а просто проявляются. */
@@ -45,10 +44,11 @@ defineEmits<{ select: [product: Product] }>()
       <!-- Название слева, цена справа: взгляд идёт по строке от «что» к «сколько» -->
       <div class="body">
         <span class="name-slot"><span class="name">{{ product.name }}</span></span>
+        <!-- Валюта на карточке не повторяется: она одна на весь прибор и уже стоит
+             в шапке и в итоге, а место на плашке дорогое. -->
         <span class="price">
-          {{ formatMoney(product.price) }} {{ currency }}/{{
-            product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-          }}
+          {{ formatMoney(product.price) }}
+          {{ product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg') }}
         </span>
       </div>
     </button>

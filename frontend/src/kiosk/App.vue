@@ -773,7 +773,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               v-else
               :products="productsOn(page - 1)"
               :selected-id="selected?.id ?? null"
-              :currency="currency"
               :cols="cols"
               :rows="visibleRows"
             />
@@ -795,7 +794,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :key="`products:${page}`"
                 :products="pagedProducts"
                 :selected-id="selected?.id ?? null"
-                :currency="currency"
                 :cols="cols"
                 :rows="visibleRows"
                 :calm="calmCards"
@@ -819,7 +817,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               v-else
               :products="productsOn(page + 1)"
               :selected-id="selected?.id ?? null"
-              :currency="currency"
               :cols="cols"
               :rows="visibleRows"
             />

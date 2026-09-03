@@ -19,7 +19,7 @@
   "ui_scale_footer": 1.4,
   "ui_photo_group": 85,
   "ui_photo_product": 85,
-  "ui_plate_height": 5,
+  "ui_plate_height": 10,
   "ui_primary_color": "#123b8d",
   "ui_secondary_color": "#1f7a4d",
   "grid_cols": 6,
