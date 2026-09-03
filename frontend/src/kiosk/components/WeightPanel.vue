@@ -130,8 +130,11 @@ const state = computed(() => {
   border-radius: 14px;
 }
 
+/* Показание обведено второстепенным цветом: та же рамка, что у цены и суммы,
+   так что три плитки шапки читаются как один ряд, а не как разные блоки. */
 .readout {
   background: var(--s2l-soft);
+  border-color: var(--s2l-accent);
 }
 
 .tone-ok {

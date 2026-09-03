@@ -1417,6 +1417,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   bottom: 0;
   z-index: 3000;
   width: min(420px, 42%);
+  /* Рамка основного цвета: панель принадлежит каталогу — её открывают той же
+     кнопкой «за Кодом» и ею же ищут товар. */
+  border: 2px solid var(--ui-plate-bg, #1d2129);
   border-radius: var(--s2l-radius);
   overflow: hidden;
   box-shadow: -14px 0 40px var(--s2l-shadow-strong);
