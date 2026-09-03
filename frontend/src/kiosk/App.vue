@@ -787,6 +787,24 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           </div>
           </div>
 
+          <!-- Цифровой блок — модалка над карточками: панель у правого края
+               блока, ростом ровно с него, и под собой она ничего не двигает.
+               Затемнение объясняет, почему карточки не нажимаются: они за
+               панелью, а не обрезаны ею. Касание по нему закрывает набор. -->
+          <Transition name="fade">
+            <div v-if="showNumpad" class="pad-backdrop"></div>
+          </Transition>
+          <Transition name="pad">
+            <Numpad
+              v-if="showNumpad"
+              :value="pluInput"
+              class="pad"
+              @key="padKey"
+              @backspace="pluInput = pluInput.slice(0, -1)"
+              @clear="pluInput = ''"
+              @submit="findByPlu"
+            />
+          </Transition>
         </div>
 
         <Pager v-if="pageCount > 1" v-model:page="page" :pages="pageCount" />
@@ -855,25 +873,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           />
         </Transition>
       </section>
-
-      <!-- Цифровой блок — модалка: он выходит поверх всего экрана и ничего под
-           собой не двигает. Карточки остаются на своих местах, а затемнение
-           объясняет, почему часть из них не нажимается: они за панелью, а не
-           обрезаны ею. Касание по затемнению закрывает набор. -->
-      <Transition name="fade">
-        <div v-if="showNumpad" class="pad-backdrop"></div>
-      </Transition>
-      <Transition name="pad">
-        <Numpad
-          v-if="showNumpad"
-          :value="pluInput"
-          class="pad"
-          @key="padKey"
-          @backspace="pluInput = pluInput.slice(0, -1)"
-          @clear="pluInput = ''"
-          @submit="findByPlu"
-        />
-      </Transition>
 
       <el-dialog
         v-model="labelVisible"
@@ -1381,20 +1380,22 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   min-height: 0;
 }
 
-/* Затемнение и панель прижаты к экрану, а не к колонке каталога: набор кода
-   перекрывает весь киоск, поэтому сетке не нужно ни сжиматься, ни сдвигаться. */
+/* Затемнение и панель прижаты к блоку карточек: набор кода — состояние каталога,
+   а не всего киоска, поэтому весы, строка поиска и итоговая панель остаются
+   нетронутыми. Сетке при этом не нужно ни сжиматься, ни сдвигаться. */
 .pad-backdrop {
-  position: fixed;
+  position: absolute;
   inset: 0;
   z-index: 2900;
+  border-radius: var(--s2l-radius);
   background: rgb(9 12 18 / 45%);
 }
 
 .pad {
-  position: fixed;
-  top: 12px;
-  right: 12px;
-  bottom: 12px;
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
   z-index: 3000;
   width: min(420px, 42%);
   border-radius: var(--s2l-radius);
