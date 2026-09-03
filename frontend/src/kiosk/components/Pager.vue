@@ -68,7 +68,7 @@ function go(delta: number) {
   width: 30px;
   height: 30px;
   fill: none;
-  stroke: #fff;
+  stroke: var(--s2l-accent-ink, #fff);
   stroke-width: 3.2;
   stroke-linecap: round;
   stroke-linejoin: round;

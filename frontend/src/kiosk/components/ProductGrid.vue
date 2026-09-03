@@ -104,7 +104,7 @@ defineEmits<{ select: [product: Product] }>()
 }
 
 .card.active .price {
-  color: #fff;
+  color: var(--s2l-accent-ink, #fff);
 }
 
 .photo {

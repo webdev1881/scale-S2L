@@ -65,20 +65,45 @@ const currency = computed(() => settings.value?.currency ?? '₴')
  * Цвет текста на плашке не настраивается, а выводится из её яркости: иначе
  * достаточно одного неудачного выбора, чтобы подпись пропала на заливке.
  */
-function plateInk(hex: string): { ink: string; accent: string } {
-  const value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : '#1d2129'
-  const r = parseInt(value.slice(1, 3), 16)
-  const g = parseInt(value.slice(3, 5), 16)
-  const b = parseInt(value.slice(5, 7), 16)
-  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
-  return luminance > 0.6
-    ? { ink: '#1d2129', accent: '#1f7a4d' }
-    : { ink: '#f4f7fb', accent: '#4fc98a' }
+function rgbOf(hex: string, fallback: string) {
+  const value = /^#[0-9a-fA-F]{6}$/.test(hex) ? hex : fallback
+  return [
+    parseInt(value.slice(1, 3), 16),
+    parseInt(value.slice(3, 5), 16),
+    parseInt(value.slice(5, 7), 16),
+  ] as const
+}
+
+const luminanceOf = ([r, g, b]: readonly number[]) => (0.299 * r + 0.587 * g + 0.114 * b) / 255
+
+/** Затемнение для «посадки» кнопок на тень: тот же цвет, только глуше. */
+function darken(hex: string, fallback: string, amount: number) {
+  const shade = rgbOf(hex, fallback).map((c) => Math.round(c * (1 - amount)))
+  return `#${shade.map((c) => c.toString(16).padStart(2, '0')).join('')}`
+}
+
+/**
+ * Цвет текста поверх заливки не настраивается, а выводится из её яркости: иначе
+ * достаточно одного неудачного выбора, чтобы подпись пропала.
+ */
+function inkOn(hex: string, fallback: string) {
+  return luminanceOf(rgbOf(hex, fallback)) > 0.6 ? '#1d2129' : '#f4f7fb'
+}
+
+/** Цена на тёмной плашке: на светлой заливке зелёный тускнеет, на тёмной — светлеет. */
+function plateAccent(hex: string) {
+  return luminanceOf(rgbOf(hex, '#1d2129')) > 0.6 ? '#1f7a4d' : '#4fc98a'
 }
 
 const uiScales = computed<Record<string, string>>(() => {
-  const plate = plateInk(settings.value?.ui_plate_color ?? '#1d2129')
+  const primary = settings.value?.ui_primary_color ?? '#1d2129'
+  const secondary = settings.value?.ui_secondary_color ?? '#1f7a4d'
   return {
+    // Второстепенный цвет подменяет сам токен акцента: его используют все
+    // компоненты киоска, поэтому перекрашивать их по одному не нужно.
+    '--s2l-accent': secondary,
+    '--s2l-accent-dark': darken(secondary, '#1f7a4d', 0.22),
+    '--s2l-accent-ink': inkOn(secondary, '#1f7a4d'),
   '--ui-weight': String(settings.value?.ui_scale_weight ?? 1),
   '--ui-group-title': String(settings.value?.ui_scale_group_title ?? 1),
   '--ui-name': String(settings.value?.ui_scale_product_name ?? 1),
@@ -88,9 +113,9 @@ const uiScales = computed<Record<string, string>>(() => {
     '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
     '--ui-plate-height': String(settings.value?.ui_plate_height ?? 30),
-    '--ui-plate-bg': settings.value?.ui_plate_color ?? '#1d2129',
-    '--ui-plate-ink': plate.ink,
-    '--ui-plate-accent': plate.accent,
+    '--ui-plate-bg': primary,
+    '--ui-plate-ink': inkOn(primary, '#1d2129'),
+    '--ui-plate-accent': plateAccent(primary),
   }
 })
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
@@ -982,7 +1007,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding: 0 26px;
   font-size: 20px;
   font-weight: 700;
-  color: #fff;
+  color: var(--s2l-accent-ink, #fff);
   background: var(--s2l-accent);
   border: none;
   border-radius: 14px;
@@ -1305,7 +1330,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   padding: 0 calc(26px * var(--ui-footer, 1));
   font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 700;
-  color: #fff;
+  color: var(--s2l-accent-ink, #fff);
   background: var(--s2l-accent);
   box-shadow: 0 3px 0 var(--s2l-accent-dark);
   cursor: pointer;

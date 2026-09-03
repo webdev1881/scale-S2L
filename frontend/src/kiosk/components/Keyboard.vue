@@ -135,7 +135,7 @@ const rows = computed(() => LAYOUTS[locale.value] ?? LAYOUTS.uk)
 }
 
 .done {
-  color: #ffffff;
+  color: var(--s2l-accent-ink, #ffffff);
   background: var(--s2l-accent);
   box-shadow: 0 1px 0 var(--s2l-accent-dark);
 }

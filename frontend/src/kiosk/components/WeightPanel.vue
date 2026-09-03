@@ -308,11 +308,12 @@ const state = computed(() => {
 }
 
 .figure.cost dt {
-  color: rgb(255 255 255 / 82%);
+  color: var(--s2l-accent-ink, #fff);
+  opacity: 0.82;
 }
 
 .figure.cost dd {
   font-size: calc(38px * var(--ui-weight, 1));
-  color: #fff;
+  color: var(--s2l-accent-ink, #fff);
 }
 </style>

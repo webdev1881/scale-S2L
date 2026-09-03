@@ -93,7 +93,7 @@ function press(key: string) {
   min-height: 56px;
   font-size: 19px;
   font-weight: 600;
-  color: #fff;
+  color: var(--s2l-accent-ink, #fff);
   background: var(--s2l-accent);
   border: none;
   border-radius: 12px;

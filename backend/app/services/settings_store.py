@@ -57,7 +57,12 @@ class DeviceSettings(BaseModel):
     # Высота плашки, а не ширина: длинное название переносится на вторую строку,
     # и если плашка рассчитана на одну, вторая обрезается посередине букв.
     ui_plate_height: int = Field(default=30, ge=15, le=60)
-    ui_plate_color: str = Field(default="#1d2129", pattern="^#[0-9a-fA-F]{6}$")
+    # Основной цвет — всё, что относится к каталогу: плашки карточек, их рамки,
+    # кнопка набора кода. Второстепенный — действия и итоги: печать, поиск,
+    # возврат, стрелки, цена и сумма. Оба живут в настройках, потому что цвет
+    # сети подбирают на месте, а не пересобирают ради него прошивку.
+    ui_primary_color: str = Field(default="#1d2129", pattern="^#[0-9a-fA-F]{6}$")
+    ui_secondary_color: str = Field(default="#1f7a4d", pattern="^#[0-9a-fA-F]{6}$")
     # Сетка каталога: столбцов x строк на страницу. Подбирается под диагональ экрана,
     # поэтому вынесено в настройки, а не зашито в вёрстку.
     # 4x2 подобрано под экран Aurora S2 (15.6", 1366x768): при трёх рядах карточка
@@ -77,6 +82,10 @@ def load_settings() -> DeviceSettings:
         data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         # Ширина этикетки могла быть сохранена до того, как появился предел принтера.
         # Подрезаем её, а не роняем весь файл в значения по умолчанию.
+        # Старое имя основного цвета: файл переносят с прибора на прибор, и
+        # переименование поля не должно сбрасывать подобранный цвет.
+        if isinstance(data, dict) and "ui_plate_color" in data:
+            data.setdefault("ui_primary_color", data.pop("ui_plate_color"))
         if isinstance(data, dict) and isinstance(data.get("label_width_mm"), (int, float)):
             data["label_width_mm"] = min(float(data["label_width_mm"]), 56)
         return DeviceSettings.model_validate(data)

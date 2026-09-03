@@ -159,9 +159,13 @@ onMounted(load)
           <el-input-number v-model="form.ui_plate_height" :min="15" :max="60" :step="5" />
           <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
         </el-form-item>
-        <el-form-item :label="t('admin.settings.plateColor')">
-          <el-color-picker v-model="form.ui_plate_color" />
-          <div class="hint">{{ t('admin.settings.plateHint') }}</div>
+        <el-form-item :label="t('admin.settings.primaryColor')">
+          <el-color-picker v-model="form.ui_primary_color" />
+          <div class="hint">{{ t('admin.settings.primaryHint') }}</div>
+        </el-form-item>
+        <el-form-item :label="t('admin.settings.secondaryColor')">
+          <el-color-picker v-model="form.ui_secondary_color" />
+          <div class="hint">{{ t('admin.settings.secondaryHint') }}</div>
         </el-form-item>
         <el-form-item :label="t('admin.settings.scaleFooter')">
           <el-input-number v-model="form.ui_scale_footer" :min="0.7" :max="2" :step="0.1" />
