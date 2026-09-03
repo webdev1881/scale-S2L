@@ -183,8 +183,16 @@ const catalogTitle = computed(() => {
   return ''
 })
 
+/**
+ * Выбранный товар занимает блок карточек целиком: дальше покупатель кладёт его на
+ * платформу и смотрит на весы, а соседние карточки в этот момент только отвлекают
+ * и подставляются под случайное касание.
+ */
+const showSingle = computed(() => selected.value !== null && !showCategories.value)
+
 /** Что листаем — зависит от того, показываем группы или товары. */
 const pageCount = computed(() => {
+  if (showSingle.value) return 1
   const length = showCategories.value ? categories.value.length : visibleProducts.value.length
   return Math.max(1, Math.ceil(length / pageSize.value))
 })
@@ -438,6 +446,12 @@ function backToCategories() {
 
 function selectProduct(product: Product) {
   if (swipeJustHappened) return
+  // Повторное касание развёрнутой карточки возвращает к сетке: это единственный
+  // способ передумать, не уходя к списку групп.
+  if (selected.value?.id === product.id) {
+    selected.value = null
+    return
+  }
   selected.value = product
   // Товар выбран по коду — показываем, где он лежит, и снимаем фильтр: иначе в
   // каталоге осталась бы одна карточка, а строки с кодом на экране уже нет.
@@ -632,13 +646,18 @@ watch([search, openedCategory, selected], bumpIdle)
 
 // Смена уровня старше листания: при провале в группу страница тоже сбрасывается
 // на нулевую, и без этого условия переход читался бы как листание назад.
-watch([showCategories, page], ([toGroups, next], [wasGroups, prev]) => {
-  if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
-  // Имя без единого CSS-правила: Vue не находит перехода и меняет страницу сразу.
-  else if (pageTurnSilent) gridAnim.value = 'none'
-  else gridAnim.value = next > prev ? 'page-next' : 'page-prev'
-  pageTurnSilent = false
-})
+watch(
+  [showCategories, page, showSingle],
+  ([toGroups, next, single], [wasGroups, prev, wasSingle]) => {
+    // Разворот товара на весь блок и возврат к сетке — та же смена уровня
+    if (single !== wasSingle) gridAnim.value = single ? 'dive' : 'rise'
+    else if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
+    // Имя без единого CSS-правила: Vue не находит перехода и меняет страницу сразу.
+    else if (pageTurnSilent) gridAnim.value = 'none'
+    else gridAnim.value = next > prev ? 'page-next' : 'page-prev'
+    pageTurnSilent = false
+  },
+)
 
 /**
  * Пока меняется сама сетка — столбцы под выехавшей панелью, ряды под клавиатурой —
@@ -712,7 +731,10 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           </div>
 
           <div class="search-row">
-            <div class="search-field" :class="{ focused: keyboardOpen }">
+            <!-- Поля не видно, пока поиск не вызвали: набирать негде и незачем, а
+                 кнопки «ПОШУК товару» и «за Кодом» и так на виду. Появляется оно
+                 вместе с клавиатурой и остаётся, пока в нём что-то набрано. -->
+            <div v-if="keyboardOpen || search" class="search-field" :class="{ focused: keyboardOpen }">
               <svg class="search-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M16.5 16.5 21 21" />
@@ -788,6 +810,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 :rows="visibleRows"
                 :calm="calmCards"
                 @open="openCategory"
+              />
+              <!-- Выбранный товар — одна карточка на весь блок -->
+              <ProductGrid
+                v-else-if="showSingle && selected"
+                :key="`one:${selected.id}`"
+                :products="[selected]"
+                :selected-id="selected.id"
+                :cols="1"
+                :rows="1"
+                @select="selectProduct"
               />
               <ProductGrid
                 v-else
@@ -964,6 +996,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
    которая его открывает. */
 .head-row {
   display: grid;
+  /* Строка сохраняет высоту и пустой: иначе карточки меняли бы размер каждый раз,
+     когда поле поиска появляется и исчезает. */
+  min-height: 64px;
   grid-template-columns: auto minmax(340px, 1fr);
   align-items: center;
   gap: 14px;
