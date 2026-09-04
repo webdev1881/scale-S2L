@@ -9,7 +9,6 @@ import type { Product, WeightReading } from '@/shared/types'
 const props = defineProps<{
   reading: WeightReading
   connected: boolean
-  clock: string
   currency: string
   product: Product | null
   total: number
@@ -55,7 +54,6 @@ const state = computed(() => {
       <div class="status">
         <span class="dot" :class="{ ok: connected }"></span>
         <span class="conn">{{ connected ? t('kiosk.connected') : t('kiosk.disconnected') }}</span>
-        <span class="clock">{{ clock }}</span>
       </div>
 
       <div class="value">
@@ -65,7 +63,9 @@ const state = computed(() => {
              шапке отнимает высоту у карточек. Пустая платформа сообщением не
              считается, но строка сохраняет высоту, чтобы шапка не дёргалась. -->
         <div class="notes">
-          <div class="state">{{ state.text }}</div>
+          <!-- Стабильный вес сообщением не считается: это норма, а рамка плитки
+               и так его показывает. Остаются только взвешивание и ошибки. -->
+          <div class="state">{{ state.tone === 'ok' ? '' : state.text }}</div>
           <div v-if="reading.tare_g > 0" class="tare">
             {{ t('weight.tareValue', { value: formatKg(reading.tare_g) }) }}
           </div>
@@ -192,19 +192,10 @@ const state = computed(() => {
   background: var(--s2l-accent);
 }
 
-/* Часы крупнее подписи связи: время смотрят чаще, чем состояние прибора */
-.status .clock {
-  margin-left: auto;
-  padding-left: 18px;
-  font-size: calc(21px * var(--ui-weight, 1));
-  font-variant-numeric: tabular-nums;
-  font-weight: 700;
-  color: var(--s2l-ink);
-}
-
 .digits {
-  /* В шапке высота дороже: показание крупное, но не во весь экран */
-  font-size: calc(clamp(48px, 6.2vw, 92px) * var(--ui-weight, 1));
+  /* Все числа шапки одного кегля: вес, цена и стоимость — величины одного
+     порядка важности, и разный размер делал из них иерархию, которой нет. */
+  font-size: calc(38px * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   line-height: 1;
@@ -212,7 +203,7 @@ const state = computed(() => {
 }
 
 .unit {
-  font-size: calc(clamp(20px, 2.4vw, 34px) * var(--ui-weight, 1));
+  font-size: calc(22px * var(--ui-weight, 1));
   color: var(--s2l-muted);
 }
 
@@ -291,7 +282,7 @@ const state = computed(() => {
 
 .figure dd {
   margin: 0;
-  font-size: calc(30px * var(--ui-weight, 1));
+  font-size: calc(38px * var(--ui-weight, 1));
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -323,7 +314,6 @@ const state = computed(() => {
 }
 
 .figure.cost dd {
-  font-size: calc(38px * var(--ui-weight, 1));
   color: var(--s2l-accent-ink, #fff);
 }
 </style>

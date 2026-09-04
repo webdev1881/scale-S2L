@@ -49,8 +49,6 @@ const printing = ref(false)
 const labelUrl = ref<string | null>(null)
 const labelVisible = ref(false)
 
-const clock = ref(new Date())
-let clockTimer: number | undefined
 let idleTimer: number | undefined
 let labelTimer: number | undefined
 
@@ -631,7 +629,6 @@ function bumpIdle() {
 onMounted(async () => {
   weight.connect()
   await loadCatalog()
-  clockTimer = window.setInterval(() => (clock.value = new Date()), 1000)
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
   bumpIdle()
@@ -639,7 +636,6 @@ onMounted(async () => {
 
 onUnmounted(() => {
   weight.disconnect()
-  window.clearInterval(clockTimer)
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.removeEventListener('pointerdown', bumpIdle)
@@ -720,7 +716,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <WeightPanel
           :reading="weight.reading"
           :connected="weight.connected"
-          :clock="clock.toLocaleTimeString(localeTag())"
           :currency="currency"
           :product="selected"
           :total="total"
@@ -1093,12 +1088,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .dot.ok {
   background: var(--s2l-accent);
-}
-
-.clock {
-  font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  color: var(--s2l-ink);
 }
 
 .catalog-title {
