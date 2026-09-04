@@ -24,7 +24,9 @@ const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
 // числом, и при выборе меняется только значение, а не вид блока.
 const priceText = computed(() => {
   const per = props.product?.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-  return `${formatMoney(props.product?.price ?? 0)} ${props.currency}/${per}`
+  // Валюта стоит рядом в «Вартості» и в итоге внизу — в цене она только удлиняет
+  // строку, из-за которой число приходится ужимать.
+  return `${formatMoney(props.product?.price ?? 0)} ${per}`
 })
 
 // Стоимость пересчитывается на каждый отсчёт весов — покупатель видит сумму
