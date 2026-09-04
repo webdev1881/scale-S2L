@@ -778,7 +778,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <div class="catalog-area">
           <div
             class="grid-slot"
-            :class="{ 'has-next': peekNext }"
+            :class="{ 'has-peek': pageCount > 1 }"
             @pointerdown="onSwipeStart"
             @pointermove="onSwipeMove"
             @pointerup="onSwipeEnd"
@@ -1104,8 +1104,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   min-height: 0;
   display: grid;
   /* Полоска, в которой виден край следующей страницы. Место под неё резервируется
-     всегда, когда есть куда листать, иначе карточки меняли бы ширину на последней
-     странице. */
+     на всё время листания, а не только когда следующая страница есть: иначе на
+     последней странице жёлоб пропадал, и карточки дёргались по ширине ровно в тот
+     кадр, когда лента доезжала до края — особенно заметно при возврате назад. */
   --s2l-peek: 0px;
   /* Уезжающая страница не должна выглядывать из-под весов и пейджера */
   overflow: hidden;
@@ -1143,7 +1144,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   transform: translateX(100%);
 }
 
-.grid-slot.has-next {
+.grid-slot.has-peek {
   --s2l-peek: calc(64px * var(--ui-name, 1));
   padding-right: var(--s2l-peek);
 }
