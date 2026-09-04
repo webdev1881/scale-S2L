@@ -1043,6 +1043,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .back {
   display: flex;
   flex: none;
+  /* Прижата к правому краю: без поля поиска рядом она иначе липнет к заголовку
+     группы, будто относится к нему, а не к навигации. */
+  margin-left: auto;
   align-items: center;
   height: 64px;
   padding: 0 26px;
