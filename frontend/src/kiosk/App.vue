@@ -294,9 +294,31 @@ const ribbonEl = ref<HTMLElement | null>(null)
 const swipeDragging = ref(false)
 let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
 let settleTimer = 0
-// Браузер шлёт click даже после протяжки на сотню пикселей, поэтому выбор товара
-// после состоявшегося жеста гасим вручную.
-let swipeJustHappened = false
+/**
+ * Браузер шлёт `click` даже после протяжки на сотню пикселей: палец к этому
+ * моменту стоит уже над чужой карточкой, и её открытие выглядело бы промахом
+ * прибора. Гасим ровно один такой клик — тот, что прилетает следом за жестом, —
+ * а не всё подряд в течение трёхсот миллисекунд: покупатель успевает нажать
+ * кнопку раньше, и его нажатие пропадало. Именно это и выглядело как «кнопки
+ * срабатывают только со второго раза».
+ */
+function swallowDragClick(x: number, y: number) {
+  let timer = 0
+  const stop = (event: Event) => {
+    const click = event as MouseEvent
+    // Клик от протяжки приходит туда, где палец оторвался. Всё, что дальше, —
+    // осознанное нажатие, и трогать его нельзя.
+    if (Math.abs(click.clientX - x) > 40 || Math.abs(click.clientY - y) > 40) return
+    event.stopPropagation()
+    event.preventDefault()
+    window.removeEventListener('click', stop, true)
+    window.clearTimeout(timer)
+  }
+  window.addEventListener('click', stop, true)
+  // Если клика не будет вовсе (браузер тоже умеет его не слать), слушатель уходит
+  // сам через кадр-другой и ничьё нажатие не задевает.
+  timer = window.setTimeout(() => window.removeEventListener('click', stop, true), 120)
+}
 
 const reducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
@@ -395,12 +417,8 @@ function onSwipeEnd(event: PointerEvent) {
     if (exists && (Math.abs(dx) >= enough || flick)) dir = wanted
   }
   settleRibbon(dir)
-  // Гасим выбор после любой протяжки, а не только после смены страницы: палец
-  // отпущен над чужой карточкой, и её открытие выглядело бы промахом прибора.
-  if (dragged) {
-    swipeJustHappened = true
-    window.setTimeout(() => (swipeJustHappened = false), 300)
-  }
+  // Гасим клик после любой протяжки, а не только после смены страницы.
+  if (dragged) swallowDragClick(event.clientX, event.clientY)
 }
 
 /**
@@ -427,7 +445,6 @@ function cancelSwipe(event?: PointerEvent) {
 }
 
 function openCategory(category: Category) {
-  if (swipeJustHappened) return
   openedCategory.value = category
   selected.value = null
   page.value = 0
@@ -448,7 +465,6 @@ function backToCategories() {
 }
 
 function selectProduct(product: Product) {
-  if (swipeJustHappened) return
   // Повторное касание развёрнутой карточки возвращает к сетке: это единственный
   // способ передумать, не уходя к списку групп.
   if (selected.value?.id === product.id) {
