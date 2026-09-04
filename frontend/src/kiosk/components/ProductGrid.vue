@@ -163,9 +163,46 @@ defineEmits<{ select: [product: Product] }>()
   gap: 10px;
   width: 100%;
   padding: 8px 12px;
+  position: relative;
   background: var(--ui-plate-bg, #1d2129);
   color: var(--ui-plate-ink, #f4f7fb);
 }
+
+/* Перелив по плашке — тот же приём, что у собранной надписи в заставке: полоса
+   света идёт поперёк с периодом 1600 мс. Цвет плашки задаёт оператор, поэтому
+   переливается не оттенок, а свет — так рисунок одинаково работает на любой
+   заливке. Полоса едет `transform`ом (композитор рисует её сам, без перерисовки
+   карточки), а карточки в сетке стартуют с разных фаз, и волна идёт по ряду. */
+.body::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    100deg,
+    rgb(255 255 255 / 0%) 0%,
+    rgb(255 255 255 / 16%) 45%,
+    rgb(255 255 255 / 0%) 90%
+  );
+  animation: plate-shimmer 1600ms linear infinite;
+  animation-delay: calc(var(--i, 0) * -140ms);
+  pointer-events: none;
+}
+
+@keyframes plate-shimmer {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .body::before {
+    animation: none;
+  }
+}
+
 
 /* Обрезка по строкам живёт на вложенном элементе: у flex-элемента браузер
    приводит display к flow-root, и -webkit-line-clamp перестаёт работать —
