@@ -357,6 +357,20 @@ function onSwipeStart(event: PointerEvent) {
   const width = (event.currentTarget as HTMLElement).getBoundingClientRect().width
   swipeFrom = { x: event.clientX, y: event.clientY, at: event.timeStamp, id: event.pointerId, width }
   swipeDragging.value = false
+  // Пока идёт жест, слушаем окно, а не берём захват указателя. Захват работает,
+  // но после него браузер съедает следующий click: касание приходит (pointerdown
+  // и pointerup видны), а клика по карточке или кнопке уже нет — отсюда «работает
+  // только со второго раза». Окно даёт то же самое: палец, ушедший за край сетки,
+  // жест не теряет.
+  window.addEventListener('pointermove', onSwipeMove)
+  window.addEventListener('pointerup', onSwipeEnd)
+  window.addEventListener('pointercancel', cancelSwipe)
+}
+
+function unwatchSwipe() {
+  window.removeEventListener('pointermove', onSwipeMove)
+  window.removeEventListener('pointerup', onSwipeEnd)
+  window.removeEventListener('pointercancel', cancelSwipe)
 }
 
 function onSwipeMove(event: PointerEvent) {
@@ -368,13 +382,6 @@ function onSwipeMove(event: PointerEvent) {
     // Пока не ясно, ведут вбок или просто дрожит палец на карточке, — не мешаем.
     if (Math.abs(dx) < SWIPE_START_PX || Math.abs(dx) <= Math.abs(dy)) return
     swipeDragging.value = true
-    // Захват берём только когда жест состоялся: захват на самом касании отнимает
-    // у карточки click, и обычный тап перестал бы открывать товар.
-    try {
-      ;(event.currentTarget as HTMLElement).setPointerCapture(event.pointerId)
-    } catch {
-      /* указатель уже отпущен — жест доживёт и без захвата */
-    }
   }
   // На краю каталога подставлять нечего, и лента почти не поддаётся — это и есть
   // ответ «дальше ничего нет», понятный без подписи.
@@ -385,23 +392,8 @@ function onSwipeMove(event: PointerEvent) {
   moveRibbon(shift)
 }
 
-/**
- * Захват снимаем явно. Обычно браузер отпускает его сам на `pointerup`, но если
- * этого не случилось, следующее касание уходит захватившему элементу — сетке, —
- * и нажатие по кнопке пейджера пропадает. Со стороны это выглядит как «кнопка
- * срабатывает только со второго раза».
- */
-function releaseCapture(event: PointerEvent) {
-  const el = event.currentTarget as HTMLElement | null
-  try {
-    if (el?.hasPointerCapture?.(event.pointerId)) el.releasePointerCapture(event.pointerId)
-  } catch {
-    /* указателя уже нет — снимать нечего */
-  }
-}
-
 function onSwipeEnd(event: PointerEvent) {
-  releaseCapture(event)
+  unwatchSwipe()
   const from = swipeFrom
   const dragged = swipeDragging.value
   swipeFrom = null
@@ -437,8 +429,8 @@ function settleRibbon(dir: number) {
   }
 }
 
-function cancelSwipe(event?: PointerEvent) {
-  if (event) releaseCapture(event)
+function cancelSwipe() {
+  unwatchSwipe()
   swipeFrom = null
   swipeDragging.value = false
   settleRibbon(0)
@@ -859,9 +851,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             class="grid-slot"
             :class="{ 'has-peek': pageCount > 1 }"
             @pointerdown="onSwipeStart"
-            @pointermove="onSwipeMove"
-            @pointerup="onSwipeEnd"
-            @pointercancel="cancelSwipe"
           >
           <!-- Одна лента: все страницы стоят подряд, листание — её сдвиг. Смена
                уровня каталога (группы, товары, развёрнутый товар) меняет ключ, и
