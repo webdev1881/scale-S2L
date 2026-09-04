@@ -73,6 +73,7 @@ export interface DeviceSettings {
   barcode_value: 'weight' | 'total'
   min_print_weight_g: number
   require_stable: boolean
+  kiosk_scale_buttons: boolean
   kiosk_idle_reset_s: number
   splash_seconds: number
   ui_scale_weight: number

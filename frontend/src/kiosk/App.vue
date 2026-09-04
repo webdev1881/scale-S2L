@@ -122,6 +122,7 @@ const uiScales = computed<Record<string, string>>(() => {
   }
 })
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
+const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -879,9 +880,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <!-- Футер собран теми же плитками, что и шапка: сумма слева, выбранный
              товар посередине, действие справа — под большой палец. -->
         <footer class="bottom">
-          <div class="tile sum">
-            <span class="sum-label">{{ t('kiosk.total') }}</span>
-            <span class="sum-value">{{ formatMoney(total) }} {{ currency }}</span>
+          <!-- Сумма живёт в шапке, повторять её здесь незачем. Освободившееся
+               место отдано таре и обнулению — их включают в админке там, где
+               покупатель сам ставит тару. -->
+          <div v-if="scaleButtons" class="scale-actions">
+            <button class="tile scale-btn" @click="api.tare()">{{ t('weight.tare') }}</button>
+            <button class="tile scale-btn" @click="api.zero()">{{ t('weight.zero') }}</button>
           </div>
 
           <div class="tile pick">
@@ -1308,27 +1312,30 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   border-radius: 14px;
 }
 
-/* Сумма стоит первой и обведена акцентом: это число покупатель уносит с собой.
-   Заливка акцентом уже занята кнопкой действия — двух заливок ряд не выдержит.
-   Селектор с `.bottom`: иначе общее правило плитки, у которого вес выше,
-   перекрашивает рамку обратно в прозрачную. */
-.bottom .sum {
-  background: var(--s2l-panel);
-  border-color: var(--s2l-accent);
+/* Тара и обнуление — не действие экрана, а работа с платформой, поэтому они
+   спокойные: та же плитка, но без заливки акцентом, которая занята печатью. */
+.scale-actions {
+  display: flex;
+  gap: 12px;
 }
 
-.sum-label {
-  font-size: calc(16px * var(--ui-footer, 1));
-  color: var(--s2l-muted);
-}
-
-.sum-value {
-  font-size: calc(36px * var(--ui-footer, 1));
+.bottom .scale-btn {
+  align-items: center;
+  justify-content: center;
+  min-width: calc(150px * var(--ui-footer, 1));
+  font-size: calc(20px * var(--ui-footer, 1));
   font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  line-height: 1.1;
-  color: var(--s2l-accent);
-  white-space: nowrap;
+  color: var(--s2l-ink);
+  background: var(--s2l-soft);
+  border-color: var(--s2l-line);
+  box-shadow: 0 2px 0 var(--s2l-soft-active);
+  cursor: pointer;
+}
+
+.bottom .scale-btn:active {
+  background: var(--s2l-soft-active);
+  box-shadow: none;
+  transform: translateY(2px);
 }
 
 .pick {

@@ -100,6 +100,10 @@ onMounted(load)
           <el-switch v-model="form.require_stable" />
           <div class="hint">{{ t('admin.settings.requireStableHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.scaleButtons')">
+          <el-switch v-model="form.kiosk_scale_buttons" />
+          <div class="hint">{{ t('admin.settings.scaleButtonsHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.idleReset')">
           <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
         </el-form-item>
