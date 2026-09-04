@@ -363,7 +363,23 @@ function onSwipeMove(event: PointerEvent) {
   moveRibbon(shift)
 }
 
+/**
+ * Захват снимаем явно. Обычно браузер отпускает его сам на `pointerup`, но если
+ * этого не случилось, следующее касание уходит захватившему элементу — сетке, —
+ * и нажатие по кнопке пейджера пропадает. Со стороны это выглядит как «кнопка
+ * срабатывает только со второго раза».
+ */
+function releaseCapture(event: PointerEvent) {
+  const el = event.currentTarget as HTMLElement | null
+  try {
+    if (el?.hasPointerCapture?.(event.pointerId)) el.releasePointerCapture(event.pointerId)
+  } catch {
+    /* указателя уже нет — снимать нечего */
+  }
+}
+
 function onSwipeEnd(event: PointerEvent) {
+  releaseCapture(event)
   const from = swipeFrom
   const dragged = swipeDragging.value
   swipeFrom = null
@@ -403,7 +419,8 @@ function settleRibbon(dir: number) {
   }
 }
 
-function cancelSwipe() {
+function cancelSwipe(event?: PointerEvent) {
+  if (event) releaseCapture(event)
   swipeFrom = null
   swipeDragging.value = false
   settleRibbon(0)
