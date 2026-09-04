@@ -522,6 +522,12 @@ function openSearch() {
   void nextTick(() => searchInput.value?.focus())
 }
 
+/** Ко всем товарам: снимает набранный код, закрывает блок цифр и уходит к группам. */
+function allProducts() {
+  cancelNumpad()
+  backToCategories()
+}
+
 /** Набор завершён осознанно — результаты остаются на экране. */
 function closeKeyboard() {
   keyboardOpen.value = false
@@ -892,12 +898,18 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
           </div>
 
+          <!-- Пока набирают код, кнопка поиска бессмысленна: поиск уже открыт. На
+               её месте стоит возврат ко всем товарам — единственное, что в этот
+               момент нужно, и выглядит он так же, как соседи по слоту. -->
+          <button v-if="showNumpad" class="tile action" @click="allProducts">
+            {{ t('kiosk.allProducts') }}
+          </button>
           <!-- Пока товар не выбран, кнопка печати всё равно ничего не делает, а
                подпись «Оберіть товар» только сообщает об этом. Вместо мёртвой
                подписи стоит кнопка поиска: это и есть следующий шаг покупателя,
                то есть главное действие экрана — и красится оно акцентом, как
                печать, которая займёт то же место. -->
-          <button v-if="!selected" class="tile action search-cta" @click="openSearch">
+          <button v-else-if="!selected" class="tile action search-cta" @click="openSearch">
             <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M16.5 16.5 21 21" />
@@ -1344,10 +1356,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   gap: 14px;
   /* Размеры тянутся тем же ползунком, что и шрифт: зашитые пиксели означали бы,
      что настройка масштаба меняет надпись, но не кнопку под ней. */
-  /* Верхний предел считается от ширины экрана, а не от строки: доля строки для
-     grid-элемента считается от его же ячейки, и кнопка вместо ограничения
-     получала произвольное число. */
-  min-width: min(calc(330px * var(--ui-footer, 1)), 36vw);
+  /* Одна ширина на все состояния слота — поиск, возврат ко всем товарам, печать:
+     иначе слот прыгает при каждой смене надписи. Верхний предел считается от
+     ширины экрана, а не от строки: доля строки для grid-элемента считается от его
+     же ячейки, и кнопка вместо ограничения получала произвольное число. */
+  min-width: min(calc(300px * var(--ui-footer, 1)), 62vw);
   padding: 0 calc(26px * var(--ui-footer, 1));
   font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 700;
@@ -1367,12 +1380,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   background: var(--s2l-disabled);
   box-shadow: none;
   cursor: default;
-}
-
-/* Ширина поиска задана отдельно от печати и масштабируется вместе со всем
-   футером — как и остальные размеры нижней панели. */
-.bottom .search-cta {
-  min-width: min(calc(300px * var(--ui-footer, 1)), 62vw);
 }
 
 .cta-icon {
