@@ -665,6 +665,24 @@ function watchTaps() {
     ].slice(0, 14)
   })
 
+  // Сырые touch-события: если для касания приходит `touchcancel` или `touchstart`
+  // приходит уже не отменяемым, значит жест забрал себе браузер — тогда клика он
+  // не пришлёт, и искать надо в его правилах, а не в нашем коде.
+  for (const type of ['touchstart', 'touchend', 'touchcancel'] as const) {
+    window.addEventListener(
+      type,
+      (event) => {
+        const touch = event as TouchEvent
+        const time = String(Math.round(performance.now())).slice(-6)
+        tapLog.value = [
+          `${time} ${type}${touch.cancelable ? '' : ' НЕОТМЕНЯЕМОЕ'}${event.defaultPrevented ? ' ПОГАШЕНО' : ''}`,
+          ...tapLog.value,
+        ].slice(0, 14)
+      },
+      true,
+    )
+  }
+
   for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'click'] as const) {
     window.addEventListener(
       type,
