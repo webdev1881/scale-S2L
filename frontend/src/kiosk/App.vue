@@ -677,9 +677,10 @@ function watchTaps() {
           target?.className ??
           '?'
         const time = String(Math.round(performance.now())).slice(-6)
+        const kind = point.pointerType ? ` [${point.pointerType}]` : ''
         const x = Math.round(point.clientX ?? 0)
         const y = Math.round(point.clientY ?? 0)
-        note(`${time} ${type === 'click' ? 'click↓' : type} ${String(where).slice(0, 22)} @${x},${y}`)
+        note(`${time} ${type === 'click' ? 'click↓' : type}${kind} ${String(where).slice(0, 18)} @${x},${y}`)
       },
       true,
     )
@@ -1165,9 +1166,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   --s2l-peek: 0px;
   /* Уезжающая страница не должна выглядывать из-под весов и пейджера */
   overflow: hidden;
-  /* Горизонтальный жест наш: иначе браузер забирает его под свою навигацию и
-     присылает pointercancel посреди свайпа. */
-  touch-action: pan-y;
+  /* Жест целиком наш. `pan-y` оставлял браузеру вертикальное панорамирование, и
+     он на нём начинал собственную прокрутку: следующее касание уходило ей на
+     «остановись», а `click` по карточке браузер уже не слал — нажатие пропадало.
+     Прокручивать здесь всё равно нечего. */
+  touch-action: none;
 }
 
 /* Полоса уровня: её двигает переход между группами, товарами и развёрнутой
