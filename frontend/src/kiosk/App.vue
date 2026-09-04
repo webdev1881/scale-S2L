@@ -304,6 +304,9 @@ const ribbonNext = ref<HTMLElement | null>(null)
  * пропущенный кадр ровно там, где палец пошёл. На касании же пауза незаметна.
  */
 const dragActive = ref(false)
+
+/** Есть куда листать вперёд — значит, край следующей страницы стоит показать. */
+const peekNext = computed(() => page.value < pageCount.value - 1)
 const swipeDragging = ref(false)
 let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
 let settleTimer = 0
@@ -686,8 +689,17 @@ watch([pluInput, visibleProducts], () => {
   }
 })
 
-// Ввод в поиск или смена настроек сетки могут оставить нас на несуществующей странице.
-watch([search, pageSize], () => (page.value = 0))
+// Новый запрос начинает просмотр заново.
+watch(search, () => (page.value = 0))
+
+/**
+ * Размер страницы меняется, когда клавиатура сжимает сетку до одного ряда или
+ * оператор правит сетку в админке. Номер страницы при этом не трогаем: сброс на
+ * первую съедал нажатие на стрелку (оно как раз и закрывает клавиатуру), а
+ * пересчёт по позиции первой карточки — тем более, он срабатывал уже после клика
+ * и откатывал страницу назад. Достаточно ограничения ниже: если страницы больше
+ * нет, номер подтянется к последней существующей.
+ */
 watch(pageCount, (count) => {
   if (page.value > count - 1) page.value = count - 1
 })
@@ -771,6 +783,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
         <div class="catalog-area">
           <div
             class="grid-slot"
+            :class="{ 'has-next': peekNext }"
             @pointerdown="onSwipeStart"
             @pointermove="onSwipeMove"
             @pointerup="onSwipeEnd"
@@ -837,10 +850,15 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             </Transition>
           </div>
 
+          <!-- Край следующей страницы виден всегда, когда есть куда листать: он
+               растворяется у правого края и этим показывает, что ленту можно
+               потянуть. Во время жеста полоса едет целиком, поэтому затухание
+               с неё снимается. -->
           <div
-            v-if="dragActive && page < pageCount - 1"
+            v-if="dragActive || peekNext"
             ref="ribbonNext"
             class="page side next"
+            :class="{ peek: !swipeDragging }"
           >
             <CategoryGrid
               v-if="showCategories"
@@ -1096,6 +1114,10 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .grid-slot {
   min-height: 0;
   display: grid;
+  /* Полоска, в которой виден край следующей страницы. Место под неё резервируется
+     всегда, когда есть куда листать, иначе карточки меняли бы ширину на последней
+     странице. */
+  --s2l-peek: 0px;
   /* Уезжающая страница не должна выглядывать из-под весов и пейджера */
   overflow: hidden;
   /* Горизонтальный жест наш: иначе браузер забирает его под свою навигацию и
@@ -1126,6 +1148,22 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .prev {
   transform: translateX(-100%);
+}
+
+.next {
+  transform: translateX(100%);
+}
+
+.grid-slot.has-next {
+  --s2l-peek: calc(64px * var(--ui-name, 1));
+  padding-right: var(--s2l-peek);
+}
+
+/* Заглядывающая полоса растворяется вправо: это подсказка, а не вторая страница,
+   и она не должна спорить с карточками, которые покупатель разглядывает. */
+.side.next.peek {
+  -webkit-mask-image: linear-gradient(to right, rgb(0 0 0 / 45%), transparent 85%);
+  mask-image: linear-gradient(to right, rgb(0 0 0 / 45%), transparent 85%);
 }
 
 .next {
@@ -1426,9 +1464,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .sheet {
   position: absolute;
-  right: 0;
+  right: 20%;
   bottom: 0;
-  left: 0;
+  left: 20%;
   z-index: 2000;
   border-radius: var(--s2l-radius);
   overflow: hidden;
