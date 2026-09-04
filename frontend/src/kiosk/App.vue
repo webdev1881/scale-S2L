@@ -38,7 +38,7 @@ const page = ref(0)
  * сдвигом в сторону движения. Направление берётся из самой смены состояния,
  * а не из обработчиков: страницу листают и пейджером, и свайпом, и поиском.
  */
-const gridAnim = ref<'dive' | 'rise' | 'page-next' | 'page-prev' | 'none'>('dive')
+const gridAnim = ref<'dive' | 'rise'>('dive')
 const selected = ref<Product | null>(null)
 const pluInput = ref('')
 const showNumpad = ref(false)
@@ -257,18 +257,10 @@ async function refreshSettings() {
   }
 }
 
-/**
- * Смена страницы. Свайп листает без перехода: страница уже съездила за пальцем,
- * и добавленный поверх сдвиг читается как второе, чужое движение. Переход
- * остаётся кнопкам пейджера — там движение единственное и оно объясняет, куда
- * ушла страница.
- */
-let pageTurnSilent = false
-
-function turnPage(delta: number, animated = true) {
+/** Смена страницы: лента сама доедет до нового места — двигать нечего. */
+function turnPage(delta: number) {
   const next = page.value + delta
   if (next < 0 || next >= pageCount.value) return false
-  pageTurnSilent = !animated
   page.value = next
   return true
 }
@@ -292,19 +284,13 @@ const SWIPE_EDGE_MAX = 56
 const SETTLE_MS = 280 // столько лента доезжает после отпускания
 const SETTLE_EASE = 'cubic-bezier(0.2, 0.7, 0.2, 1)'
 
-const ribbonPrev = ref<HTMLElement | null>(null)
-const ribbonCurrent = ref<HTMLElement | null>(null)
-const ribbonNext = ref<HTMLElement | null>(null)
-
 /**
- * Соседние страницы висят в разметке всё время жеста, а не появляются на первом
- * движении: собрать восемь карточек с фотографиями посреди движения — это
- * пропущенный кадр ровно там, где палец пошёл. На касании же пауза незаметна.
+ * Лента — один элемент со всеми страницами подряд. Листание сводится к её сдвигу:
+ * ничего не монтируется, не подменяется и не меняет размеров, поэтому дёргаться
+ * нечему. Раньше страницы собирались по три (текущая и соседние) и в конце жеста
+ * подменялись — каждая такая подмена была поводом для рывка.
  */
-const dragActive = ref(false)
-
-/** Есть куда листать вперёд — значит, край следующей страницы стоит показать. */
-const peekNext = computed(() => page.value < pageCount.value - 1)
+const ribbonEl = ref<HTMLElement | null>(null)
 const swipeDragging = ref(false)
 let swipeFrom: { x: number; y: number; at: number; id: number; width: number } | null = null
 let settleTimer = 0
@@ -315,29 +301,32 @@ let swipeJustHappened = false
 const reducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
 
-/** Три полосы ленты: предыдущая, текущая, следующая. */
-function ribbonParts() {
-  return [
-    { el: ribbonPrev.value, base: '-100%' },
-    { el: ribbonCurrent.value, base: '0px' },
-    { el: ribbonNext.value, base: '100%' },
-  ]
+/**
+ * Номером страницы владеет Vue, сдвигом под пальцем — обработчик жеста, и живут
+ * они в разных переменных. Писать обоим в `transform` нельзя: ручная правка
+ * стиля и реактивная привязка затирают друг друга, и лента остаётся на месте.
+ */
+const ribbonStyle = computed(() => ({ '--page': String(page.value) }))
+
+/**
+ * Сдвиг под пальцем пишется прямо в стиль: через реактивное состояние каждое
+ * движение перерисовывало бы весь киоск, и лента дёргалась бы там, где обязана
+ * быть гладкой.
+ */
+function moveRibbon(shift: number) {
+  const el = ribbonEl.value
+  if (!el) return
+  // Под пальцем лента идёт без сглаживания: задержка читается как залипание.
+  el.style.transition = 'none'
+  el.style.setProperty('--shift', `${shift}px`)
 }
 
-function moveRibbon(shift: number, motion: string) {
-  for (const { el, base } of ribbonParts()) {
-    if (!el) continue
-    el.style.transition = motion
-    el.style.transform = `translateX(calc(${base} + ${shift}px))`
-  }
-}
-
+/** Палец отпущен: сдвиг снимается, и лента доезжает переходом из CSS. */
 function restRibbon() {
-  for (const { el } of ribbonParts()) {
-    if (!el) continue
-    el.style.transition = ''
-    el.style.transform = ''
-  }
+  const el = ribbonEl.value
+  if (!el) return
+  el.style.transition = ''
+  el.style.removeProperty('--shift')
 }
 
 function onSwipeStart(event: PointerEvent) {
@@ -346,7 +335,6 @@ function onSwipeStart(event: PointerEvent) {
   const width = (event.currentTarget as HTMLElement).getBoundingClientRect().width
   swipeFrom = { x: event.clientX, y: event.clientY, at: event.timeStamp, id: event.pointerId, width }
   swipeDragging.value = false
-  if (pageCount.value > 1) dragActive.value = true
 }
 
 function onSwipeMove(event: PointerEvent) {
@@ -372,7 +360,7 @@ function onSwipeMove(event: PointerEvent) {
   const shift = edge
     ? Math.max(-SWIPE_EDGE_MAX, Math.min(SWIPE_EDGE_MAX, dx * SWIPE_EDGE_RATIO))
     : dx
-  moveRibbon(shift, 'none')
+  moveRibbon(shift)
 }
 
 function onSwipeEnd(event: PointerEvent) {
@@ -390,7 +378,7 @@ function onSwipeEnd(event: PointerEvent) {
     const exists = wanted > 0 ? page.value < pageCount.value - 1 : page.value > 0
     if (exists && (Math.abs(dx) >= enough || flick)) dir = wanted
   }
-  settleRibbon(dir, from?.width ?? 0)
+  settleRibbon(dir)
   // Гасим выбор после любой протяжки, а не только после смены страницы: палец
   // отпущен над чужой карточкой, и её открытие выглядело бы промахом прибора.
   if (dragged) {
@@ -400,29 +388,25 @@ function onSwipeEnd(event: PointerEvent) {
 }
 
 /**
- * Лента доезжает до места и только в конце меняет страницу: соседняя к этому
- * моменту стоит ровно там, где окажется новая текущая, поэтому подмены не видно.
- * Доводим в ту же сторону, куда вели, — возврат почти ушедшей страницы читался бы
- * как отказ прибора листать.
+ * Отпустили — лента доезжает до места. Номер страницы меняем сразу, а не в конце:
+ * реактивный стиль ставит ленту ровно туда, куда её и вело, и переход доигрывает
+ * сам. Подменять при этом нечего — все страницы уже в ленте.
  */
-function settleRibbon(dir: number, width: number) {
+function settleRibbon(dir: number) {
   window.clearTimeout(settleTimer)
-  const finish = () => {
-    settleTimer = 0
-    if (dir !== 0) turnPage(dir, false)
-    restRibbon()
-    dragActive.value = false
+  if (dir !== 0) turnPage(dir)
+  restRibbon()
+  // Пока лента доезжает, новый жест её не перехватывает: иначе сдвиг считался бы
+  // от старого положения.
+  if (!reducedMotion()) {
+    settleTimer = window.setTimeout(() => (settleTimer = 0), SETTLE_MS)
   }
-  if (reducedMotion()) return finish()
-  moveRibbon(dir === 0 ? 0 : -dir * width, `transform ${SETTLE_MS}ms ${SETTLE_EASE}`)
-  settleTimer = window.setTimeout(finish, SETTLE_MS)
 }
 
 function cancelSwipe() {
-  const width = swipeFrom?.width ?? 0
   swipeFrom = null
   swipeDragging.value = false
-  settleRibbon(0, width)
+  settleRibbon(0)
 }
 
 function openCategory(category: Category) {
@@ -646,17 +630,15 @@ watch([search, openedCategory, selected], bumpIdle)
 
 // Смена уровня старше листания: при провале в группу страница тоже сбрасывается
 // на нулевую, и без этого условия переход читался бы как листание назад.
-watch(
-  [showCategories, page, showSingle],
-  ([toGroups, next, single], [wasGroups, prev, wasSingle]) => {
-    // Разворот товара на весь блок и возврат к сетке — та же смена уровня
-    if (single !== wasSingle) gridAnim.value = single ? 'dive' : 'rise'
-    else if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
-    // Имя без единого CSS-правила: Vue не находит перехода и меняет страницу сразу.
-    else if (pageTurnSilent) gridAnim.value = 'none'
-    else gridAnim.value = next > prev ? 'page-next' : 'page-prev'
-    pageTurnSilent = false
-  },
+// Переход нужен только смене уровня: листание внутри уровня — сдвиг ленты.
+watch([showCategories, showSingle], ([toGroups, single], [wasGroups, wasSingle]) => {
+  if (single !== wasSingle) gridAnim.value = single ? 'dive' : 'rise'
+  else if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
+})
+
+/** Уровень каталога. Номер страницы в ключ не входит — иначе лента пересоберётся. */
+const ribbonKey = computed(() =>
+  showCategories.value ? 'groups' : showSingle.value ? `one:${selected.value?.id}` : 'products',
 )
 
 /**
@@ -784,91 +766,58 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             @pointerup="onSwipeEnd"
             @pointercancel="cancelSwipe"
           >
-          <!-- Без mode="out-in": уходящая и приходящая сетки лежат в одной ячейке и
-               меняются внахлёст. Последовательный режим требует, чтобы уход
-               обязательно завершился, и любая заминка оставила бы каталог пустым.
-               Номер страницы входит в ключ: страница уезжает целиком, а не
-               карточка за карточкой. Иначе на время перехода в сетке оказывается
-               вдвое больше карточек, ряды пересобираются и кадр дёргается. -->
-          <!-- Соседние страницы ленты: висят по краям всё время жеста и едут
-               вместе с текущей. Касаний не ловят — палец в этот момент ведёт
-               ленту, а не выбирает товар. -->
-          <div v-if="dragActive && page > 0" ref="ribbonPrev" class="page side prev">
-            <CategoryGrid
-              v-if="showCategories"
-              :categories="categoriesOn(page - 1)"
-              :cols="cols"
-              :rows="visibleRows"
-            />
-            <ProductGrid
-              v-else
-              :products="productsOn(page - 1)"
-              :selected-id="selected?.id ?? null"
-              :cols="cols"
-              :rows="visibleRows"
-            />
-          </div>
+          <!-- Одна лента: все страницы стоят подряд, листание — её сдвиг. Смена
+               уровня каталога (группы, товары, развёрнутый товар) меняет ключ, и
+               тогда работает переход наложением; номер страницы в ключ не входит,
+               иначе лента пересобиралась бы на каждом листании. -->
+          <Transition :name="gridAnim">
+            <!-- Обёртка нужна затем, что переход уровня анимирует `transform`, а на
+                 ленте тем же свойством живёт сдвиг страницы: на одном элементе они
+                 затирали друг друга, и лента оставалась на первой странице. -->
+            <div :key="ribbonKey" class="track">
+              <div ref="ribbonEl" class="ribbon" :style="ribbonStyle">
+                <template v-if="showCategories">
+                  <CategoryGrid
+                    v-for="index in pageCount"
+                    :key="index"
+                    class="page"
+                    :categories="categoriesOn(index - 1)"
+                    :cols="cols"
+                    :rows="visibleRows"
+                    :calm="calmCards"
+                    @open="openCategory"
+                  />
+                </template>
 
-          <div ref="ribbonCurrent" class="page">
-            <Transition :name="gridAnim">
-              <CategoryGrid
-                v-if="showCategories"
-                :key="`groups:${page}`"
-                :categories="pagedCategories"
-                :cols="cols"
-                :rows="visibleRows"
-                :calm="calmCards"
-                @open="openCategory"
-              />
-              <!-- Выбранный товар — одна карточка на весь блок -->
-              <ProductGrid
-                v-else-if="showSingle && selected"
-                :key="`one:${selected.id}`"
-                :products="[selected]"
-                :selected-id="selected.id"
-                :cols="1"
-                :rows="1"
-                single
-                :ratio="visibleRows / cols"
-                @select="selectProduct"
-              />
-              <ProductGrid
-                v-else
-                :key="`products:${page}`"
-                :products="pagedProducts"
-                :selected-id="selected?.id ?? null"
-                :cols="cols"
-                :rows="visibleRows"
-                :calm="calmCards"
-                @select="selectProduct"
-              />
-            </Transition>
-          </div>
+                <!-- Выбранный товар — одна карточка на весь блок -->
+                <ProductGrid
+                  v-else-if="showSingle && selected"
+                  class="page"
+                  :products="[selected]"
+                  :selected-id="selected.id"
+                  :cols="1"
+                  :rows="1"
+                  single
+                  :ratio="visibleRows / cols"
+                  @select="selectProduct"
+                />
 
-          <!-- Край следующей страницы виден всегда, когда есть куда листать: он
-               растворяется у правого края и этим показывает, что ленту можно
-               потянуть. Во время жеста полоса едет целиком, поэтому затухание
-               с неё снимается. -->
-          <div
-            v-if="dragActive || peekNext"
-            ref="ribbonNext"
-            class="page side next"
-            :class="{ peek: !swipeDragging }"
-          >
-            <CategoryGrid
-              v-if="showCategories"
-              :categories="categoriesOn(page + 1)"
-              :cols="cols"
-              :rows="visibleRows"
-            />
-            <ProductGrid
-              v-else
-              :products="productsOn(page + 1)"
-              :selected-id="selected?.id ?? null"
-              :cols="cols"
-              :rows="visibleRows"
-            />
-          </div>
+                <template v-else>
+                  <ProductGrid
+                    v-for="index in pageCount"
+                    :key="index"
+                    class="page"
+                    :products="productsOn(index - 1)"
+                    :selected-id="selected?.id ?? null"
+                    :cols="cols"
+                    :rows="visibleRows"
+                    :calm="calmCards"
+                    @select="selectProduct"
+                  />
+                  </template>
+              </div>
+              </div>
+          </Transition>
           </div>
 
           <!-- Цифровой блок выходит панелью у правого края блока карточек, ростом
@@ -1115,45 +1064,51 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   touch-action: pan-y;
 }
 
-/* Полосы ленты лежат в одной ячейке; боковые сдвинуты на свою ширину и видны
-   только когда лента поехала. Сдвиг задан в CSS, а не в стиле элемента: до
-   первого движения пальца писать в стиль некому. */
-.page {
+/* Полоса уровня: её двигает переход между группами, товарами и развёрнутой
+   карточкой. Лента внутри отвечает только за номер страницы. */
+.track {
   display: grid;
   min-height: 0;
-  /* Свой слой: браузер не пересобирает страницу на каждом кадре жеста */
+}
+
+/* Лента: страницы стоят подряд, каждая шириной в блок. Двигается она целиком,
+   поэтому собственный слой нужен ей, а не отдельным страницам. */
+.ribbon {
+  display: flex;
+  min-height: 0;
+  height: 100%;
+  /* Номер страницы приезжает из состояния, сдвиг — из жеста; складываются они
+     здесь, поэтому ни одна из сторон не затирает другую. */
+  transform: translateX(calc(var(--shift, 0px) - var(--page, 0) * 100%));
+  transition: transform 280ms cubic-bezier(0.2, 0.7, 0.2, 1);
   will-change: transform;
 }
 
-/* Уходящая и приходящая сетки внутри полосы лежат в одной ячейке: без этого
-   переход между уровнями каталога выстроил бы их в два ряда. */
-.page > * {
-  grid-area: 1 / 1;
+.page {
+  display: grid;
+  flex: 0 0 100%;
   min-height: 0;
 }
 
-.side {
-  pointer-events: none;
-}
-
-.prev {
-  transform: translateX(-100%);
-}
-
-.next {
-  transform: translateX(100%);
-}
-
+/* Жёлоб справа, в котором виден край следующей страницы: подсказка, что ленту
+   можно потянуть. Место занято, пока страниц больше одной, — иначе на последней
+   странице карточки меняли бы ширину. Затухание живёт на самом блоке и начинается
+   ровно там, где кончается текущая страница. */
 .grid-slot.has-peek {
   --s2l-peek: calc(64px * var(--ui-name, 1));
   padding-right: var(--s2l-peek);
-}
-
-/* Заглядывающая полоса растворяется вправо: это подсказка, а не вторая страница,
-   и она не должна спорить с карточками, которые покупатель разглядывает. */
-.side.next.peek {
-  -webkit-mask-image: linear-gradient(to right, rgb(0 0 0 / 45%), transparent 85%);
-  mask-image: linear-gradient(to right, rgb(0 0 0 / 45%), transparent 85%);
+  -webkit-mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - var(--s2l-peek)),
+    rgb(0 0 0 / 35%) calc(100% - var(--s2l-peek) * 0.4),
+    transparent
+  );
+  mask-image: linear-gradient(
+    to right,
+    #000 calc(100% - var(--s2l-peek)),
+    rgb(0 0 0 / 35%) calc(100% - var(--s2l-peek) * 0.4),
+    transparent
+  );
 }
 
 .next {
@@ -1198,48 +1153,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   transform: scale(0.94);
 }
 
-/* Подмена без перехода (`none`) — это конец свайпа: лента уже доехала, и уходящая
-   страница не должна прожить даже кадра. Vue держит её в DOM до следующего кадра,
-   и на новой странице с меньшим числом карточек старые просвечивали в пустых
-   ячейках — тот самый блик в конце жеста. */
-.none-leave-active {
-  display: none;
-}
-
-/* Листание: страница уходит в ту сторону, куда её листают, а следующая приходит
-   с противоположной. Движение совпадает со стрелкой пейджера и с самим свайпом. */
-.page-next-enter-active,
-.page-next-leave-active,
-.page-prev-enter-active,
-.page-prev-leave-active {
-  transition:
-    opacity 0.2s ease,
-    transform 0.26s cubic-bezier(0.2, 0.7, 0.2, 1);
-}
-
-.page-next-enter-from,
-.page-prev-leave-to {
-  opacity: 0;
-  transform: translateX(7%);
-}
-
-.page-next-leave-to,
-.page-prev-enter-from {
-  opacity: 0;
-  transform: translateX(-7%);
-}
-
 @media (prefers-reduced-motion: reduce) {
   .catalog-area,
   .grid-slot,
+  .ribbon,
   .dive-enter-active,
   .dive-leave-active,
   .rise-enter-active,
-  .rise-leave-active,
-  .page-next-enter-active,
-  .page-next-leave-active,
-  .page-prev-enter-active,
-  .page-prev-leave-active {
+  .rise-leave-active {
     transition: none;
   }
 }

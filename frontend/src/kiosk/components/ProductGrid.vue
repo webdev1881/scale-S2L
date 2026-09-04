@@ -38,7 +38,7 @@ defineEmits<{ select: [product: Product] }>()
       @click="$emit('select', product)"
     >
       <div class="photo">
-        <img v-if="product.image" :src="`/products/${product.image}`" :alt="product.name" />
+        <img v-if="product.image" loading="lazy" :src="`/products/${product.image}`" :alt="product.name" />
         <span v-else class="emoji">{{ product.emoji || '🏷️' }}</span>
         <!-- Код лежит поверх фотографии без подложки: он нужен тем, кто набирает
              его на клавиатуре, и не должен занимать строку в подписи. -->

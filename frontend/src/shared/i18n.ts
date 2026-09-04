@@ -26,7 +26,7 @@ const messages = {
       searchResults: 'Результати пошуку',
       codeResults: 'Пошук за кодом {code}',
       allProducts: 'Усі товари',
-      byCode: 'за Кодом',
+      byCode: 'Код товару',
       pageOf: '{page} / {pages}',
       nothingFound: 'Нічого не знайдено',
       noProduct: 'Товар не обрано',
