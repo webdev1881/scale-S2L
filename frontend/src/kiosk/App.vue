@@ -365,12 +365,26 @@ function onSwipeStart(event: PointerEvent) {
   window.addEventListener('pointermove', onSwipeMove)
   window.addEventListener('pointerup', onSwipeEnd)
   window.addEventListener('pointercancel', cancelSwipe)
+  window.addEventListener('touchmove', holdGesture, { passive: false })
+}
+
+/**
+ * Пока палец ведёт ленту, отменяем действие по умолчанию у `touchmove`. Без этого
+ * браузер считает движение прокруткой и на быстром жесте запускает «бросок»
+ * (fling) — пусть и вхолостую, прокручивать нечего. А следующее касание он
+ * тратит на остановку этого броска: `touchstart` и `touchend` приходят обычные,
+ * но `click` браузер уже не шлёт. Это и было «срабатывает только со второго раза».
+ * На простом тапе, где движения нет, ничего не отменяем — иначе пропадёт клик.
+ */
+function holdGesture(event: TouchEvent) {
+  if (swipeDragging.value && event.cancelable) event.preventDefault()
 }
 
 function unwatchSwipe() {
   window.removeEventListener('pointermove', onSwipeMove)
   window.removeEventListener('pointerup', onSwipeEnd)
   window.removeEventListener('pointercancel', cancelSwipe)
+  window.removeEventListener('touchmove', holdGesture)
 }
 
 function onSwipeMove(event: PointerEvent) {
@@ -1045,6 +1059,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 <style scoped>
 .kiosk {
+  /* Киоск не прокручивается нигде: любое движение пальца — наш жест, и браузеру
+     не за что принимать его за прокрутку. */
+  touch-action: none;
   display: grid;
   /* Весы шапкой во всю ширину, каталог под ними */
   grid-template-rows: auto 1fr;
