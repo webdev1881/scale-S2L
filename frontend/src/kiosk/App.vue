@@ -654,71 +654,6 @@ function reset() {
   keyboardOpen.value = false
 }
 
-/**
- * Временная диагностика касаний. Включается `?taps=1` в адресе киоска и пишет
- * поверх экрана последние события указателя: что нажали, куда пришло, погашено ли
- * оно. Нужна затем, что «срабатывает со второго раза» невозможно поймать со
- * стороны: в фоновой вкладке таймеры зажаты, а синтетические события не повторяют
- * ни захват указателя, ни клик, который браузер шлёт сам.
- */
-const tapsDebug = new URLSearchParams(window.location.search).has('taps')
-const tapLog = ref<string[]>([])
-
-function watchTaps() {
-  const note = (text: string) => {
-    tapLog.value = [text, ...tapLog.value].slice(0, 14)
-  }
-  // Клик пишем дважды: на перехвате (`click↓`) и на всплытии (`click↑`). Если в
-  // журнале есть только стрелка вниз — клик погашен по дороге, и это как раз то,
-  // что нужно увидеть.
-  window.addEventListener('click', (event) => {
-    const point = event as MouseEvent
-    tapLog.value = [
-      `${String(Math.round(performance.now())).slice(-6)} click↑ дошёл @${Math.round(point.clientX)},${Math.round(point.clientY)}`,
-      ...tapLog.value,
-    ].slice(0, 14)
-  })
-
-  // Сырые touch-события: если для касания приходит `touchcancel` или `touchstart`
-  // приходит уже не отменяемым, значит жест забрал себе браузер — тогда клика он
-  // не пришлёт, и искать надо в его правилах, а не в нашем коде.
-  for (const type of ['touchstart', 'touchend', 'touchcancel'] as const) {
-    window.addEventListener(
-      type,
-      (event) => {
-        const touch = event as TouchEvent
-        const time = String(Math.round(performance.now())).slice(-6)
-        tapLog.value = [
-          `${time} ${type}${touch.cancelable ? '' : ' НЕОТМЕНЯЕМОЕ'}${event.defaultPrevented ? ' ПОГАШЕНО' : ''}`,
-          ...tapLog.value,
-        ].slice(0, 14)
-      },
-      true,
-    )
-  }
-
-  for (const type of ['pointerdown', 'pointerup', 'pointercancel', 'click'] as const) {
-    window.addEventListener(
-      type,
-      (event) => {
-        const point = event as PointerEvent & MouseEvent
-        const target = event.target as HTMLElement | null
-        const where =
-          target?.closest('.card')?.querySelector('.name')?.textContent?.trim() ??
-          target?.closest('button')?.className ??
-          target?.className ??
-          '?'
-        const time = String(Math.round(performance.now())).slice(-6)
-        const kind = point.pointerType ? ` [${point.pointerType}]` : ''
-        const x = Math.round(point.clientX ?? 0)
-        const y = Math.round(point.clientY ?? 0)
-        note(`${time} ${type === 'click' ? 'click↓' : type}${kind} ${String(where).slice(0, 18)} @${x},${y}`)
-      },
-      true,
-    )
-  }
-}
-
 function bumpIdle() {
   window.clearTimeout(idleTimer)
   const seconds = settings.value?.kiosk_idle_reset_s ?? 45
@@ -728,7 +663,6 @@ function bumpIdle() {
 }
 
 onMounted(async () => {
-  if (tapsDebug) watchTaps()
   weight.connect()
   await loadCatalog()
   window.addEventListener('pointerdown', bumpIdle)
@@ -1031,11 +965,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           />
         </Transition>
       </section>
-
-      <!-- Журнал касаний поверх всего: только при ?taps=1 -->
-      <div v-if="tapsDebug" class="taps">
-        <div v-for="(line, index) in tapLog" :key="index">{{ line }}</div>
-      </div>
 
       <el-dialog
         v-model="labelVisible"
@@ -1500,25 +1429,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   stroke-linecap: round;
 }
 
-/* Диагностический журнал: намеренно поверх всего и не ловит касания */
-.taps {
-  position: fixed;
-  top: 8px;
-  left: 8px;
-  z-index: 5000;
-  max-width: 46vw;
-  padding: 8px 10px;
-  font-family: Consolas, monospace;
-  font-size: 13px;
-  line-height: 1.35;
-  color: #d7ffd7;
-  background: rgb(9 12 18 / 82%);
-  border-radius: 8px;
-  pointer-events: none;
-  white-space: nowrap;
-  overflow: hidden;
-}
-
 .label-img {
   display: block;
   width: 100%;
@@ -1578,7 +1488,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   overflow: hidden;
   box-shadow: -14px 0 40px var(--s2l-shadow-strong);
 }
-
 
 .pad-enter-active,
 .pad-leave-active {
