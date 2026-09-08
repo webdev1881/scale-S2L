@@ -15,6 +15,7 @@ frontend/dist/
 Thumbs.db
 
 # Claude Code: указатель и скиллы живут локально, в репозитории им не место
-CLAUDE.md
-CLAUDE.local.md
-.claude/
+# CLAUDE.md
+# CLAUDE.local.md
+# .claude/
+# 
