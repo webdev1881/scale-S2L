@@ -675,6 +675,11 @@ async function print() {
     const result = await api.print(selected.value.id)
     labelUrl.value = result.label_url
     labelVisible.value = true
+    // Каталог за диалогом сразу встаёт начальным: этикетка висит до двадцати пяти
+    // секунд, и всё это время следующий покупатель видел бы чужую страницу, чужую
+    // группу и чужой набранный поиск. Цена и стоимость в шапке остаются — по ним
+    // покупатель и проверяет, за что заплатит.
+    resetBrowsing()
     // Дальше экран ждёт не таймер, а платформу: покупка кончается тогда, когда
     // покупатель забрал товар. Таймер остаётся страховкой на случай, когда товар
     // не сняли вовсе.
@@ -733,15 +738,23 @@ function closeLabel() {
   reset()
 }
 
-function reset() {
-  void refreshSettings()
-  selected.value = null
+/**
+ * Каталог к начальному виду: группа, поиск, страница, панели ввода. Выбранный товар
+ * при этом остаётся — он ещё нужен шапке и нижней панели.
+ */
+function resetBrowsing() {
   search.value = ''
   openedCategory.value = null
   page.value = 0
   pluInput.value = ''
   showNumpad.value = false
   keyboardOpen.value = false
+}
+
+function reset() {
+  void refreshSettings()
+  selected.value = null
+  resetBrowsing()
 }
 
 function bumpIdle() {
