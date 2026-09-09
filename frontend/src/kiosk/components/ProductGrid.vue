@@ -40,6 +40,7 @@ defineEmits<{ select: [product: Product] }>()
              около 1250), то есть ровно то, ради чего окно и существует. -->
         <img
           v-if="product.image"
+          draggable="false"
           decoding="async"
           :src="`/products/${product.image}`"
           :alt="product.name"

@@ -37,6 +37,7 @@ defineEmits<{ open: [category: Category] }>()
              около 1250), то есть ровно то, ради чего окно и существует. -->
         <img
           v-if="category.image"
+          draggable="false"
           decoding="async"
           :src="`/products/${category.image}`"
           :alt="category.name"
