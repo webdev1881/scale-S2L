@@ -31,9 +31,12 @@ defineEmits<{ open: [category: Category] }>()
       @click="$emit('open', category)"
     >
       <div class="photo">
+        <!-- Без `loading="lazy"`: что держать наготове, решает окно ленты — оно знает
+             это по номеру страницы, а не по расстоянию до вьюпорта. Ленивая загрузка
+             отказывалась готовить соседнюю страницу (она за 1920 px, порог Chrome —
+             около 1250), то есть ровно то, ради чего окно и существует. -->
         <img
           v-if="category.image"
-          loading="lazy"
           decoding="async"
           :src="`/products/${category.image}`"
           :alt="category.name"
