@@ -136,11 +136,14 @@ const rows = computed(() =>
     : (settings.value?.product_grid_rows ?? 2),
 )
 /**
- * Открытая клавиатура забирает нижнюю половину экрана. Если оставить прежнее число
- * строк, карточки сожмутся до нечитаемых полосок, поэтому во время набора показываем
- * один ряд — остальное доступно листанием или после «Готово».
+ * Открытая клавиатура забирает нижнюю треть экрана, но вместе с ней уходят весы и
+ * итоговая панель — освободившегося хватает на два ряда. Больше двух не показываем:
+ * настройка сетки задаёт размер карточки для полного экрана, а под клавиатурой места
+ * меньше, и третий ряд снова сжал бы карточки до полосок.
  */
-const visibleRows = computed(() => (keyboardOpen.value ? 1 : rows.value))
+const visibleRows = computed(() =>
+  keyboardOpen.value ? Math.min(rows.value, 2) : rows.value,
+)
 const pageSize = computed(() => cols.value * visibleRows.value)
 
 /**
@@ -742,10 +745,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
 
-    <div class="kiosk" :style="uiScales">
+    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места
-           у прибора, а не только стоя напротив левого края экрана. Клавиатура
-           выезжает ниже и их не задевает. -->
+           у прибора, а не только стоя напротив левого края экрана. Пока ищут товар,
+           шапка уходит: товар ещё не выбран, показывать нечего, а её высота нужнее
+           карточкам. -->
       <header class="scale">
         <WeightPanel
           :reading="weight.reading"
@@ -1003,6 +1007,20 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .scale {
   min-height: 0;
+}
+
+/* Пока набирают название, весы уходят и их высота достаётся карточкам: товар ещё
+   не выбран, и показание в этот момент ничего не решает. Схлопывается трек, а сама
+   шапка остаётся в разметке: убери её — и каталог встанет в первый `auto`-трек,
+   потеряв свой `1fr`. Меняется всё одним шагом, без перехода: карточки в этот
+   момент и так перестраиваются под новое число рядов. */
+.kiosk.hushed-scale {
+  grid-template-rows: 0 1fr;
+  row-gap: 0;
+}
+
+.kiosk.hushed-scale .scale {
+  overflow: hidden;
 }
 
 .main {
