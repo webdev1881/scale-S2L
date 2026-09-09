@@ -31,7 +31,13 @@ defineEmits<{ open: [category: Category] }>()
       @click="$emit('open', category)"
     >
       <div class="photo">
-        <img v-if="category.image" loading="lazy" :src="`/products/${category.image}`" :alt="category.name" />
+        <img
+          v-if="category.image"
+          loading="lazy"
+          decoding="async"
+          :src="`/products/${category.image}`"
+          :alt="category.name"
+        />
       </div>
       <div class="body">
         <span class="name">{{ category.name }}</span>

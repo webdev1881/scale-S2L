@@ -208,6 +208,23 @@ const pageCount = computed(() => {
   return Math.max(1, Math.ceil(length / pageSize.value))
 })
 
+/**
+ * Сколько страниц по обе стороны от текущей собрано по-настоящему. Лента держит в
+ * разметке все страницы уровня, и пока их было полтора десятка, это ничего не
+ * стоило. С настоящим каталогом (363 товара — 31 страница) в DOM оказывалось
+ * столько же карточек, и каждая со своим снимком и бесконечным переливом плашки:
+ * заставка при запуске дёргалась, свайп терял кадры.
+ *
+ * Соседняя страница нужна собранной заранее: её видно в жёлобе подсказки и она
+ * приезжает под палец в первом же движении. Дальние страницы держат только своё
+ * место — пустой блок той же ширины, чтобы сдвиг ленты считался как прежде.
+ */
+const RIBBON_WINDOW = 1
+
+function pageIsLive(index: number) {
+  return Math.abs(index - page.value) <= RIBBON_WINDOW
+}
+
 /** Срез страницы по её номеру: под палец подставляется соседняя, а не текущая. */
 function categoriesOn(index: number) {
   return categories.value.slice(index * pageSize.value, (index + 1) * pageSize.value)
@@ -837,32 +854,33 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                  затирали друг друга, и лента оставалась на первой странице. -->
             <div :key="ribbonKey" class="track">
               <div ref="ribbonEl" class="ribbon" :style="ribbonStyle">
-                <template v-if="showCategories">
-                  <CategoryGrid
-                    v-for="index in pageCount"
-                    :key="index"
-                    class="page"
-                    :categories="categoriesOn(index - 1)"
-                    :cols="cols"
-                    :rows="visibleRows"
-                    :calm="calmCards"
-                    @open="openCategory"
-                  />
-                </template>
-
-                <template v-else>
-                  <ProductGrid
-                    v-for="index in pageCount"
-                    :key="index"
-                    class="page"
-                    :products="productsOn(index - 1)"
-                    :selected-id="selected?.id ?? null"
-                    :cols="cols"
-                    :rows="visibleRows"
-                    :calm="calmCards"
-                    @select="selectProduct"
-                  />
+                <!-- Собраны только текущая страница и соседние; остальные держат своё
+                     место пустым блоком той же ширины. Сдвиг ленты считается от
+                     номера страницы, поэтому места должны стоять все. -->
+                <template v-for="index in pageCount" :key="index">
+                  <template v-if="pageIsLive(index - 1)">
+                    <CategoryGrid
+                      v-if="showCategories"
+                      class="page"
+                      :categories="categoriesOn(index - 1)"
+                      :cols="cols"
+                      :rows="visibleRows"
+                      :calm="calmCards"
+                      @open="openCategory"
+                    />
+                    <ProductGrid
+                      v-else
+                      class="page"
+                      :products="productsOn(index - 1)"
+                      :selected-id="selected?.id ?? null"
+                      :cols="cols"
+                      :rows="visibleRows"
+                      :calm="calmCards"
+                      @select="selectProduct"
+                    />
                   </template>
+                  <div v-else class="page" aria-hidden="true"></div>
+                </template>
               </div>
               </div>
           </Transition>

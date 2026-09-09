@@ -10,7 +10,7 @@
   "min_print_weight_g": 40,
   "require_stable": true,
   "kiosk_scale_buttons": true,
-  "kiosk_use_groups": true,
+  "kiosk_use_groups": false,
   "kiosk_idle_reset_s": 45,
   "splash_seconds": 3.0,
   "ui_scale_weight": 1.8,
