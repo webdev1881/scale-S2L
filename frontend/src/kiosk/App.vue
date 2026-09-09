@@ -121,6 +121,7 @@ const uiScales = computed<Record<string, string>>(() => {
 })
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
+const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -152,8 +153,24 @@ const pageSize = computed(() => cols.value * visibleRows.value)
  * туда ли он идёт.
  */
 const searching = computed(() => search.value.trim().length > 0 || pluInput.value.length > 0)
-/** Группы показываются, пока покупатель не провалился внутрь и не начал искать. */
-const showCategories = computed(() => !searching.value && openedCategory.value === null)
+/**
+ * Группы показываются, пока покупатель не провалился внутрь и не начал искать.
+ * Уровня групп может не быть вовсе: прибор, повешенный на отдел, показывает
+ * товары сразу — ассортимент отдела помещается в сетку, а лишний экран между
+ * покупателем и карточкой стоит ему одного касания.
+ */
+const showCategories = computed(
+  () => useGroups.value && !searching.value && openedCategory.value === null,
+)
+
+/**
+ * Есть ли куда возвращаться: открытая группа, поиск или набранный код. Считается
+ * не от «мы не на верхнем уровне», а от самих причин — без групп верхний уровень
+ * и есть список товаров, и кнопка возврата там означала бы возврат в никуда.
+ */
+const canReturn = computed(
+  () => showNumpad.value || searching.value || openedCategory.value !== null,
+)
 
 const visibleProducts = computed(() => {
   const needle = search.value.trim().toLowerCase()
@@ -904,11 +921,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                от касания карточки, а поиск по названию всё равно работает поперёк
                групп, и начинать его осмысленно сверху. Возврат стоит здесь один
                раз, в строке поиска его больше нет. -->
-          <button
-            v-if="showNumpad || !showCategories"
-            class="tile action"
-            @click="allProducts"
-          >
+          <button v-if="canReturn" class="tile action" @click="allProducts">
             {{ t('kiosk.allProducts') }}
           </button>
           <!-- На верхнем уровне возвращаться некуда, и главное действие покупателя —

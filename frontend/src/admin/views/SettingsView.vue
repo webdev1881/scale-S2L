@@ -111,7 +111,13 @@ onMounted(load)
           <el-input-number v-model="form.splash_seconds" :min="0" :max="10" :step="0.5" />
           <div class="hint">{{ t('admin.settings.splashHint') }}</div>
         </el-form-item>
-        <el-form-item :label="t('admin.settings.grid')">
+        <el-form-item :label="t('admin.settings.useGroups')">
+          <el-switch v-model="form.kiosk_use_groups" />
+          <div class="hint">{{ t('admin.settings.useGroupsHint') }}</div>
+        </el-form-item>
+        <!-- Сетка групп показывается только тогда, когда группы включены: настройка,
+             которая ничего не меняет, хуже отсутствующей. -->
+        <el-form-item v-if="form.kiosk_use_groups" :label="t('admin.settings.grid')">
           <el-input-number v-model="form.grid_cols" :min="2" :max="6" />
           <span class="times">×</span>
           <el-input-number v-model="form.grid_rows" :min="1" :max="5" />

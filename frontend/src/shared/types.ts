@@ -74,6 +74,7 @@ export interface DeviceSettings {
   min_print_weight_g: number
   require_stable: boolean
   kiosk_scale_buttons: boolean
+  kiosk_use_groups: boolean
   kiosk_idle_reset_s: number
   splash_seconds: number
   ui_scale_weight: number
