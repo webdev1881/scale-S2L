@@ -1,12 +1,14 @@
 """Симулятор весовой платы.
 
-Имитирует то, что портит жизнь в реальности: инерцию нагрузки, шум АЦП и задержку
-стабилизации. UI обязан корректно вести себя с «дрожащим» весом ещё до встречи с железом.
+Имитирует то, что портит жизнь в реальности: качание платформы под положенным
+грузом, шум АЦП, ползучесть датчика и задержку стабилизации. UI обязан корректно вести себя с «дрожащим» весом ещё до встречи с железом.
 """
 from __future__ import annotations
 
 import asyncio
+import math
 import random
+from collections import deque
 
 from ...errors import ScaleError
 from ..base import DeviceStatus, ScaleDevice, WeightReading
@@ -14,8 +16,21 @@ from ..base import DeviceStatus, ScaleDevice, WeightReading
 # Порог, внутри которого вес считается неподвижным, и число подряд идущих
 # спокойных отсчётов до признания веса устоявшимся.
 STABLE_WINDOW_G = 2
-STABLE_SAMPLES = 6
-SAMPLE_PERIOD_S = 0.05
+STABLE_SAMPLES = 8
+SAMPLE_PERIOD_S = 0.02
+
+# Платформа на тензодатчике — пружина с грузом: положенный товар проскакивает
+# нужное значение и качается вокруг него, затухая. Собственная частота у весов
+# этого класса — единицы герц, затухание неполное, поэтому видно два-три колебания.
+RESONANCE_HZ = 2.6
+# 0.5 даёт перелёт около 15% — столько и видно на настоящей платформе. Меньше
+# затухание — платформа болтается неправдоподобно долго, больше — груз «доезжает»
+# по прямой, и проверять на симуляторе становится нечего.
+DAMPING = 0.5
+# Ползучесть тензодатчика под нагрузкой: показание ещё несколько секунд ползёт на
+# доли грамма. Держим её ниже порога покоя, иначе весы никогда бы не устоялись.
+CREEP_G = 1.2
+CREEP_TAU_S = 3.0
 
 
 class FakeScale(ScaleDevice):
@@ -32,9 +47,14 @@ class FakeScale(ScaleDevice):
         self.fine_range_g = fine_range_g
         self._target_g = 0.0  # «что лежит на платформе» — задаётся из симулятора в админке
         self._current_g = 0.0
+        self._velocity = 0.0  # скорость колебания платформы, г/с
+        self._creep_g = 0.0  # набежавшая ползучесть датчика
         self._tare_g = 0
         self._stable_count = 0
         self._noise = 1.0
+        # Окно недавних отсчётов: покой определяется по их разбросу, а не по
+        # близости к цели — настоящая плата тоже не знает, что на неё положили.
+        self._history: deque[float] = deque(maxlen=STABLE_SAMPLES)
         self._task: asyncio.Task | None = None
         self._overload = False
 
@@ -60,32 +80,45 @@ class FakeScale(ScaleDevice):
             self._task = None
 
     async def _loop(self) -> None:
+        omega = 2 * math.pi * RESONANCE_HZ
         while True:
-            delta = self._target_g - self._current_g
-            # экспоненциальное приближение + небольшой перелёт, как у реальной платформы
-            self._current_g += delta * 0.35
-            if abs(delta) > 5:
-                self._current_g += random.uniform(-1, 1) * min(abs(delta) * 0.05, 8)
-                self._stable_count = 0
-            else:
-                self._stable_count += 1
+            dt = SAMPLE_PERIOD_S
+            # Груз на пружине: ускорение тянет к цели, затухание гасит колебание.
+            # Отсюда и перелёт, и качание вокруг нужного значения, и полторы секунды
+            # до покоя — то, чего покупатель ждёт у платформы.
+            accel = omega * omega * (self._target_g - self._current_g)
+            accel -= 2 * DAMPING * omega * self._velocity
+            self._velocity += accel * dt
+            self._current_g += self._velocity * dt
+
+            # Ползучесть догоняет нагрузку по экспоненте и живёт отдельно от колебания.
+            цель_ползучести = CREEP_G if self._target_g > 0 else 0.0
+            self._creep_g += (цель_ползучести - self._creep_g) * dt / CREEP_TAU_S
+
+            # Шум АЦП в состояние не подмешиваем: он живёт в самом отсчёте (`read`).
+            # Подмешанный сюда, он превращался в случайное блуждание, разброс окна
+            # не сходился, и признак покоя мигал туда-сюда у самого порога.
+            self._history.append(self._current_g + self._creep_g)
+            спокойно = len(self._history) == self._history.maxlen and (
+                max(self._history) - min(self._history) <= STABLE_WINDOW_G
+            )
+            self._stable_count = self._stable_count + 1 if спокойно else 0
+
             # Перегрузка объявляется на 9 делений выше НПВ, как требует OIML R76
             self._overload = self._current_g > self.capacity_g + 9 * self.division_g
-            await asyncio.sleep(SAMPLE_PERIOD_S)
+            await asyncio.sleep(dt)
 
     def division_for(self, grams: float) -> int:
         """Двухдиапазонная цена деления: до 6 кг — 2 г, выше — 5 г."""
         return self.fine_division_g if abs(grams) <= self.fine_range_g else self.division_g
 
     def read(self) -> WeightReading:
-        noisy = self._current_g + random.uniform(-self._noise, self._noise)
+        noisy = self._current_g + self._creep_g + random.uniform(-self._noise, self._noise)
         # Реальная плата не отдаёт произвольные граммы: показание всегда кратно цене
         # деления. Иначе на этикетке появится вес, который прибор измерить не может.
         step = self.division_for(noisy)
         gross = int(round(noisy / step) * step)
-        stable = self._stable_count >= STABLE_SAMPLES and abs(
-            self._current_g - self._target_g
-        ) <= STABLE_WINDOW_G
+        stable = self._stable_count >= STABLE_SAMPLES
         error = ScaleError.OVERLOAD if self._overload else None
         return WeightReading(gross_g=gross, tare_g=self._tare_g, stable=stable, error=error)
 
@@ -96,7 +129,10 @@ class FakeScale(ScaleDevice):
         self._tare_g = 0
         self._target_g = 0.0
         self._current_g = 0.0
+        self._velocity = 0.0
+        self._creep_g = 0.0
         self._stable_count = 0
+        self._history.clear()
 
     def status(self) -> DeviceStatus:
         return DeviceStatus(
