@@ -123,6 +123,8 @@ const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
+const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
+const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
 // товаров в группе больше и плотность нужна другая.
@@ -665,9 +667,10 @@ async function print() {
     const result = await api.print(selected.value.id)
     labelUrl.value = result.label_url
     labelVisible.value = true
-    // Этикетку показываем ненадолго: киоск обязан сам вернуться в исходное состояние.
-    window.clearTimeout(labelTimer)
-    labelTimer = window.setTimeout(closeLabel, 8000)
+    // Дальше экран ждёт не таймер, а платформу: покупка кончается тогда, когда
+    // покупатель забрал товар. Таймер остаётся страховкой на случай, когда товар
+    // не сняли вовсе.
+    armLabelCap()
   } catch (error) {
     const message =
       error instanceof ApiError ? translateError(error.message) : t('kiosk.printFailed')
@@ -677,7 +680,46 @@ async function print() {
   }
 }
 
+/**
+ * Покупка закончена, когда покупатель забрал товар. Платформа — единственный
+ * достоверный сигнал, который у прибора есть: жёсткие восемь секунд обрывали
+ * экран у того, кто ещё отрывает этикетку, и держали чужую покупку перед тем, кто
+ * уже подошёл. Поэтому ждём, пока платформа освободится, а таймер оставлен
+ * страховкой: товар могут забыть, а связь с весовой платой — оборваться.
+ */
+function armLabelCap() {
+  window.clearTimeout(labelTimer)
+  labelTimer = window.setTimeout(() => {
+    // Предел сработал при занятой платформе — значит товар забыли. Молчать нельзя:
+    // следующий покупатель встанет к прибору с чужим грузом на чаше.
+    if (weight.reading.net_g >= minWeight.value) {
+      ElMessage({ message: t('kiosk.takeGoods'), type: 'warning', duration: 5000 })
+    }
+    closeLabel()
+  }, labelMaxMs.value)
+}
+
+/**
+ * Платформа освободилась и показание устоялось — покупка закончена. Выдержка нужна
+ * затем, что платформа качается, пока товар снимают: мгновенный ноль поймал бы
+ * середину движения. До печати снятие товара сессию не завершает — это не «ушёл»,
+ * а «переложил».
+ */
+let clearTimer: number | undefined
+
+watch(
+  () => [labelVisible.value, weight.reading.net_g, weight.reading.stable] as const,
+  ([shown, net, stable]) => {
+    window.clearTimeout(clearTimer)
+    if (!shown) return
+    if (net >= minWeight.value || !stable) return
+    clearTimer = window.setTimeout(closeLabel, clearHoldMs.value)
+  },
+)
+
 function closeLabel() {
+  window.clearTimeout(labelTimer)
+  window.clearTimeout(clearTimer)
   labelVisible.value = false
   labelUrl.value = null
   reset()
@@ -695,6 +737,10 @@ function reset() {
 }
 
 function bumpIdle() {
+  // Пока висит этикетка, касание отодвигает предел: экран не должен уходить
+  // из-под руки того, кто на него смотрит. Снятие товара с платформы касание не
+  // отменяет — это не таймаут, а осознанное действие покупателя.
+  if (labelVisible.value) armLabelCap()
   window.clearTimeout(idleTimer)
   const seconds = settings.value?.kiosk_idle_reset_s ?? 45
   idleTimer = window.setTimeout(() => {
@@ -714,6 +760,7 @@ onUnmounted(() => {
   weight.disconnect()
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
+  window.clearTimeout(clearTimer)
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
 })

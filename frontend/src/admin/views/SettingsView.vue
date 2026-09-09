@@ -107,6 +107,14 @@ onMounted(load)
         <el-form-item :label="t('admin.settings.idleReset')">
           <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
         </el-form-item>
+        <el-form-item :label="t('admin.settings.clearHold')">
+          <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.3" :max="10" :step="0.5" />
+          <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
+        </el-form-item>
+        <el-form-item :label="t('admin.settings.labelMax')">
+          <el-input-number v-model="form.kiosk_label_max_s" :min="5" :max="120" :step="5" />
+          <div class="hint">{{ t('admin.settings.labelMaxHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.splash')">
           <el-input-number v-model="form.splash_seconds" :min="0" :max="10" :step="0.5" />
           <div class="hint">{{ t('admin.settings.splashHint') }}</div>

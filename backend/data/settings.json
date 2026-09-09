@@ -12,6 +12,8 @@
   "kiosk_scale_buttons": true,
   "kiosk_use_groups": false,
   "kiosk_idle_reset_s": 45,
+  "kiosk_clear_hold_s": 1.5,
+  "kiosk_label_max_s": 25.0,
   "splash_seconds": 3.0,
   "ui_scale_weight": 1.8,
   "ui_scale_group_title": 1.2,

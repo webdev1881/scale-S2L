@@ -76,6 +76,8 @@ export interface DeviceSettings {
   kiosk_scale_buttons: boolean
   kiosk_use_groups: boolean
   kiosk_idle_reset_s: number
+  kiosk_clear_hold_s: number
+  kiosk_label_max_s: number
   splash_seconds: number
   ui_scale_weight: number
   ui_scale_group_title: number
