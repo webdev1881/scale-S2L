@@ -1,4 +1,4 @@
-"""Заливает каталог из выгрузки `prod.xlsx` рядом со снимками товаров.
+"""Заливает каталог из выгрузки товароучёта `docs/prod.xlsx`.
 
 Выгрузка из товароучёта даёт два столбца — артикул и наименование. Всё остальное
 выводится из них же: артикул становится кодом товара (`plu`), по нему же находится
@@ -38,7 +38,10 @@ from app.db import SessionLocal  # noqa: E402
 from app.models import Product  # noqa: E402
 
 PHOTOS = BACKEND.parent / "frontend" / "public" / "products"
-BOOK = PHOTOS / "prod.xlsx"
+# Выгрузка лежит в `docs/`, а не рядом со снимками: всё, что попадает в
+# `public/products`, уезжает в сборку и раздаётся прибором — список артикулов с
+# наименованиями там ни к чему.
+BOOK = BACKEND.parent / "docs" / "prod.xlsx"
 SUFFIXES = (".jpg", ".jpeg", ".png", ".webp")
 NS = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
 
