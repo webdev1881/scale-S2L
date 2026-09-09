@@ -237,10 +237,11 @@ const state = computed(() => {
 }
 
 .state {
-  min-height: calc(1.3em);
-  font-size: calc(clamp(16px, 1.7vw, 22px) * var(--ui-weight, 1));
-  color: var(--s2l-muted);
+  /* Кегль меньше подписи связи: «Зважування» — самое длинное из состояний, и на
+     прежних 22 px оно распирало плитку показания шире соседних. */
   min-height: 1.4em;
+  font-size: calc(clamp(14px, 1.1vw, 18px) * var(--ui-weight, 1));
+  color: var(--s2l-muted);
 }
 
 .tone-ok .state {

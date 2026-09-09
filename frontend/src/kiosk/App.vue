@@ -185,16 +185,8 @@ const catalogTitle = computed(() => {
   return ''
 })
 
-/**
- * Выбранный товар занимает блок карточек целиком: дальше покупатель кладёт его на
- * платформу и смотрит на весы, а соседние карточки в этот момент только отвлекают
- * и подставляются под случайное касание.
- */
-const showSingle = computed(() => selected.value !== null && !showCategories.value)
-
 /** Что листаем — зависит от того, показываем группы или товары. */
 const pageCount = computed(() => {
-  if (showSingle.value) return 1
   const length = showCategories.value ? categories.value.length : visibleProducts.value.length
   return Math.max(1, Math.ceil(length / pageSize.value))
 })
@@ -222,7 +214,11 @@ const total = computed(() => {
   return (selected.value.price * netG.value) / 1000
 })
 
-/** Почему кнопка печати недоступна — текст показывается прямо на кнопке. */
+/**
+ * Почему печать невозможна. Кнопки печати на экране больше нет — этикетка выходит
+ * от касания карточки, — поэтому причина показывается сообщением в ответ на само
+ * касание: покупатель нажал и обязан узнать, почему ничего не произошло.
+ */
 const printBlockReason = computed(() => {
   if (!selected.value) return t('blocked.selectProduct')
   if (selected.value.unit === 'piece') return null
@@ -473,13 +469,13 @@ function backToCategories() {
   page.value = 0
 }
 
+/**
+ * Касание карточки — это и есть заказ этикетки: товар выбран, вес на платформе уже
+ * лежит, и отдельное подтверждение печатью ничего не решает, а стоит покупателю
+ * лишнего шага у прибора. Повторное касание печатает снова — например, когда
+ * первое пришлось на неустоявшийся вес.
+ */
 function selectProduct(product: Product) {
-  // Повторное касание развёрнутой карточки возвращает к сетке: это единственный
-  // способ передумать, не уходя к списку групп.
-  if (selected.value?.id === product.id) {
-    selected.value = null
-    return
-  }
   selected.value = product
   // Товар выбран по коду — показываем, где он лежит, и снимаем фильтр: иначе в
   // каталоге осталась бы одна карточка, а строки с кодом на экране уже нет.
@@ -491,6 +487,7 @@ function selectProduct(product: Product) {
   }
   closeNumpad()
   closeKeyboard()
+  void print()
 }
 
 const SEARCH_MAX_LENGTH = 40
@@ -622,7 +619,11 @@ function findByPlu() {
 }
 
 async function print() {
-  if (!selected.value || printBlockReason.value) return
+  if (!selected.value || printing.value) return
+  // Молча не отказываем: касание было, и без ответа прибор выглядит сломанным.
+  if (printBlockReason.value) {
+    return ElMessage({ message: printBlockReason.value, type: 'warning', duration: 4000 })
+  }
   printing.value = true
   try {
     const result = await api.print(selected.value.id)
@@ -686,15 +687,12 @@ watch([search, openedCategory, selected], bumpIdle)
 // Смена уровня старше листания: при провале в группу страница тоже сбрасывается
 // на нулевую, и без этого условия переход читался бы как листание назад.
 // Переход нужен только смене уровня: листание внутри уровня — сдвиг ленты.
-watch([showCategories, showSingle], ([toGroups, single], [wasGroups, wasSingle]) => {
-  if (single !== wasSingle) gridAnim.value = single ? 'dive' : 'rise'
-  else if (toGroups !== wasGroups) gridAnim.value = toGroups ? 'rise' : 'dive'
+watch(showCategories, (toGroups) => {
+  gridAnim.value = toGroups ? 'rise' : 'dive'
 })
 
 /** Уровень каталога. Номер страницы в ключ не входит — иначе лента пересоберётся. */
-const ribbonKey = computed(() =>
-  showCategories.value ? 'groups' : showSingle.value ? `one:${selected.value?.id}` : 'products',
-)
+const ribbonKey = computed(() => (showCategories.value ? 'groups' : 'products'))
 
 /**
  * Пока меняется сама сетка — столбцы под выехавшей панелью, ряды под клавиатурой —
@@ -800,17 +798,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               />
               <button v-if="search" class="clear" @click="search = ''">×</button>
             </div>
-            <!-- Возврат стоит рядом с полем поиска: обе кнопки про одно и то же —
-                 как покупатель ищет товар. Стрелка не нужна, надпись и так
-                 говорит, куда ведёт. Набор кода переехал в шапку. -->
-            <button
-              class="back"
-              :class="{ hidden: showCategories }"
-              :aria-hidden="showCategories"
-              @click="backToCategories"
-            >
-              {{ t('kiosk.allProducts') }}
-            </button>
           </div>
         </div>
 
@@ -845,19 +832,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                     @open="openCategory"
                   />
                 </template>
-
-                <!-- Выбранный товар — одна карточка на весь блок -->
-                <ProductGrid
-                  v-else-if="showSingle && selected"
-                  class="page"
-                  :products="[selected]"
-                  :selected-id="selected.id"
-                  :cols="1"
-                  :rows="1"
-                  single
-                  :ratio="visibleRows / cols"
-                  @select="selectProduct"
-                />
 
                 <template v-else>
                   <ProductGrid
@@ -925,33 +899,28 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
           </div>
 
-          <!-- Пока набирают код, кнопка поиска бессмысленна: поиск уже открыт. На
-               её месте стоит возврат ко всем товарам — единственное, что в этот
-               момент нужно, и выглядит он так же, как соседи по слоту. -->
-          <button v-if="showNumpad" class="tile action" @click="allProducts">
+          <!-- Ниже верхнего уровня — в группе, в результатах поиска, при наборе
+               кода — единственное нужное действие это возврат: печать теперь идёт
+               от касания карточки, а поиск по названию всё равно работает поперёк
+               групп, и начинать его осмысленно сверху. Возврат стоит здесь один
+               раз, в строке поиска его больше нет. -->
+          <button
+            v-if="showNumpad || !showCategories"
+            class="tile action"
+            @click="allProducts"
+          >
             {{ t('kiosk.allProducts') }}
           </button>
-          <!-- Пока товар не выбран, кнопка печати всё равно ничего не делает, а
-               подпись «Оберіть товар» только сообщает об этом. Вместо мёртвой
-               подписи стоит кнопка поиска: это и есть следующий шаг покупателя,
-               то есть главное действие экрана — и красится оно акцентом, как
-               печать, которая займёт то же место. -->
-          <button v-else-if="!selected" class="tile action search-cta" @click="openSearch">
+          <!-- На верхнем уровне возвращаться некуда, и главное действие покупателя —
+               найти товар. Кнопка занимает то же место и красится так же: это одно
+               и то же место экрана. От «сквозного» клика сразу после возврата (она
+               встаёт ровно под палец) страхует окно `backJustHappened`. -->
+          <button v-else class="tile action search-cta" @click="openSearch">
             <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
               <circle cx="11" cy="11" r="7" />
               <path d="M16.5 16.5 21 21" />
             </svg>
             <span>{{ t('kiosk.searchCta') }}</span>
-          </button>
-          <button
-            v-else
-            class="tile action"
-            :disabled="!!printBlockReason || printing"
-            @click="print"
-          >
-            <template v-if="printing">{{ t('kiosk.printing') }}</template>
-            <template v-else-if="printBlockReason">{{ printBlockReason }}</template>
-            <template v-else>{{ t('kiosk.print') }}</template>
           </button>
         </footer>
 
@@ -1079,41 +1048,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   align-items: center;
   gap: 14px;
   padding: 0 4px;
-}
-
-/* Возврат — основной путь назад, поэтому он окрашен акцентом, а не выглядит
-   вспомогательной серой кнопкой. Ростом он в строку поиска, рядом с которой стоит. */
-/* На верхнем уровне кнопки возврата нет вовсе: держать её невидимой значило бы
-   держать и её 64 px, а строка головы должна схлопываться, чтобы карточки встали
-   вплотную к весам. От проваливания касания в поле поиска страхует окно в 350 мс
-   после возврата — само поле в этот момент тоже скрыто. */
-.back.hidden {
-  display: none;
-}
-
-.back {
-  display: flex;
-  flex: none;
-  /* Прижата к правому краю: без поля поиска рядом она иначе липнет к заголовку
-     группы, будто относится к нему, а не к навигации. */
-  margin-left: auto;
-  align-items: center;
-  height: 64px;
-  padding: 0 26px;
-  font-size: 20px;
-  font-weight: 700;
-  color: var(--s2l-accent-ink, #fff);
-  background: var(--s2l-accent);
-  border: none;
-  border-radius: 14px;
-  box-shadow: 0 2px 0 var(--s2l-accent-dark);
-  cursor: pointer;
-}
-
-.back:active {
-  background: var(--s2l-accent-dark);
-  box-shadow: none;
-  transform: translateY(2px);
 }
 
 .dot {
