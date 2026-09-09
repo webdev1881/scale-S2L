@@ -15,10 +15,6 @@ function go(delta: number) {
 
 <template>
   <div class="pager">
-    <button class="nav" :disabled="page === 0" @click="go(-1)">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
-    </button>
-
     <div class="dots">
       <button
         v-for="index in pages"
@@ -30,6 +26,13 @@ function go(delta: number) {
         <span class="sr">{{ index }}</span>
       </button>
     </div>
+
+    <!-- Обе стрелки собраны справа, вокруг счётчика: листают ими подряд, и разводить
+         их по краям экрана прибора значит заставлять покупателя перекладывать руку.
+         Счётчик стоит между ними — он и объясняет, что делают соседние кнопки. -->
+    <button class="nav" :disabled="page === 0" @click="go(-1)">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M15 5 8 12l7 7" /></svg>
+    </button>
 
     <span class="counter">{{ t('kiosk.pageOf', { page: page + 1, pages }) }}</span>
 
@@ -123,7 +126,9 @@ function go(delta: number) {
 
 .counter {
   min-width: 72px;
-  text-align: right;
+  /* По центру, а не по правому краю: счётчик стоит между стрелками и должен
+     держаться середины, а не липнуть к одной из них. */
+  text-align: center;
   font-size: 17px;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
