@@ -15,6 +15,7 @@
   "kiosk_clear_hold_s": 1.5,
   "kiosk_label_max_s": 25.0,
   "splash_seconds": 3.0,
+  "kiosk_force_updating": false,
   "ui_scale_weight": 1.8,
   "ui_scale_group_title": 1.2,
   "ui_scale_product_name": 1.3,

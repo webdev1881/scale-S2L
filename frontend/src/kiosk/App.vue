@@ -16,6 +16,7 @@ import Numpad from './components/Numpad.vue'
 import Pager from './components/Pager.vue'
 import ProductGrid from './components/ProductGrid.vue'
 import SplashScreen from './components/SplashScreen.vue'
+import UpdatingOverlay from './components/UpdatingOverlay.vue'
 import WeightPanel from './components/WeightPanel.vue'
 
 const { t, locale } = useI18n()
@@ -845,6 +846,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 <template>
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
+    <UpdatingOverlay v-else-if="!weight.connected || settings?.kiosk_force_updating" />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места

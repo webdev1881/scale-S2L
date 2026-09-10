@@ -119,6 +119,10 @@ onMounted(load)
           <el-input-number v-model="form.splash_seconds" :min="0" :max="10" :step="0.5" />
           <div class="hint">{{ t('admin.settings.splashHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.forceUpdating')">
+          <el-switch v-model="form.kiosk_force_updating" />
+          <div class="hint">{{ t('admin.settings.forceUpdatingHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.useGroups')">
           <el-switch v-model="form.kiosk_use_groups" />
           <div class="hint">{{ t('admin.settings.useGroupsHint') }}</div>
