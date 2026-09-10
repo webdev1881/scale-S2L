@@ -90,3 +90,36 @@ class SimPrinterIn(BaseModel):
 class LabelPreviewRequest(BaseModel):
     product_id: int
     weight_g: int = Field(default=0, ge=0)
+
+
+class Import1CProduct(BaseModel):
+    plu: int = Field(ge=1, le=99999)
+    name: str = Field(min_length=1, max_length=120)
+    unit: str = Field(pattern="^(weight|piece)$")
+    price: float = Field(ge=0)
+    category: str = ""
+    in_stock: bool = True
+    # Снимок кладётся только для новых позиций либо когда включена замена —
+    # см. Import1CRequest.replace_images.
+    image_base64: str | None = None
+    image_format: str | None = Field(default=None, pattern="^(jpg|jpeg|png|webp)$")
+
+
+class Import1CRequest(BaseModel):
+    generated_at: datetime | None = None
+    # Галочка «Заменить существующую картинку» из формы 1С — на весь пакет разом.
+    replace_images: bool = False
+    products: list[Import1CProduct]
+
+
+class Import1CError(BaseModel):
+    plu: int
+    error: str
+
+
+class Import1CResult(BaseModel):
+    received: int
+    created: int
+    updated: int
+    deactivated: int
+    errors: list[Import1CError]

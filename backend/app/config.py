@@ -51,6 +51,10 @@ class Settings(BaseSettings):
     # Частота публикации веса в WebSocket, Гц
     weight_stream_hz: float = 10.0
 
+    # Токен для приёма выгрузки каталога из 1С (POST /api/catalog/1c-import,
+    # заголовок Authorization: Bearer <токен>). Пусто — приём выключен.
+    import_token: str = ""
+
 
     @field_validator("db_url")
     @classmethod

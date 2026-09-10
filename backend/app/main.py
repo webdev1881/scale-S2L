@@ -9,7 +9,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from .api import catalog, device
+from .api import catalog, device, import_1c
 from .config import BASE_DIR, LABELS_DIR, get_settings
 from .db import SessionLocal, init_db
 from .hal.registry import build_devices, get_devices, set_devices
@@ -56,6 +56,7 @@ app.add_middleware(
 
 app.include_router(catalog.router)
 app.include_router(device.router)
+app.include_router(import_1c.router)
 app.mount("/labels", StaticFiles(directory=LABELS_DIR), name="labels")
 
 
