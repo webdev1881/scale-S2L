@@ -12,8 +12,13 @@ const { t } = useI18n()
 
 <template>
   <div class="updating">
-    <div class="spinner"></div>
-    <p class="label">{{ t('kiosk.updating') }}</p>
+    <!-- Картинка вместо пустого экрана: покупатель у прибора видит, что тот не сломан,
+         а занят. Она же держит на себе паузу, пока служба перезапускается. -->
+    <img class="picture" src="/updating.jpg" alt="" draggable="false" />
+    <div class="wait">
+      <div class="spinner"></div>
+      <p class="label">{{ t('kiosk.updating') }}</p>
+    </div>
   </div>
 </template>
 
@@ -27,26 +32,54 @@ const { t } = useI18n()
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 56px;
+  gap: 40px;
   background: var(--s2l-splash-bg);
 }
 
+/* Доля экрана, а не пиксели: тот же приём, что у карточек каталога — прибор стоит
+   дальше от покупателя, чем монитор от разработчика. Скругление и тень повторяют
+   плитки киоска, чтобы картинка читалась как часть интерфейса, а не как обои. */
+.picture {
+  width: min(52vw, 720px);
+  max-height: 46vh;
+  object-fit: cover;
+  border-radius: calc(var(--s2l-radius) * 1.5);
+  box-shadow: 0 18px 48px var(--s2l-shadow-strong);
+}
+
+/* Ожидание идёт строкой: кружок рядом с надписью, а не под ней — иначе экран
+   растягивается на всю высоту и картинке места не остаётся. */
+.wait {
+  display: flex;
+  align-items: center;
+  gap: 32px;
+}
+
 .spinner {
-  width: 140px;
-  height: 140px;
+  flex: none;
+  width: 84px;
+  height: 84px;
   border-radius: 50%;
-  border: 12px solid var(--s2l-soft);
+  border: 9px solid var(--s2l-soft);
   border-top-color: var(--s2l-accent);
   animation: spin 0.9s linear infinite;
 }
 
 .label {
   margin: 0;
-  font-size: 88px;
+  font-size: 64px;
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--s2l-ink);
+}
+
+/* При «уменьшенном движении» кружок не крутится: остаётся картинка и надпись —
+   их достаточно, чтобы понять, что прибор занят. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner {
+    animation: none;
+  }
 }
 
 @keyframes spin {
