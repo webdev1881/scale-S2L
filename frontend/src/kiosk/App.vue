@@ -126,6 +126,7 @@ const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
+const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
@@ -1025,6 +1026,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                       :cols="cols"
                       :rows="visibleRows"
                       :calm="calmCards"
+                      :show-code="showCode"
                       @select="selectProduct"
                     />
                   </template>

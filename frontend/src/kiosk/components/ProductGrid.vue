@@ -13,6 +13,8 @@ const props = defineProps<{
   rows: number
   /** Набор идёт прямо сейчас: карточки не переставляются, а просто проявляются. */
   calm?: boolean
+  /** Показывать код товара поверх снимка. */
+  showCode?: boolean
 }>()
 defineEmits<{ select: [product: Product] }>()
 </script>
@@ -48,7 +50,8 @@ defineEmits<{ select: [product: Product] }>()
         <span v-else class="emoji">{{ product.emoji || '🏷️' }}</span>
         <!-- Код лежит поверх фотографии без подложки: он нужен тем, кто набирает
              его на клавиатуре, и не должен занимать строку в подписи. -->
-        <span class="code">{{ t('kiosk.code') }} {{ product.plu }}</span>
+        <!-- Код со словом «Код»: голое число рядом с ценой читается как вторая цена. -->
+        <span v-if="props.showCode" class="code">{{ t('kiosk.code') }} {{ product.plu }}</span>
       </div>
 
       <!-- Название слева, цена справа: взгляд идёт по строке от «что» к «сколько» -->
