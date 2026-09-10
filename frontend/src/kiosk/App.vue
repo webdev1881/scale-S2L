@@ -280,9 +280,12 @@ async function loadCatalog() {
 }
 
 /**
- * Перечитываем настройки на возврате к начальному экрану: оператор меняет тему
- * или язык в админке, и киоск подхватывает это сам, без перезапуска сервиса.
- * Опроса по таймеру не заводим — сброс и так случается регулярно.
+ * Перечитываем настройки на возврате к начальному экрану (оператор меняет тему
+ * или язык в админке) и дополнительно по таймеру каждые 5 с — правку ждать до
+ * сброса по простою (по умолчанию 45 с) не должны ни оператор, проверяющий
+ * настройку, ни покупатель посреди выбора товара. Запрос лёгкий (один маленький
+ * JSON), это не тот же случай, что поток веса на 10 Гц, который специально не
+ * опрашивают.
  */
 async function refreshSettings() {
   try {
@@ -769,12 +772,15 @@ function bumpIdle() {
   }, seconds * 1000)
 }
 
+let settingsPollTimer: number | undefined
+
 onMounted(async () => {
   weight.connect()
   await loadCatalog()
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
   bumpIdle()
+  settingsPollTimer = window.setInterval(refreshSettings, 5000)
 })
 
 onUnmounted(() => {
@@ -782,6 +788,7 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
+  window.clearInterval(settingsPollTimer)
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
 })
