@@ -4,6 +4,8 @@ from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from .services.label_layout import LabelLayout
+
 
 class ProductIn(BaseModel):
     plu: int = Field(ge=1, le=99999)
@@ -90,6 +92,9 @@ class SimPrinterIn(BaseModel):
 class LabelPreviewRequest(BaseModel):
     product_id: int
     weight_g: int = Field(default=0, ge=0)
+    # Раскладка, которую сейчас двигают в конструкторе. Без неё превью показывало бы
+    # сохранённую, и редактировать пришлось бы вслепую.
+    layout: LabelLayout | None = None
 
 
 class Import1CProduct(BaseModel):

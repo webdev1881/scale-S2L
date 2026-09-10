@@ -70,7 +70,9 @@ async def weigh_and_print(
         composition=product.composition,
         lang=settings.language,
     )
-    job = build_print_job(data, settings.label_width_mm, settings.label_height_mm, copies)
+    job = build_print_job(
+        data, settings.label_width_mm, settings.label_height_mm, copies, settings.label_layout
+    )
 
     label_file = await devices.printer.print_label(job)
 

@@ -1,6 +1,7 @@
 import type {
   Category,
   DeviceSettings,
+  LabelLayout,
   PrintResult,
   Product,
   Status,
@@ -80,4 +81,24 @@ export const api = {
     }),
 
   labelPreviewUrl: '/api/label/preview',
+
+  /**
+   * Растр этикетки. Приходит картинкой, а не JSON, поэтому мимо `request`: тот
+   * разбирает тело как JSON и на PNG сломался бы.
+   */
+  labelPreview: async (payload: {
+    product_id: number
+    weight_g: number
+    layout?: LabelLayout
+  }): Promise<Blob> => {
+    const response = await fetch('/api/label/preview', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    })
+    if (!response.ok) throw new ApiError(`Ошибка ${response.status}`, response.status)
+    return response.blob()
+  },
+
+  labelLayoutDefault: () => request<LabelLayout>('/api/label/layout/default'),
 }

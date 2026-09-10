@@ -62,6 +62,39 @@ export interface Transaction {
   label_file: string
 }
 
+export interface LabelBlock {
+  kind:
+    | 'store'
+    | 'name'
+    | 'weight'
+    | 'price'
+    | 'total'
+    | 'barcode'
+    | 'packed'
+    | 'best_before'
+    | 'composition'
+    | 'text'
+    | 'line'
+  /** Левый верхний угол и размеры в миллиметрах; нулевая ширина — до правого края. */
+  x: number
+  y: number
+  width: number
+  height: number
+  /** Кегль в точках растра принтера. */
+  size: number
+  bold: boolean
+  align: 'left' | 'center' | 'right'
+  caption: boolean
+  lines: number
+  box: boolean
+  text: string
+  visible: boolean
+}
+
+export interface LabelLayout {
+  blocks: LabelBlock[]
+}
+
 export interface DeviceSettings {
   language: 'uk' | 'ru'
   theme: 'dark' | 'light'
@@ -69,6 +102,7 @@ export interface DeviceSettings {
   currency: string
   label_width_mm: number
   label_height_mm: number
+  label_layout: LabelLayout
   barcode_template: string
   barcode_value: 'weight' | 'total'
   min_print_weight_g: number

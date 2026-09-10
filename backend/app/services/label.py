@@ -16,6 +16,7 @@ from ..hal.printer.tspl import build_label_tspl
 from .barcode import ean13_pattern
 from .fonts import load_font
 from .i18n import DEFAULT_LANG, label_text
+from .label_layout import LabelBlock, LabelLayout
 
 DOTS_PER_MM = 8  # 203 dpi — стандарт термопринтеров этикеток
 
@@ -36,8 +37,8 @@ class LabelData:
     lang: str = DEFAULT_LANG
 
 
-def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> list[str]:
-    """Перенос по словам, максимум две строки; хвост обрезается многоточием."""
+def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int, max_lines: int = 2) -> list[str]:
+    """Перенос по словам; хвост последней разрешённой строки обрезается многоточием."""
     words, lines, current = text.split(), [], ""
     for word in words:
         probe = f"{current} {word}".strip()
@@ -46,18 +47,116 @@ def _fit_text(draw: ImageDraw.ImageDraw, text: str, font, max_width: int) -> lis
         else:
             lines.append(current)
             current = word
-            if len(lines) == 2:
+            if len(lines) == max_lines:
                 break
-    if current and len(lines) < 2:
+    if current and len(lines) < max_lines:
         lines.append(current)
-    if len(lines) == 2 and draw.textlength(lines[1], font=font) > max_width:
-        while lines[1] and draw.textlength(lines[1] + "…", font=font) > max_width:
-            lines[1] = lines[1][:-1]
-        lines[1] += "…"
+    last = len(lines) - 1
+    if lines and draw.textlength(lines[last], font=font) > max_width:
+        while lines[last] and draw.textlength(lines[last] + "…", font=font) > max_width:
+            lines[last] = lines[last][:-1]
+        lines[last] += "…"
     return lines
 
 
-def render_label(data: LabelData, width_mm: float = 60, height_mm: float = 40) -> Image.Image:
+def _block_value(data: "LabelData", block: LabelBlock) -> tuple[str, str]:
+    """Подпись и значение блока. Пустая строка означает «печатать нечего»."""
+    lang = data.lang
+    if block.kind == "store":
+        return "", data.store_name[:40]
+    if block.kind == "name":
+        return "", data.product_name
+    if block.kind == "weight":
+        if data.unit == "weight":
+            return label_text(lang, "mass"), f"{data.weight_g / 1000:.3f}"
+        return label_text(lang, "quantity"), label_text(lang, "one_piece")
+    if block.kind == "price":
+        key = "price_per_kg" if data.unit == "weight" else "price_per_piece"
+        return label_text(lang, key, currency=data.currency), f"{data.price:.2f}"
+    if block.kind == "total":
+        return label_text(lang, "total"), f"{data.total:.2f} {data.currency}"
+    if block.kind == "packed":
+        return "", f"{label_text(lang, 'packed')}: {data.packed_at:%d.%m.%Y %H:%M}"
+    if block.kind == "best_before":
+        if not data.best_before:
+            return "", ""
+        return "", f"{label_text(lang, 'best_before')}: {data.best_before:%d.%m.%Y}"
+    if block.kind == "composition":
+        return "", data.composition
+    if block.kind == "text":
+        return "", block.text
+    return "", ""
+
+
+def _draw_block(
+    draw: ImageDraw.ImageDraw, data: "LabelData", block: LabelBlock, width: int, height: int
+) -> None:
+    if not block.visible:
+        return
+    x = int(block.x * DOTS_PER_MM)
+    y = int(block.y * DOTS_PER_MM)
+    pad = int(1.5 * DOTS_PER_MM)
+    # Нулевая ширина — до правого края: так блок переживает смену ширины ленты.
+    box_width = int(block.width * DOTS_PER_MM) if block.width else max(width - x - pad, 1)
+    box_height = int(block.height * DOTS_PER_MM)
+
+    if block.kind == "line":
+        draw.line((x, y, x + box_width, y), fill=0, width=max(box_height, 1))
+        return
+
+    if block.kind == "barcode":
+        _draw_barcode(draw, data.barcode, x=x, y=y, width=box_width,
+                      height=box_height or max(height - y - pad, 20), size=block.size)
+        return
+
+    caption, value = _block_value(data, block)
+    if not value:
+        return
+
+    if block.box:
+        draw.rectangle((x, y, x + box_width, y + max(box_height, block.size)), outline=0, width=2)
+
+    inner = 8 if block.box else 0
+    text_x = x + inner
+    text_y = y + (4 if block.box else 0)
+    text_width = box_width - 2 * inner
+
+    if block.caption and caption:
+        cap_font = load_font(max(block.size - 5, 10))
+        draw.text((text_x, text_y), caption, font=cap_font, fill=0)
+        # Значение уходит под подпись, если блок не в рамке: в рамке они стоят рядом.
+        if not block.box:
+            text_y += int(block.size * 0.8)
+
+    font = load_font(block.size, bold=block.bold)
+    lines = _fit_text(draw, value, font, text_width, block.lines)
+    for line in lines:
+        offset = 0.0
+        if block.align != "left":
+            free = text_width - draw.textlength(line, font=font)
+            offset = free if block.align == "right" else free / 2
+        draw.text((text_x + offset, text_y), line, font=font, fill=0)
+        text_y += int(block.size * 1.15)
+
+
+def render_label(
+    data: LabelData,
+    width_mm: float = 60,
+    height_mm: float = 40,
+    layout: LabelLayout | None = None,
+) -> Image.Image:
+    width = int(width_mm * DOTS_PER_MM)
+    height = int(height_mm * DOTS_PER_MM)
+    img = Image.new("L", (width, height), 255)
+    draw = ImageDraw.Draw(img)
+
+    for block in (layout or LabelLayout()).blocks:
+        _draw_block(draw, data, block, width, height)
+    return img
+
+
+def _legacy_render(data: LabelData, width_mm: float, height_mm: float) -> Image.Image:
+    """Прежняя жёсткая раскладка — оставлена как образец заводской."""
     width = int(width_mm * DOTS_PER_MM)
     height = int(height_mm * DOTS_PER_MM)
     img = Image.new("L", (width, height), 255)
@@ -126,13 +225,15 @@ def render_label(data: LabelData, width_mm: float = 60, height_mm: float = 40) -
     return img
 
 
-def _draw_barcode(draw: ImageDraw.ImageDraw, code: str, x: int, y: int, width: int, height: int) -> None:
+def _draw_barcode(
+    draw: ImageDraw.ImageDraw, code: str, x: int, y: int, width: int, height: int, size: int = 16
+) -> None:
     try:
         pattern = ean13_pattern(code)
     except ValueError:
-        draw.text((x, y), code, font=load_font(16), fill=0)
+        draw.text((x, y), code, font=load_font(size), fill=0)
         return
-    f_digits = load_font(16)
+    f_digits = load_font(size)
     bars_height = max(height - 18, 20)
     module = max(width // len(pattern), 1)
     bar_x = x + (width - module * len(pattern)) // 2
@@ -145,8 +246,14 @@ def _draw_barcode(draw: ImageDraw.ImageDraw, code: str, x: int, y: int, width: i
     draw.text((x + (width - text_width) / 2, y + bars_height + 1), code, font=f_digits, fill=0)
 
 
-def build_print_job(data: LabelData, width_mm: float, height_mm: float, copies: int = 1) -> PrintJob:
-    img = render_label(data, width_mm, height_mm)
+def build_print_job(
+    data: LabelData,
+    width_mm: float,
+    height_mm: float,
+    copies: int = 1,
+    layout: LabelLayout | None = None,
+) -> PrintJob:
+    img = render_label(data, width_mm, height_mm, layout)
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return PrintJob(

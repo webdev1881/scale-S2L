@@ -15,6 +15,8 @@ import os
 
 from pydantic import BaseModel, Field
 
+from .label_layout import LabelLayout
+
 from ..config import SETTINGS_FILE
 
 
@@ -29,6 +31,9 @@ class DeviceSettings(BaseModel):
     label_width_mm: float = Field(default=56, ge=20, le=56)
     label_height_mm: float = Field(default=40, ge=20, le=120)
     # Шаблон весового EAN-13: P — цифра PLU, W — цифра значения
+    # Раскладка этикетки: что где напечатано. Собирается конструктором в админке,
+    # печать и превью рисуются по ней одним и тем же рендером.
+    label_layout: LabelLayout = Field(default_factory=LabelLayout)
     barcode_template: str = "22PPPPPWWWWW"
     # weight — в штрихкод уходит масса в граммах, total — сумма в копейках
     barcode_value: str = Field(default="weight", pattern="^(weight|total)$")

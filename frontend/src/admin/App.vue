@@ -54,6 +54,10 @@ onUnmounted(() => window.clearInterval(poll))
           <el-icon><Monitor /></el-icon>
           <span>{{ t('admin.nav.simulator') }}</span>
         </el-menu-item>
+        <el-menu-item index="/label">
+          <el-icon><PriceTag /></el-icon>
+          <span>{{ t('admin.nav.label') }}</span>
+        </el-menu-item>
         <el-menu-item index="/settings">
           <el-icon><Setting /></el-icon>
           <span>{{ t('admin.nav.settings') }}</span>

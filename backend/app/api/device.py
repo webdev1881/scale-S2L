@@ -26,6 +26,7 @@ from ..schemas import (
     WeightOut,
 )
 from ..services import live
+from ..services.label_layout import LabelLayout
 from ..services.label import LabelData, render_label
 from ..services.printing import build_barcode, compute_total, weigh_and_print
 from ..services.settings_store import load_settings
@@ -94,6 +95,12 @@ async def print_label(
     )
 
 
+@router.get("/label/layout/default", response_model=LabelLayout)
+def label_layout_default() -> LabelLayout:
+    """Заводская раскладка. Держать её копию во фронтенде значило бы разъехаться."""
+    return LabelLayout()
+
+
 @router.post("/label/preview")
 def label_preview(
     payload: LabelPreviewRequest,
@@ -124,7 +131,10 @@ def label_preview(
         composition=product.composition,
         lang=settings.language,
     )
-    img = render_label(data, settings.label_width_mm, settings.label_height_mm)
+    img = render_label(
+        data, settings.label_width_mm, settings.label_height_mm,
+        payload.layout or settings.label_layout,
+    )
     buf = io.BytesIO()
     img.save(buf, format="PNG")
     return Response(buf.getvalue(), media_type="image/png")
