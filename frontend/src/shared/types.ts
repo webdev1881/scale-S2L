@@ -75,6 +75,7 @@ export interface DeviceSettings {
   require_stable: boolean
   kiosk_scale_buttons: boolean
   kiosk_use_groups: boolean
+  kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number
   kiosk_label_max_s: number

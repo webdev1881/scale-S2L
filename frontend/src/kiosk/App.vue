@@ -125,6 +125,7 @@ const uiScales = computed<Record<string, string>>(() => {
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)
 const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
+const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
@@ -387,6 +388,35 @@ function swallowDragClick(x: number, y: number) {
 
 const reducedMotion = () =>
   window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false
+
+const gridSlotEl = ref<HTMLElement | null>(null)
+
+/**
+ * Ширина жёлоба подсказки. Оператор задаёт её долей карточки, а не пикселями:
+ * карточка меняет ширину вместе с числом колонок, и зашитый пиксель показывал бы на
+ * сетке 4x2 половину товара, а на 6x2 — четверть.
+ *
+ * Считается закрытой формулой, а не подгонкой: жёлоб забирает ширину у самой сетки,
+ * поэтому карточка зависит от жёлоба и наоборот. Настройка задаёт видимую часть
+ * карточки, а жёлоб шире неё на отступ следующей страницы, поэтому из
+ * `P = k * Карточка + отступ` и `Карточка = (W - P - 2*отступ - зазоры) / C` следует
+ * `P = (k * (W - 2*отступ - зазоры) + отступ * C) / (C + k)`, где `W` — ширина блока
+ * целиком. Отступы читаются из самой сетки, чтобы не держать их копию в двух местах.
+ */
+function updatePeek() {
+  const slot = gridSlotEl.value
+  const grid = slot?.querySelector('.grid')
+  if (!slot || !grid) return
+  const k = peekPercent.value / 100
+  if (k <= 0) return slot.style.setProperty('--s2l-peek', '0px')
+  const cs = getComputedStyle(grid)
+  const gap = parseFloat(cs.columnGap) || 0
+  const pad = parseFloat(cs.paddingLeft) || 0
+  const width = slot.getBoundingClientRect().width
+  const columns = cols.value
+  const peek = (k * (width - 2 * pad - gap * (columns - 1)) + pad * columns) / (columns + k)
+  slot.style.setProperty('--s2l-peek', `${Math.max(0, Math.round(peek))}px`)
+}
 
 /**
  * Номером страницы владеет Vue, сдвигом под пальцем — обработчик жеста, и живут
@@ -797,9 +827,19 @@ function bumpIdle() {
 
 let stopUpdates: (() => void) | undefined
 
+let slotResize: ResizeObserver | undefined
+
+// Жёлоб пересчитывается вслед за сеткой и настройкой, а не один раз при запуске:
+// клавиатура меняет число рядов, админка — число колонок и саму долю.
+watch([cols, peekPercent, visibleRows, showCategories], () => void nextTick(updatePeek))
+
 onMounted(async () => {
   weight.connect()
   await loadCatalog()
+  await nextTick()
+  updatePeek()
+  slotResize = new ResizeObserver(updatePeek)
+  if (gridSlotEl.value) slotResize.observe(gridSlotEl.value)
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
   bumpIdle()
@@ -807,6 +847,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  slotResize?.disconnect()
   weight.disconnect()
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
@@ -947,8 +988,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
              колонки. -->
         <div class="catalog-area">
           <div
+            ref="gridSlotEl"
             class="grid-slot"
-            :class="{ 'has-peek': pageCount > 1 }"
+            :class="{ 'has-peek': pageCount > 1 && peekPercent > 0 }"
             @pointerdown="onSwipeStart"
           >
           <!-- Одна лента: все страницы стоят подряд, листание — её сдвиг. Смена
@@ -1240,8 +1282,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
    можно потянуть. Место занято, пока страниц больше одной, — иначе на последней
    странице карточки меняли бы ширину. Затухание живёт на самом блоке и начинается
    ровно там, где кончается текущая страница. */
+/* Саму ширину жёлоба считает `updatePeek`: она задана долей карточки, а карточка
+   зависит от неё же. Здесь остаётся только применение. */
 .grid-slot.has-peek {
-  --s2l-peek: calc(64px * var(--ui-name, 1));
   padding-right: var(--s2l-peek);
   -webkit-mask-image: linear-gradient(
     to right,
