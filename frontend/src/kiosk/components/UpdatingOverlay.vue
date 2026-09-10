@@ -12,13 +12,14 @@ const { t } = useI18n()
 
 <template>
   <div class="updating">
-    <!-- Картинка вместо пустого экрана: покупатель у прибора видит, что тот не сломан,
-         а занят. Она же держит на себе паузу, пока служба перезапускается. -->
-    <img class="picture" src="/updating.jpg" alt="" draggable="false" />
+    <!-- Сначала слово, потом картинка: покупатель у прибора читает экран сверху вниз,
+         и первым он должен получить ответ «что происходит», а не разглядывать
+         иллюстрацию. Картинка держит паузу и показывает, что прибор занят, а не сломан. -->
     <div class="wait">
       <div class="spinner"></div>
       <p class="label">{{ t('kiosk.updating') }}</p>
     </div>
+    <img class="picture" src="/updating.jpg" alt="" draggable="false" />
   </div>
 </template>
 
