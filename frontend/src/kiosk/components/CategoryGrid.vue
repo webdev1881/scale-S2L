@@ -96,6 +96,9 @@ defineEmits<{ open: [category: Category] }>()
   flex: 1 1 auto;
   min-height: 0;
   background: var(--s2l-soft);
+  /* Приближённый снимок обязан остаться в своём месте: без обрезки он наползал бы
+     на плашку с названием. */
+  overflow: hidden;
 }
 
 .photo img {
@@ -103,6 +106,10 @@ defineEmits<{ open: [category: Category] }>()
   width: 100%;
   height: 100%;
   object-fit: cover;
+  /* Масштаб задаёт оператор: снимки из товароучёта сняты по-разному, и один
+     кадрируется по краям, а другой стоит в кадре далеко. Приближение обрезается
+     границами карточки, уменьшение оставляет поля цвета подложки. */
+  transform: scale(var(--ui-photo-scale, 1));
 }
 
 .body {

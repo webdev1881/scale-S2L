@@ -124,6 +124,7 @@ export interface DeviceSettings {
   ui_scale_footer: number
   ui_photo_group: number
   ui_photo_product: number
+  ui_photo_scale: number
   ui_plate_height: number
   ui_primary_color: string
   ui_secondary_color: string
