@@ -110,6 +110,7 @@ export interface DeviceSettings {
   kiosk_scale_buttons: boolean
   kiosk_use_groups: boolean
   kiosk_show_code: boolean
+  kiosk_code_button: boolean
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number

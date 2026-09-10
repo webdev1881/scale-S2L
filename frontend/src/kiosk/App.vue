@@ -128,6 +128,7 @@ const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
+const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
@@ -950,6 +951,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           :product="selected"
           :total="total"
           :code-open="showNumpad"
+          :code-button="codeButton"
           @toggle-code="showNumpad ? cancelNumpad() : openNumpad()"
         />
       </header>

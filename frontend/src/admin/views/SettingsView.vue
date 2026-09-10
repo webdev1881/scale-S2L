@@ -123,6 +123,10 @@ onMounted(load)
           <el-switch v-model="form.kiosk_force_updating" />
           <div class="hint">{{ t('admin.settings.forceUpdatingHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.codeButton')">
+          <el-switch v-model="form.kiosk_code_button" />
+          <div class="hint">{{ t('admin.settings.codeButtonHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.showCode')">
           <el-switch v-model="form.kiosk_show_code" />
           <div class="hint">{{ t('admin.settings.showCodeHint') }}</div>

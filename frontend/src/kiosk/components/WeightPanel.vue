@@ -14,6 +14,8 @@ const props = defineProps<{
   total: number
   /** Открыт ли цифровой блок: кнопка в шапке показывает это вдавленностью. */
   codeOpen: boolean
+  /** Показывать ли кнопку набора кода: в отделе она может быть лишней. */
+  codeButton?: boolean
 }>()
 defineEmits<{ toggleCode: [] }>()
 const { t } = useI18n()
@@ -45,7 +47,7 @@ const state = computed(() => {
 </script>
 
 <template>
-  <div class="weight-panel">
+  <div class="weight-panel" :class="{ 'no-code': codeButton === false }">
     <!-- Состояние весов красит рамку самой плитки показания, а не всей шапки:
          дрожание веса — свойство показания, а цена, сумма и набор кода к нему
          отношения не имеют. -->
@@ -88,7 +90,12 @@ const state = computed(() => {
 
     <!-- Набор кода — тоже вход в каталог, и стоит он в шапке рядом с ценой:
          покупатель, который знает код, не ищет глазами строку поиска. -->
-    <button class="tile code-toggle" :class="{ on: codeOpen }" @click="$emit('toggleCode')">
+    <button
+      v-if="codeButton !== false"
+      class="tile code-toggle"
+      :class="{ on: codeOpen }"
+      @click="$emit('toggleCode')"
+    >
       <svg class="code-icon" viewBox="0 0 24 24" aria-hidden="true">
         <circle cx="6" cy="6" r="1.8" />
         <circle cx="12" cy="6" r="1.8" />
@@ -112,6 +119,12 @@ const state = computed(() => {
      величины одного порядка, и разный размер плиток делал из них иерархию,
      которой нет. */
   grid-template-columns: repeat(3, 1fr) auto;
+}
+
+/* Без кнопки четвёртая колонка не нужна: пустой трек оставляет справа зазор,
+   и шапка выглядит смещённой влево. */
+.weight-panel.no-code {
+  grid-template-columns: repeat(3, 1fr);
   /* Плитки одинаковой высоты: шапка читается как один ряд, а не как число,
      к которому что-то приставили сбоку. */
   align-items: stretch;
