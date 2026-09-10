@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from ..db import get_db
 from ..models import Product, Transaction
 from ..schemas import CategoryOut, ProductIn, ProductOut, TransactionOut
+from ..services import live
 from ..services.settings_store import DeviceSettings, load_settings, save_settings
 
 router = APIRouter(prefix="/api", tags=["catalog"])
@@ -70,6 +71,7 @@ def create_product(payload: ProductIn, db: Session = Depends(get_db)) -> Product
         db.rollback()
         raise HTTPException(409, f"PLU {payload.plu} уже занят") from exc
     db.refresh(product)
+    live.notify("catalog")
     return product
 
 
@@ -86,6 +88,7 @@ def update_product(product_id: int, payload: ProductIn, db: Session = Depends(ge
         db.rollback()
         raise HTTPException(409, f"PLU {payload.plu} уже занят") from exc
     db.refresh(product)
+    live.notify("catalog")
     return product
 
 
@@ -97,6 +100,7 @@ def delete_product(product_id: int, db: Session = Depends(get_db)) -> dict:
     # Мягкое удаление: журнал операций ссылается на товар, физическое удаление его порвёт.
     product.active = 0
     db.commit()
+    live.notify("catalog")
     return {"ok": True}
 
 
@@ -115,4 +119,6 @@ def get_settings_route() -> DeviceSettings:
 
 @router.put("/settings", response_model=DeviceSettings)
 def put_settings_route(payload: DeviceSettings) -> DeviceSettings:
-    return save_settings(payload)
+    saved = save_settings(payload)
+    live.notify("settings")
+    return saved

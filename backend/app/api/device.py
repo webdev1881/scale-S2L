@@ -25,6 +25,7 @@ from ..schemas import (
     StatusOut,
     WeightOut,
 )
+from ..services import live
 from ..services.label import LabelData, render_label
 from ..services.printing import build_barcode, compute_total, weigh_and_print
 from ..services.settings_store import load_settings
@@ -149,6 +150,20 @@ def sim_printer(payload: SimPrinterIn, devices: Devices = Depends(get_devices)) 
     if payload.cover_open is not None:
         devices.printer.sim_cover_open(payload.cover_open)
     return devices.printer.status().detail
+
+
+@router.websocket("/ws/updates")
+async def ws_updates(websocket: WebSocket) -> None:
+    """Что тронули в админке. Киоск перечитывает по событию, а не по таймеру."""
+    await websocket.accept()
+    queue = live.subscribe()
+    try:
+        while True:
+            await websocket.send_json({"changed": await queue.get()})
+    except WebSocketDisconnect:
+        return
+    finally:
+        live.unsubscribe(queue)
 
 
 @router.websocket("/ws/weight")

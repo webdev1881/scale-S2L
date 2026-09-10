@@ -8,6 +8,7 @@ import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
 import type { Category, DeviceSettings, Product } from '@/shared/types'
+import { watchDeviceUpdates } from '@/shared/live'
 import { useWeightStore } from '@/shared/weight'
 
 import CategoryGrid from './components/CategoryGrid.vue'
@@ -267,6 +268,28 @@ const printBlockReason = computed(() => {
   if (requireStable.value && !weight.reading.stable) return t('blocked.waitStable')
   return null
 })
+
+/**
+ * Только товары и группы. Отдельно от начальной загрузки: правку каталога киоск
+ * подхватывает посреди работы, и сбрасывать при этом страницу или выбор покупателя
+ * незачем — оператор поправил цену, а не выгнал человека от прибора.
+ */
+async function refreshCatalog() {
+  const [items, cats] = await Promise.all([api.products(), api.categories()])
+  products.value = items
+  categories.value = cats
+}
+
+/**
+ * Правка в админке доходит до экрана сразу: бэкенд говорит, что тронул, а киоск
+ * перечитывает. Пятисекундный опрос настроек, стоявший здесь раньше, и правку
+ * каталога не замечал вовсе, и запрос слал впустую весь день.
+ */
+async function onDeviceChanged(kind: 'settings' | 'catalog' | 'reconnect') {
+  if (kind !== 'catalog') await refreshSettings()
+  // После обрыва связи неизвестно, что успели поменять, — перечитываем всё.
+  if (kind !== 'settings') await refreshCatalog()
+}
 
 async function loadCatalog() {
   const [items, cats, cfg] = await Promise.all([api.products(), api.categories(), api.settings()])
@@ -772,7 +795,7 @@ function bumpIdle() {
   }, seconds * 1000)
 }
 
-let settingsPollTimer: number | undefined
+let stopUpdates: (() => void) | undefined
 
 onMounted(async () => {
   weight.connect()
@@ -780,7 +803,7 @@ onMounted(async () => {
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
   bumpIdle()
-  settingsPollTimer = window.setInterval(refreshSettings, 5000)
+  stopUpdates = watchDeviceUpdates(onDeviceChanged)
 })
 
 onUnmounted(() => {
@@ -788,7 +811,7 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
-  window.clearInterval(settingsPollTimer)
+  stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
 })
@@ -800,6 +823,12 @@ watch([search, openedCategory, selected], bumpIdle)
 // Переход нужен только смене уровня: листание внутри уровня — сдвиг ленты.
 watch(showCategories, (toGroups) => {
   gridAnim.value = toGroups ? 'rise' : 'dive'
+})
+
+// Каталог мог укоротиться прямо под покупателем: оператор погасил товар, и страница
+// оказалась за последней. Держим номер в пределах — иначе на экране пустая лента.
+watch(pageCount, (сколько) => {
+  if (page.value > сколько - 1) page.value = Math.max(0, сколько - 1)
 })
 
 /** Уровень каталога. Номер страницы в ключ не входит — иначе лента пересоберётся. */
