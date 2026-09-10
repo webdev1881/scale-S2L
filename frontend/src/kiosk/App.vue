@@ -46,8 +46,9 @@ const keyboardOpen = ref(false)
 const searchInput = ref<HTMLInputElement | null>(null)
 
 const printing = ref(false)
-const labelUrl = ref<string | null>(null)
-const labelVisible = ref(false)
+// Модального окна с этикеткой больше нет — экран сразу возвращается в каталог,
+// но защита платформы «покупка кончается снятием товара» на этом флаге и держится.
+const awaitingPickup = ref(false)
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
@@ -672,13 +673,12 @@ async function print() {
   }
   printing.value = true
   try {
-    const result = await api.print(selected.value.id)
-    labelUrl.value = result.label_url
-    labelVisible.value = true
-    // Каталог за диалогом сразу встаёт начальным: этикетка висит до двадцати пяти
-    // секунд, и всё это время следующий покупатель видел бы чужую страницу, чужую
-    // группу и чужой набранный поиск. Цена и стоимость в шапке остаются — по ним
-    // покупатель и проверяет, за что заплатит.
+    await api.print(selected.value.id)
+    awaitingPickup.value = true
+    // Каталог сразу встаёт начальным: без диалога покупатель почти сразу видит
+    // экран снова, и всё это время следующий человек не должен видеть чужую
+    // страницу, чужую группу и чужой набранный поиск. Цена и стоимость в шапке
+    // остаются — по ним покупатель проверяет, за что заплатит, пока не заберёт товар.
     resetBrowsing()
     // Дальше экран ждёт не таймер, а платформу: покупка кончается тогда, когда
     // покупатель забрал товар. Таймер остаётся страховкой на случай, когда товар
@@ -721,7 +721,7 @@ function armLabelCap() {
 let clearTimer: number | undefined
 
 watch(
-  () => [labelVisible.value, weight.reading.net_g, weight.reading.stable] as const,
+  () => [awaitingPickup.value, weight.reading.net_g, weight.reading.stable] as const,
   ([shown, net, stable]) => {
     window.clearTimeout(clearTimer)
     if (!shown) return
@@ -733,8 +733,7 @@ watch(
 function closeLabel() {
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
-  labelVisible.value = false
-  labelUrl.value = null
+  awaitingPickup.value = false
   reset()
 }
 
@@ -758,14 +757,14 @@ function reset() {
 }
 
 function bumpIdle() {
-  // Пока висит этикетка, касание отодвигает предел: экран не должен уходить
-  // из-под руки того, кто на него смотрит. Снятие товара с платформы касание не
-  // отменяет — это не таймаут, а осознанное действие покупателя.
-  if (labelVisible.value) armLabelCap()
+  // Пока ждём, когда заберут товар, касание отодвигает предел: экран не должен
+  // уходить из-под руки того, кто на него смотрит. Снятие товара с платформы
+  // касание не отменяет — это не таймаут, а осознанное действие покупателя.
+  if (awaitingPickup.value) armLabelCap()
   window.clearTimeout(idleTimer)
   const seconds = settings.value?.kiosk_idle_reset_s ?? 45
   idleTimer = window.setTimeout(() => {
-    if (!labelVisible.value) reset()
+    if (!awaitingPickup.value) reset()
   }, seconds * 1000)
 }
 
@@ -1039,23 +1038,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           />
         </Transition>
       </section>
-
-      <el-dialog
-        v-model="labelVisible"
-        :title="t('kiosk.takeLabel')"
-        width="560px"
-        align-center
-        @close="closeLabel"
-      >
-        <img v-if="labelUrl" :src="labelUrl" class="label-img" alt="" />
-        <p v-else class="label-note">{{ t('kiosk.sentToPrinter') }}</p>
-        <template #footer>
-          <el-button type="primary" size="large" @click="closeLabel">
-            {{ t('kiosk.done') }}
-          </el-button>
-        </template>
-      </el-dialog>
-
     </div>
   </el-config-provider>
 </template>
@@ -1480,18 +1462,6 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   stroke: currentcolor;
   stroke-width: 2.4;
   stroke-linecap: round;
-}
-
-.label-img {
-  display: block;
-  width: 100%;
-  border: 1px solid var(--s2l-line);
-  border-radius: 8px;
-}
-
-.label-note {
-  text-align: center;
-  color: var(--s2l-muted);
 }
 
 .sheet {
