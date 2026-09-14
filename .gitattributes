@@ -1,0 +1,5 @@
+# Скрипты и файлы для прибора обязаны быть с LF: bash на Ubuntu не понимает CR.
+*.sh text eol=lf
+Dockerfile text eol=lf
+*.yml text eol=lf
+deploy/** text eol=lf
