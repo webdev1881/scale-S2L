@@ -15,6 +15,9 @@ cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 cd frontend && npm run dev          # киоск :5173/, админка :5173/admin.html
 cd frontend && npm run build        # после сборки FastAPI сам отдаёт / и /admin
 cd frontend && npm run typecheck    # vue-tsc; запускать перед сдачей изменений
+
+# Образ прибора (симулятор, порт 8000); на прибор — docs/deploy.md
+docker compose up --build
 ```
 
 ## Правила проекта — в скиллах
@@ -36,6 +39,7 @@ cd frontend && npm run typecheck    # vue-tsc; запускать перед с�
 | `catalog-data` | БД, поиск, мягкое удаление, заливка каталога |
 | `product-photos` | Снимки товаров: привязка, вес, загрузка на экран |
 | `behaviour-logs` | Логи и замеры поведения: журнал операций, касания, ловушки |
+| `deployment` | Docker-образ, compose прибора, install.sh, обновление |
 
 Главное правило, которое стоит помнить всегда: код вне `backend/app/hal/` не обращается
 к железу напрямую (подробности — в скилле `hardware-hal`).

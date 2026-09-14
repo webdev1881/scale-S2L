@@ -37,7 +37,14 @@ sys.path.insert(0, str(BACKEND))
 from app.db import SessionLocal  # noqa: E402
 from app.models import Product  # noqa: E402
 
-PHOTOS = BACKEND.parent / "frontend" / "public" / "products"
+# В репозитории снимки лежат в public/, в образе прибора — только собранная копия в
+# dist/: node в образе нет, и public/ туда не попадает. Заливка на приборе идёт
+# изнутри контейнера, поэтому берём то, что есть.
+_PHOTO_DIRS = (
+    BACKEND.parent / "frontend" / "public" / "products",
+    BACKEND.parent / "frontend" / "dist" / "products",
+)
+PHOTOS = next((d for d in _PHOTO_DIRS if d.is_dir()), _PHOTO_DIRS[0])
 # Выгрузка лежит в `docs/`, а не рядом со снимками: всё, что попадает в
 # `public/products`, уезжает в сборку и раздаётся прибором — список артикулов с
 # наименованиями там ни к чему.

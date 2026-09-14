@@ -25,10 +25,14 @@ FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 async def lifespan(app: FastAPI):
     settings = get_settings()
     init_db()
-    with SessionLocal() as db:
-        added = seed_if_empty(db)
-        if added:
-            log.info("Загружен демо-каталог: %s позиций", added)
+    # Демо-каталог — для разработки на симуляторе. На приборе пустая база должна
+    # остаться пустой: её заполняют клоном с другого прибора или выгрузкой из
+    # товароучёта, а демо-товары ссылаются на снимки, которых в сборке давно нет.
+    if settings.hal_backend == "fake":
+        with SessionLocal() as db:
+            added = seed_if_empty(db)
+            if added:
+                log.info("Загружен демо-каталог: %s позиций", added)
 
     devices = build_devices(settings)
     set_devices(devices)

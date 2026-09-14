@@ -1,7 +1,10 @@
 [Unit]
 Description=Aurora S2L kiosk (cage + chromium)
-After=s2l-backend.service systemd-user-sessions.service
-Wants=s2l-backend.service
+# Бэкенд живёт в контейнере и поднимается самим docker (restart: unless-stopped);
+# киоск ждёт службу docker, а не отдельный юнит бэкенда. Если контейнер ещё не
+# готов, chromium покажет экран «Оновлення» и переподключится сам.
+After=docker.service systemd-user-sessions.service
+Wants=docker.service
 
 [Service]
 Type=simple
