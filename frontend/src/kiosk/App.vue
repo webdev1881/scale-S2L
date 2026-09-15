@@ -28,9 +28,30 @@ const weight = useWeightStore()
 const splashMs = ref(storedSplashMs())
 const booting = ref(splashMs.value > 0)
 
-const products = ref<Product[]>([])
-const categories = ref<Category[]>([])
+const loadedProducts = ref<Product[]>([])
+const loadedCategories = ref<Category[]>([])
 const settings = ref<DeviceSettings | null>(null)
+
+/**
+ * Каталог, который видит покупатель. С включённой настройкой «только со снимком»
+ * товар без фото на экран не попадает — и по коду не находится: карточка без
+ * снимка среди фотографий выглядит как дыра, а покупатель ищет глазами. Группа
+ * без единого такого товара уходит вместе с ними, иначе открывалась бы пустой.
+ */
+const onlyWithPhoto = computed(() => settings.value?.kiosk_only_with_photo ?? false)
+const products = computed(() =>
+  onlyWithPhoto.value ? loadedProducts.value.filter((p) => p.image) : loadedProducts.value,
+)
+const categories = computed(() => {
+  if (!onlyWithPhoto.value) return loadedCategories.value
+  const counts = new Map<string, number>()
+  for (const product of products.value) {
+    counts.set(product.category, (counts.get(product.category) ?? 0) + 1)
+  }
+  return loadedCategories.value
+    .filter((category) => counts.has(category.name))
+    .map((category) => ({ ...category, count: counts.get(category.name) ?? 0 }))
+})
 
 const search = ref('')
 const openedCategory = ref<Category | null>(null)
@@ -307,8 +328,8 @@ const printBlockReason = computed(() => {
  * и заливка по-прежнему видели каталог по порядку кодов.
  */
 function takeCatalog(items: Product[], cats: Category[]) {
-  products.value = [...items].reverse()
-  categories.value = [...cats].reverse()
+  loadedProducts.value = [...items].reverse()
+  loadedCategories.value = [...cats].reverse()
 }
 
 async function refreshCatalog() {
