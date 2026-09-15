@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from .services.label_layout import LabelLayout
 
@@ -98,7 +98,11 @@ class LabelPreviewRequest(BaseModel):
 
 
 class Import1CProduct(BaseModel):
-    plu: int = Field(ge=1, le=99999)
+    # Обработка 1С шлёт код товара полем `article` (числовой артикул номенклатуры),
+    # своё имя `plu` оставлено для ручных запросов. Диапазон здесь не проверяем:
+    # у 1С артикул бывает пустым или длиннее пяти цифр, и одна такая позиция не
+    # должна ронять весь пакет 422 — она уходит в `errors[]` (см. api/import_1c.py).
+    plu: int | None = Field(default=None, validation_alias=AliasChoices("plu", "article"))
     name: str = Field(min_length=1, max_length=120)
     unit: str = Field(pattern="^(weight|piece)$")
     price: float = Field(ge=0)
@@ -118,7 +122,10 @@ class Import1CRequest(BaseModel):
 
 
 class Import1CError(BaseModel):
+    # Позиция без пригодного артикула кода не имеет — тогда plu = 0, а name подскажет,
+    # что именно 1С прислала.
     plu: int
+    name: str = ""
     error: str
 
 

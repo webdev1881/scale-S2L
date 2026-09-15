@@ -66,10 +66,31 @@ docker compose exec s2l python tools/import_products.py --apply            # з�
 | `S2L_SCALE_BAUDRATE` | скорость | `19200` |
 | `S2L_PRINTER_DEVICE` | принтер этикеток | `/dev/usb/lp0` (или `/dev/s2l-printer`) |
 | `S2L_SCALE_*_G` | метрология: НПВ, деления, наименьшая навеска | как в примере |
+| `S2L_IMPORT_TOKEN` | токен приёма каталога из 1С; пусто — приём выключен | свой на каждый прибор |
 
 Устройства должны существовать **до** запуска контейнера — иначе `docker compose
 up` откажется стартовать. Для USB-переходников впишите `idVendor`/`idProduct` из
 `lsusb` в `deploy/udev/99-s2l-devices.rules`, и имена станут постоянными.
+
+## Каталог из 1С
+
+1С ходит на прибор снаружи (сервер 1С доступен только по RDP), а приборы стоят за
+NAT провайдера без белого IP — проброс портов на роутере магазина до них не
+доходит. Поэтому прибор сам держит исходящий туннель к Cloudflare, и 1С видит его
+по имени `vesy-<магазин>-<номер>.<ваш домен>`. Один раз на прибор:
+
+1. Cloudflare Zero Trust → Networks → Tunnels → Create → «Cloudflared» → Docker:
+   скопировать токен из команды в `CLOUDFLARE_TUNNEL_TOKEN` в `/opt/s2l/.env`,
+   там же раскомментировать `COMPOSE_PROFILES=tunnel`.
+2. В том же туннеле — Public Hostname: имя прибора в вашем домене, сервис
+   `HTTP`, URL `127.0.0.1:8000`.
+3. `docker compose up -d` — поднимется контейнер `s2l-tunnel`, в панели туннель
+   станет `Healthy`. Проверка: `curl https://<имя>/health` с любого компьютера.
+
+В `.env` прибора — `S2L_IMPORT_TOKEN`; в 1С — `Сервер = <имя>`, `SSL = Истина`,
+ресурс `/api/catalog/1c-import`, тот же токен. Поля настройки, формат и запасной
+вариант для 1С без TLS — в `integrations/1c/README.md`. Cloudflare Tunnel бесплатен,
+но домен должен обслуживаться в Cloudflare.
 
 ## Обновление
 

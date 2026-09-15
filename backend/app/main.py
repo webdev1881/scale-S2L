@@ -28,7 +28,7 @@ async def lifespan(app: FastAPI):
     # Демо-каталог — для разработки на симуляторе. На приборе пустая база должна
     # остаться пустой: её заполняют клоном с другого прибора или выгрузкой из
     # товароучёта, а демо-товары ссылаются на снимки, которых в сборке давно нет.
-    if settings.hal_backend == "fake":
+    if settings.hal_backend == "fake" and settings.seed_demo:
         with SessionLocal() as db:
             added = seed_if_empty(db)
             if added:
@@ -64,6 +64,11 @@ app.include_router(import_1c.router)
 app.mount("/labels", StaticFiles(directory=LABELS_DIR), name="labels")
 
 
+# `/health` — тот путь, по которому обработка 1С проверяет связь («Проверить связь»);
+# `/healthz` — то же для docker HEALTHCHECK и tools/dev.py. Без явного маршрута
+# запрос уходил в SPA-заглушку и отвечал 200 с index.html — «связь есть» при
+# любом состоянии сервиса.
+@app.get("/health")
 @app.get("/healthz")
 def healthz() -> JSONResponse:
     try:

@@ -30,3 +30,26 @@ services:
       options:
         max-size: "10m"
         max-file: "5"
+
+  # Туннель наружу для выгрузки из 1С. Приборы стоят за NAT провайдера (белого IP
+  # нет, пробросы не работают), поэтому не 1С ходит внутрь, а прибор сам держит
+  # исходящее соединение с Cloudflare, и 1С видит его по имени вида
+  # vesy-1.example.com. Включается профилем: COMPOSE_PROFILES=tunnel в .env плюс
+  # CLOUDFLARE_TUNNEL_TOKEN; без токена сервис не поднимается и ничего не ломает.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: s2l-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    # Сеть хоста: публичное имя в Cloudflare указывает на http://127.0.0.1:8000,
+    # тот же адрес, что у киоска и curl.
+    network_mode: host
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - s2l
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+

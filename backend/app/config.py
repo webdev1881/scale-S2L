@@ -28,6 +28,9 @@ class Settings(BaseSettings):
 
     # fake — симулятор для разработки без весов, real — драйверы железа
     hal_backend: Literal["fake", "real"] = "fake"
+    # Демо-каталог в пустую базу (только на симуляторе). Выключают, когда пустая
+    # база нужна по делу — например, под выгрузку из 1С (tools/mock_data.py).
+    seed_demo: bool = True
 
     # Подтверждено на приборе: весовая плата висит на встроенном RS232, 19200 бод
     scale_port: str = "/dev/ttyS4"
@@ -52,7 +55,7 @@ class Settings(BaseSettings):
     weight_stream_hz: float = 10.0
 
     # Токен для приёма выгрузки каталога из 1С (POST /api/catalog/1c-import,
-    # заголовок Authorization: Bearer <токен>). Пусто — приём выключен.
+    # заголовок X-API-Key: <токен>, как шлёт обработка 1С). Пусто — приём выключен.
     import_token: str = ""
 
 
