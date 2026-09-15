@@ -127,6 +127,10 @@ onMounted(load)
           <el-switch v-model="form.kiosk_code_button" />
           <div class="hint">{{ t('admin.settings.codeButtonHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.headerOnContact')">
+          <el-switch v-model="form.kiosk_header_on_contact" />
+          <div class="hint">{{ t('admin.settings.headerOnContactHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.showCode')">
           <el-switch v-model="form.kiosk_show_code" />
           <div class="hint">{{ t('admin.settings.showCodeHint') }}</div>

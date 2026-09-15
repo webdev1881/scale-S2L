@@ -150,6 +150,7 @@ const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
 const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
+const headerOnContact = computed(() => settings.value?.kiosk_header_on_contact ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
@@ -974,7 +975,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
     <UpdatingOverlay v-else-if="!weight.connected || settings?.kiosk_force_updating" />
 
-    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || !engaged }" :style="uiScales">
+    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места
            у прибора, а не только стоя напротив левого края экрана. Пока ищут товар,
            шапка уходит: товар ещё не выбран, показывать нечего, а её высота нужнее
