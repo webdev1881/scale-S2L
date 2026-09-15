@@ -4,13 +4,13 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from .api import catalog, device, import_1c
-from .config import BASE_DIR, LABELS_DIR, get_settings
+from .config import BASE_DIR, LABELS_DIR, PHOTOS_DIR, get_settings
 from .db import SessionLocal, init_db
 from .hal.registry import build_devices, get_devices, set_devices
 from .seed import seed_if_empty
@@ -94,6 +94,17 @@ def _mount_frontend() -> None:
     @app.get("/admin/{path:path}", include_in_schema=False)
     def admin_spa(path: str = "") -> FileResponse:
         return FileResponse(FRONTEND_DIST / "admin.html", headers=NO_CACHE)
+
+    # Снимки товаров: сначала присланные на прибор (`data/photos`, выгрузка из 1С),
+    # потом демо-набор из сборки. Имя файла — код товара, поэтому боевой снимок
+    # перекрывает демо-снимок того же кода, не трогая сборку.
+    @app.get("/products/{name}", include_in_schema=False)
+    def product_photo(name: str) -> FileResponse:
+        for folder in (PHOTOS_DIR, FRONTEND_DIST / "products"):
+            candidate = folder / name
+            if candidate.is_file():
+                return FileResponse(candidate)
+        raise HTTPException(404)
 
     @app.get("/", include_in_schema=False)
     @app.get("/{path:path}", include_in_schema=False)

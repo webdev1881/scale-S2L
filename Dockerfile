@@ -39,7 +39,7 @@ COPY --from=web /src/frontend/dist /opt/s2l/frontend/dist
 # dialout (20) и lp (7) совпадают с Ubuntu на приборе — через них выдаётся доступ
 # к весовой плате и принтеру (см. deploy/docker/compose.yml, group_add).
 RUN useradd --system --uid 1000 --create-home s2l \
-    && mkdir -p data/labels \
+    && mkdir -p data/labels data/photos \
     && chown -R s2l:s2l /opt/s2l
 USER s2l
 

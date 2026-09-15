@@ -4,10 +4,11 @@
 2427x2427 из товароучёта распаковывается в 24 МБ пикселей ради миниатюры,
 и на J6412 это пропущенные кадры ровно тогда, когда покупатель листает каталог.
 
-Файл кладётся сразу в `frontend/dist/products` (иначе кадр не появится на
-экране без `npm run build`, а выгрузка из 1С идёт по расписанию без участия
-человека) и в `frontend/public/products` (источник для git и следующей
-пересборки фронта).
+Файл кладётся в `data/photos` (см. `PHOTOS_DIR`), и раздаётся оттуда прежде
+сборки фронта (`main.py`): демо-снимки из репозитория остаются в `dist/products`,
+боевые перекрывают их по имени и живут в томе данных прибора — сборка внутри
+образа при обновлении переписывается, том нет. Раньше файл шёл в `dist` и
+`public` и пропадал вместе с контейнером.
 """
 from __future__ import annotations
 
@@ -15,10 +16,7 @@ import io
 
 from PIL import Image, ImageOps
 
-from ..config import BASE_DIR
-
-PUBLIC_PHOTOS = BASE_DIR.parent / "frontend" / "public" / "products"
-DIST_PHOTOS = BASE_DIR.parent / "frontend" / "dist" / "products"
+from ..config import PHOTOS_DIR
 
 MAX_SIDE = 800
 QUALITY = 82
@@ -43,17 +41,14 @@ def save_product_photo(plu: int, raw: bytes, fmt: str) -> str:
             image = image.convert("RGB")
 
         filename = f"{plu}{ext}"
-        PUBLIC_PHOTOS.mkdir(parents=True, exist_ok=True)
-        DIST_PHOTOS.mkdir(parents=True, exist_ok=True)
+        PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
         save_kwargs = {"optimize": True} if ext == ".png" else {"quality": QUALITY, "optimize": True}
-        image.save(PUBLIC_PHOTOS / filename, **save_kwargs)
-        image.save(DIST_PHOTOS / filename, **save_kwargs)
+        image.save(PHOTOS_DIR / filename, **save_kwargs)
 
     # Прежний файл того же товара в другом расширении больше не актуален — иначе
     # оба лежат рядом, и какой из них покажется на карточке, решает сортировка.
     for other_ext in set(_EXT.values()) - {ext}:
-        (PUBLIC_PHOTOS / f"{plu}{other_ext}").unlink(missing_ok=True)
-        (DIST_PHOTOS / f"{plu}{other_ext}").unlink(missing_ok=True)
+        (PHOTOS_DIR / f"{plu}{other_ext}").unlink(missing_ok=True)
 
     return filename

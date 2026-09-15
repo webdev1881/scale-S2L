@@ -11,6 +11,11 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 LABELS_DIR = DATA_DIR / "labels"
+# Снимки, пришедшие на прибор извне (выгрузка из 1С). Лежат в данных, а не в сборке
+# фронта: сборка внутри docker-образа переписывается при каждом обновлении, а
+# каталог `data/` — том, который переживает пересоздание контейнера и переносится
+# на новый прибор вместе с базой.
+PHOTOS_DIR = DATA_DIR / "photos"
 # Настройки прибора лежат отдельным файлом: их удобно посмотреть, положить
 # в резервную копию и подложить на новый прибор, не трогая базу.
 SETTINGS_FILE = DATA_DIR / "settings.json"
@@ -85,4 +90,5 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     LABELS_DIR.mkdir(parents=True, exist_ok=True)
+    PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
     return Settings()
