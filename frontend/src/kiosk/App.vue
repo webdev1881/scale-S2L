@@ -55,6 +55,35 @@ const awaitingPickup = ref(false)
 let idleTimer: number | undefined
 let labelTimer: number | undefined
 
+/**
+ * Покупатель у прибора. До первого контакта — касания экрана или груза на
+ * платформе — шапка весов не показывается: пустому экрану нечего взвешивать, а
+ * нули с ценой «0,00» читаются как сломанный прибор. Сессия кончается — экран
+ * снова ждёт следующего без шапки.
+ */
+const engaged = ref(false)
+let touching = false
+
+function engage() {
+  if (engaged.value) return
+  // Пока палец на экране, шапка не появляется: она сдвинула бы сетку между
+  // `pointerdown` и `click`, и касание досталось бы другой карточке (печать идёт
+  // от касания). Отпущенный палец сам доведёт до `engage` — см. releaseTouch.
+  if (touching) return
+  engaged.value = true
+}
+
+function markTouch() {
+  touching = true
+}
+
+function releaseTouch() {
+  touching = false
+  // Не сразу, а следующей задачей: `click` браузер шлёт в той же задаче, что и
+  // `pointerup`, и перерисовка до него всё ещё двигала бы экран под касанием.
+  window.setTimeout(engage, 0)
+}
+
 const currency = computed(() => settings.value?.currency ?? '₴')
 
 /**
@@ -823,8 +852,17 @@ function resetBrowsing() {
 function reset() {
   void refreshSettings()
   selected.value = null
+  engaged.value = false
   resetBrowsing()
 }
+
+// Груз на платформе — тоже контакт: товар положили раньше, чем коснулись экрана.
+watch(
+  () => weight.reading.net_g >= minWeight.value,
+  (loaded) => {
+    if (loaded) engage()
+  },
+)
 
 function bumpIdle() {
   // Пока ждём, когда заберут товар, касание отодвигает предел: экран не должен
@@ -855,6 +893,9 @@ onMounted(async () => {
   if (gridSlotEl.value) slotResize.observe(gridSlotEl.value)
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
+  window.addEventListener('pointerdown', markTouch, true)
+  window.addEventListener('pointerup', releaseTouch, true)
+  window.addEventListener('pointercancel', releaseTouch, true)
   bumpIdle()
   stopUpdates = watchDeviceUpdates(onDeviceChanged)
 })
@@ -868,6 +909,9 @@ onUnmounted(() => {
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
+  window.removeEventListener('pointerdown', markTouch, true)
+  window.removeEventListener('pointerup', releaseTouch, true)
+  window.removeEventListener('pointercancel', releaseTouch, true)
 })
 
 watch([search, openedCategory, selected], bumpIdle)
@@ -938,11 +982,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
     <UpdatingOverlay v-else-if="!weight.connected || settings?.kiosk_force_updating" />
 
-    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen }" :style="uiScales">
+    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || !engaged }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места
            у прибора, а не только стоя напротив левого края экрана. Пока ищут товар,
            шапка уходит: товар ещё не выбран, показывать нечего, а её высота нужнее
-           карточкам. -->
+           карточкам. До первого контакта покупателя (касание или груз на платформе)
+           её тоже нет — см. `engaged`. -->
       <header class="scale">
         <WeightPanel
           :reading="weight.reading"
