@@ -92,6 +92,16 @@ NAT провайдера без белого IP — проброс портов 
 вариант для 1С без TLS — в `integrations/1c/README.md`. Cloudflare Tunnel бесплатен,
 но домен должен обслуживаться в Cloudflare.
 
+## Перед сдачей прибора
+
+Пробные печати и погашенные товары, накопившиеся при проверке, убираются одной
+командой; каталог и снимки остаются:
+
+```bash
+docker compose exec s2l python tools/clean_db.py            # что будет удалено
+docker compose exec s2l python tools/clean_db.py --apply    # почистить
+```
+
 ## Обновление
 
 Образ собирается на GitHub при каждом пуше в `main` и уезжает в
