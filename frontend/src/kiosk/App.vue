@@ -62,26 +62,18 @@ let labelTimer: number | undefined
  * снова ждёт следующего без шапки.
  */
 const engaged = ref(false)
-let touching = false
 
+/**
+ * Касание доводит до `engage` только сам `click`, а не `pointerdown` и не
+ * `pointerup`: шапка сдвигает сетку на 186 px, и появись она раньше — `click`
+ * прилетел бы уже по другой карточке (печать идёт от касания). Отложить
+ * `setTimeout(0)` после `pointerup` не спасало: браузер шлёт `click` отдельной
+ * задачей, через кадр, и таймер успевал раньше — первое касание стартового экрана
+ * только показывало шапку. У `click` цель уже выбрана, перерисовка после него
+ * ничего не меняет; протяжка кликом не кончается — её доводит `onSwipeEnd`.
+ */
 function engage() {
-  if (engaged.value) return
-  // Пока палец на экране, шапка не появляется: она сдвинула бы сетку между
-  // `pointerdown` и `click`, и касание досталось бы другой карточке (печать идёт
-  // от касания). Отпущенный палец сам доведёт до `engage` — см. releaseTouch.
-  if (touching) return
   engaged.value = true
-}
-
-function markTouch() {
-  touching = true
-}
-
-function releaseTouch() {
-  touching = false
-  // Не сразу, а следующей задачей: `click` браузер шлёт в той же задаче, что и
-  // `pointerup`, и перерисовка до него всё ещё двигала бы экран под касанием.
-  window.setTimeout(engage, 0)
 }
 
 const currency = computed(() => settings.value?.currency ?? '₴')
@@ -551,7 +543,11 @@ function onSwipeEnd(event: PointerEvent) {
   }
   settleRibbon(dir)
   // Гасим клик после любой протяжки, а не только после смены страницы.
-  if (dragged) swallowDragClick(event.clientX, event.clientY)
+  if (dragged) {
+    swallowDragClick(event.clientX, event.clientY)
+    // Протяжка — тоже контакт, а клика после неё не будет: шапку зовём здесь.
+    engage()
+  }
 }
 
 /**
@@ -893,9 +889,7 @@ onMounted(async () => {
   if (gridSlotEl.value) slotResize.observe(gridSlotEl.value)
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
-  window.addEventListener('pointerdown', markTouch, true)
-  window.addEventListener('pointerup', releaseTouch, true)
-  window.addEventListener('pointercancel', releaseTouch, true)
+  window.addEventListener('click', engage, true)
   bumpIdle()
   stopUpdates = watchDeviceUpdates(onDeviceChanged)
 })
@@ -909,9 +903,7 @@ onUnmounted(() => {
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
-  window.removeEventListener('pointerdown', markTouch, true)
-  window.removeEventListener('pointerup', releaseTouch, true)
-  window.removeEventListener('pointercancel', releaseTouch, true)
+  window.removeEventListener('click', engage, true)
 })
 
 watch([search, openedCategory, selected], bumpIdle)
