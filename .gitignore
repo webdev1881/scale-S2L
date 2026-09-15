@@ -5,6 +5,7 @@ __pycache__/
 backend/data/*.db
 backend/data/labels/
 backend/data/mock/
+backend/data/photos/
 backend/.env
 
 # Node
