@@ -300,10 +300,20 @@ const printBlockReason = computed(() => {
  * подхватывает посреди работы, и сбрасывать при этом страницу или выбор покупателя
  * незачем — оператор поправил цену, а не выгнал человека от прибора.
  */
+/**
+ * Киоск показывает каталог с конца: API и админка отдают товары по коду, группы —
+ * по имени, а на экране первыми стоят последние — свежие артикулы и последняя
+ * группа. Так попросил владелец; переворачиваем здесь, а не в API, чтобы админка
+ * и заливка по-прежнему видели каталог по порядку кодов.
+ */
+function takeCatalog(items: Product[], cats: Category[]) {
+  products.value = [...items].reverse()
+  categories.value = [...cats].reverse()
+}
+
 async function refreshCatalog() {
   const [items, cats] = await Promise.all([api.products(), api.categories()])
-  products.value = items
-  categories.value = cats
+  takeCatalog(items, cats)
 }
 
 /**
@@ -319,8 +329,7 @@ async function onDeviceChanged(kind: 'settings' | 'catalog' | 'reconnect') {
 
 async function loadCatalog() {
   const [items, cats, cfg] = await Promise.all([api.products(), api.categories(), api.settings()])
-  products.value = items
-  categories.value = cats
+  takeCatalog(items, cats)
   settings.value = cfg
   // Язык и тема задаются на устройстве, а не в браузере покупателя.
   setLocale(cfg.language)
