@@ -8,7 +8,10 @@ Element Plus. Целевое устройство — Ubuntu 24.04 x86_64 в р�
 ## Команды
 
 ```bash
-# Бэкенд (Windows-пути; на Linux — .venv/bin/)
+# Всё сразу: бэкенд с автоперезагрузкой и браузер с киоском (--admin — и админка)
+cd backend && .venv/Scripts/python tools/dev.py
+
+# Только бэкенд (Windows-пути; на Linux — .venv/bin/)
 cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 
 # Фронтенд
