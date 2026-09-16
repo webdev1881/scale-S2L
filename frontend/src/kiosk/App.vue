@@ -370,10 +370,36 @@ async function refreshCatalog() {
  * перечитывает. Пятисекундный опрос настроек, стоявший здесь раньше, и правку
  * каталога не замечал вовсе, и запрос слал впустую весь день.
  */
-async function onDeviceChanged(kind: 'settings' | 'catalog' | 'reconnect') {
+/**
+ * Выгрузка из 1С переписывает цены прямо сейчас: пока она идёт, киоск закрыт
+ * экраном «Оновлення». Иначе покупатель успевал нажать карточку и получить
+ * этикетку со старой ценой. Бэкенд шлёт «catalog_busy» перед записью и
+ * «catalog» после неё — даже если выгрузка сорвалась.
+ */
+const catalogBusy = ref(false)
+let busyTimer: number | undefined
+
+function holdForCatalog() {
+  catalogBusy.value = true
+  // Страховка на случай, когда «catalog» не пришёл вовсе — оборвалась сеть,
+  // упал бэкенд: прибор не должен остаться за экраном ожидания насовсем.
+  window.clearTimeout(busyTimer)
+  busyTimer = window.setTimeout(() => (catalogBusy.value = false), 60_000)
+}
+
+async function onDeviceChanged(kind: 'settings' | 'catalog' | 'catalog_busy' | 'reconnect') {
+  if (kind === 'catalog_busy') return holdForCatalog()
   if (kind !== 'catalog') await refreshSettings()
   // После обрыва связи неизвестно, что успели поменять, — перечитываем всё.
   if (kind !== 'settings') await refreshCatalog()
+  if (catalogBusy.value) {
+    window.clearTimeout(busyTimer)
+    catalogBusy.value = false
+    // Цены изменились, а выбранный товар держит прежние: начинаем с чистого
+    // экрана. Кроме случая, когда покупатель ещё не забрал взвешенное — ему
+    // обрывать покупку нельзя.
+    if (!awaitingPickup.value) reset()
+  }
 }
 
 async function loadCatalog() {
@@ -959,6 +985,7 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
+  window.clearTimeout(busyTimer)
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
@@ -1031,7 +1058,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 <template>
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
-    <UpdatingOverlay v-else-if="!weight.connected || settings?.kiosk_force_updating" />
+    <UpdatingOverlay
+      v-else-if="!weight.connected || catalogBusy || settings?.kiosk_force_updating"
+    />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места

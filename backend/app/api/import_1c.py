@@ -59,6 +59,19 @@ def import_1c(payload: Import1CRequest, db: Session = Depends(get_db)) -> Import
     if not payload.products:
         raise HTTPException(400, "Пустой список товаров — похоже на сбой выгрузки, а не на пустой каталог")
 
+    # Киоск закрывается экраном «Оновлення» на время записи: цены меняются прямо
+    # сейчас, и касание карточки посреди выгрузки напечатало бы этикетку со старой
+    # ценой. Сигнал идёт до записи — после неё показывать было бы уже незачем, а
+    # снимается он в `finally`: сорвавшаяся выгрузка не должна оставить прибор за
+    # экраном ожидания навсегда.
+    live.notify("catalog_busy")
+    try:
+        return _apply(payload, db)
+    finally:
+        live.notify("catalog")
+
+
+def _apply(payload: Import1CRequest, db: Session) -> Import1CResult:
     errors: list[Import1CError] = []
     existing = {p.plu: p for p in db.scalars(select(Product))}
     seen: set[int] = set()
@@ -124,7 +137,6 @@ def import_1c(payload: Import1CRequest, db: Session = Depends(get_db)) -> Import
             deactivated += 1
 
     db.commit()
-    live.notify("catalog")
 
     return Import1CResult(
         received=len(payload.products),
