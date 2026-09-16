@@ -197,6 +197,10 @@ onMounted(load)
           <el-input-number v-model="form.ui_photo_scale" :min="60" :max="160" :step="5" />
           <div class="hint">{{ t('admin.settings.photoScaleHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.photoScaleGroup')">
+          <el-input-number v-model="form.ui_photo_scale_group" :min="60" :max="160" :step="5" />
+          <div class="hint">{{ t('admin.settings.photoScaleGroupHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.plateHeight')">
           <el-input-number v-model="form.ui_plate_height" :min="1" :max="60" :step="1" />
           <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
