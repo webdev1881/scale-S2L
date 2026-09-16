@@ -131,6 +131,10 @@ onMounted(load)
           <el-switch v-model="form.kiosk_only_with_photo" />
           <div class="hint">{{ t('admin.settings.onlyWithPhotoHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.photoFirst')">
+          <el-switch v-model="form.kiosk_photo_first" :disabled="form.kiosk_only_with_photo" />
+          <div class="hint">{{ t('admin.settings.photoFirstHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.headerOnContact')">
           <el-switch v-model="form.kiosk_header_on_contact" />
           <div class="hint">{{ t('admin.settings.headerOnContactHint') }}</div>

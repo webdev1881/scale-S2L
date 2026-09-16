@@ -37,11 +37,20 @@ const settings = ref<DeviceSettings | null>(null)
  * товар без фото на экран не попадает — и по коду не находится: карточка без
  * снимка среди фотографий выглядит как дыра, а покупатель ищет глазами. Группа
  * без единого такого товара уходит вместе с ними, иначе открывалась бы пустой.
+ *
+ * Мягкий вариант — «сначала со снимком»: товары без фото остаются, но уходят на
+ * последние страницы. Сортировка устойчивая, поэтому внутри каждой половины
+ * порядок прежний — тот же, с конца (см. `takeCatalog`).
  */
 const onlyWithPhoto = computed(() => settings.value?.kiosk_only_with_photo ?? false)
-const products = computed(() =>
-  onlyWithPhoto.value ? loadedProducts.value.filter((p) => p.image) : loadedProducts.value,
-)
+const photoFirst = computed(() => settings.value?.kiosk_photo_first ?? false)
+const products = computed(() => {
+  const list = onlyWithPhoto.value
+    ? loadedProducts.value.filter((p) => p.image)
+    : loadedProducts.value
+  if (!photoFirst.value || onlyWithPhoto.value) return list
+  return [...list].sort((a, b) => Number(Boolean(b.image)) - Number(Boolean(a.image)))
+})
 const categories = computed(() => {
   if (!onlyWithPhoto.value) return loadedCategories.value
   const counts = new Map<string, number>()

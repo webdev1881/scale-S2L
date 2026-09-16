@@ -115,6 +115,7 @@ export interface DeviceSettings {
   kiosk_code_button: boolean
   kiosk_header_on_contact: boolean
   kiosk_only_with_photo: boolean
+  kiosk_photo_first: boolean
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number

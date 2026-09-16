@@ -139,6 +139,7 @@
   "kiosk_code_button": false,
   "kiosk_header_on_contact": true,
   "kiosk_only_with_photo": false,
+  "kiosk_photo_first": false,
   "kiosk_peek_percent": 44,
   "kiosk_idle_reset_s": 45,
   "kiosk_clear_hold_s": 1.5,
