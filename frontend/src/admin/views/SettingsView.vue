@@ -216,11 +216,11 @@ onMounted(load)
         </el-form-item>
 
         <el-form-item :label="t('admin.settings.photoScale')">
-          <el-input-number v-model="form.ui_photo_scale" :min="60" :max="160" :step="5" />
+          <el-input-number v-model="form.ui_photo_scale" :min="60" :max="160" :step="1" />
           <div class="hint">{{ t('admin.settings.photoScaleHint') }}</div>
         </el-form-item>
         <el-form-item :label="t('admin.settings.photoScaleGroup')">
-          <el-input-number v-model="form.ui_photo_scale_group" :min="60" :max="160" :step="5" />
+          <el-input-number v-model="form.ui_photo_scale_group" :min="60" :max="160" :step="1" />
           <div class="hint">{{ t('admin.settings.photoScaleGroupHint') }}</div>
         </el-form-item>
         <el-form-item :label="t('admin.settings.plateHeight')">
