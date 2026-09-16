@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
 import { formatMoney } from '@/shared/format'
+import { orderedCategories } from '@/shared/catalog'
 import type { Category, Product } from '@/shared/types'
 
 type ProductForm = Omit<Product, 'id'>
@@ -120,7 +121,49 @@ const coverBusy = ref('')
 
 async function openCovers() {
   coversVisible.value = true
-  categories.value = await api.categories()
+  // Тот же порядок, что на экране прибора: перетаскивать список, который стоит
+  // иначе, чем видит покупатель, — значит собирать порядок вслепую.
+  categories.value = orderedCategories(await api.categories())
+}
+
+// --- порядок групп ---------------------------------------------------------
+// Перетаскивание нативное (`draggable`), без библиотеки: строк десяток, список
+// вертикальный, а лишняя зависимость в админке прибора стоит дороже.
+const dragFrom = ref<number | null>(null)
+const dragOver = ref<number | null>(null)
+
+function dragStart(index: number, event: DragEvent) {
+  dragFrom.value = index
+  event.dataTransfer?.setData('text/plain', String(index))
+  if (event.dataTransfer) event.dataTransfer.effectAllowed = 'move'
+}
+
+function dragEnter(index: number) {
+  if (dragFrom.value !== null) dragOver.value = index
+}
+
+async function drop(index: number) {
+  const from = dragFrom.value
+  dragFrom.value = null
+  dragOver.value = null
+  if (from === null || from === index) return
+
+  const next = [...categories.value]
+  const [moved] = next.splice(from, 1)
+  next.splice(index, 0, moved)
+  // Показываем сразу, не дожидаясь ответа: перетаскивание должно ощущаться
+  // мгновенным, а список короткий — откатить его при ошибке ничего не стоит.
+  const previous = categories.value
+  categories.value = next
+  try {
+    categories.value = orderedCategories(
+      await api.setCategoryOrder(next.map((category) => category.name)),
+    )
+    ElMessage.success(t('admin.products.orderSaved'))
+  } catch (error) {
+    categories.value = previous
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.products.orderFailed'))
+  }
 }
 
 const FORMATS: Record<string, string> = {
@@ -379,8 +422,21 @@ onMounted(load)
 
     <el-dialog v-model="coversVisible" :title="t('admin.products.coversTitle')" width="560px">
       <div class="hint covers-hint">{{ t('admin.products.coversHint') }}</div>
+      <div class="hint covers-hint">{{ t('admin.products.orderHint') }}</div>
       <div class="covers">
-        <div v-for="category in categories" :key="category.name" class="cover">
+        <div
+          v-for="(category, index) in categories"
+          :key="category.name"
+          class="cover"
+          :class="{ dragging: dragFrom === index, over: dragOver === index && dragFrom !== index }"
+          draggable="true"
+          @dragstart="dragStart(index, $event)"
+          @dragenter.prevent="dragEnter(index)"
+          @dragover.prevent
+          @drop.prevent="drop(index)"
+          @dragend="dragFrom = null; dragOver = null"
+        >
+          <span class="cover-grip" aria-hidden="true">⠿</span>
           <img v-if="category.image" :src="coverSrc(category)" class="cover-thumb" alt="" />
           <div v-else class="cover-thumb empty">—</div>
           <div class="cover-body">
@@ -469,6 +525,29 @@ onMounted(load)
   display: flex;
   align-items: center;
   gap: 12px;
+  padding: 4px;
+  border: 2px solid transparent;
+  border-radius: 8px;
+  cursor: grab;
+}
+
+.cover.dragging {
+  opacity: 0.45;
+}
+
+/* Куда встанет группа: подсвечиваем строку целиком, а не тонкую черту между
+   строками — по ней трудно попасть, а промах отменяет перетаскивание. */
+.cover.over {
+  border-color: var(--el-color-primary);
+  background: var(--el-color-primary-light-9);
+}
+
+.cover-grip {
+  flex: none;
+  color: var(--el-text-color-placeholder);
+  font-size: 18px;
+  line-height: 1;
+  cursor: grab;
 }
 
 .cover-thumb {

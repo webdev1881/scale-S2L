@@ -22,6 +22,8 @@ export interface Category {
   count: number
   /** Обложку выбрал оператор, а не подставил первый товар группы. */
   custom_image: boolean
+  /** Место группы, заданное перетаскиванием в админке; null — не задано. */
+  sort_order: number | null
 }
 
 export interface WeightReading {

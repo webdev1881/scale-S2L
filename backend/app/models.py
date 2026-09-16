@@ -46,6 +46,10 @@ class CategoryCover(Base):
 
     name: Mapped[str] = mapped_column(String(60), primary_key=True)
     image: Mapped[str] = mapped_column(String(120), default="")
+    # Порядок групп на экране, заданный перетаскиванием в админке. NULL — порядок
+    # не задан: такие группы идут после заданных, по алфавиту. Хранится здесь же,
+    # потому что это вторая (и последняя) вещь, которая у группы своя.
+    sort_order: Mapped[int | None] = mapped_column(Integer, nullable=True, default=None)
 
 
 class Transaction(Base):

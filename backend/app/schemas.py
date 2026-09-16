@@ -30,6 +30,9 @@ class CategoryOut(BaseModel):
     name: str
     image: str
     count: int
+    # Место группы, заданное перетаскиванием в админке. None — порядок не задан,
+    # и киоск раскладывает группы сам (см. `displayOrder` во фронтенде).
+    sort_order: int | None = None
     # Обложку выбрал оператор, а не подставил первый товар группы. Админке это
     # нужно, чтобы показать кнопку «вернуть автоматическую».
     custom_image: bool = False
@@ -47,6 +50,13 @@ class PurgeResult(BaseModel):
     transactions: int = 0
     photos: int = 0
     labels: int = 0
+
+
+class CategoryOrderIn(BaseModel):
+    # Имена групп в том порядке, в каком их показывать. Целиком, а не «переставить
+    # одну»: список короткий, а частичная перестановка требует договариваться о том,
+    # что делать с группами, которых в нём нет.
+    names: list[str]
 
 
 class CategoryCoverIn(BaseModel):

@@ -14,6 +14,7 @@ from ..db import get_db
 from ..models import CategoryCover, Product, Transaction
 from ..schemas import (
     CategoryCoverIn,
+    CategoryOrderIn,
     CategoryOut,
     ProductIn,
     ProductOut,
@@ -58,7 +59,8 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
     картинок и не поддерживать его в актуальном состоянии вручную.
     """
     products = list(db.scalars(select(Product).where(Product.active == 1).order_by(Product.plu)))
-    covers = {c.name: c.image for c in db.scalars(select(CategoryCover)) if c.image}
+    settings = {c.name: c for c in db.scalars(select(CategoryCover))}
+    covers = {name: c.image for name, c in settings.items() if c.image}
     groups: dict[str, CategoryOut] = {}
     for product in products:
         if not product.category:
@@ -79,7 +81,40 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
         if custom:
             group.image = custom
             group.custom_image = True
-    return sorted(groups.values(), key=lambda g: g.name)
+        cover = settings.get(group.name)
+        group.sort_order = cover.sort_order if cover else None
+
+    # Заданные руками группы идут первыми и в своём порядке, остальные — следом по
+    # алфавиту: новая группа из 1С не должна вклиниваться в середину подобранного
+    # порядка, но и пропасть ей нельзя.
+    return sorted(
+        groups.values(),
+        key=lambda g: (g.sort_order is None, g.sort_order if g.sort_order is not None else 0, g.name),
+    )
+
+
+@router.put("/products/categories/order", response_model=list[CategoryOut])
+def set_category_order(payload: CategoryOrderIn, db: Session = Depends(get_db)) -> list[CategoryOut]:
+    """Порядок групп на экране: список имён — это и есть порядок."""
+    known = {g.name for g in list_categories(db)}
+    unknown = [name for name in payload.names if name not in known]
+    if unknown:
+        raise HTTPException(404, "Нет таких групп: " + ", ".join(unknown[:3]))
+
+    for position, name in enumerate(payload.names):
+        cover = db.get(CategoryCover, name)
+        if cover is None:
+            cover = CategoryCover(name=name)
+            db.add(cover)
+        cover.sort_order = position
+    # Группы, которых в списке нет, теряют заданное место: оператор видел на экране
+    # весь список, и то, что он не перетащил, он оставил «как получится».
+    for cover in db.scalars(select(CategoryCover)):
+        if cover.name not in set(payload.names):
+            cover.sort_order = None
+    db.commit()
+    live.notify("catalog")
+    return list_categories(db)
 
 
 @router.put("/products/categories/{name}/image", response_model=CategoryOut)

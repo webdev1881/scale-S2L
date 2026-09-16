@@ -48,6 +48,11 @@ export const api = {
     return request<Product[]>(`/api/products?${query.toString()}`)
   },
   categories: () => request<Category[]>('/api/products/categories'),
+  setCategoryOrder: (names: string[]) =>
+    request<Category[]>('/api/products/categories/order', {
+      method: 'PUT',
+      body: JSON.stringify({ names }),
+    }),
   setCategoryImage: (name: string, image_base64: string, image_format: string) =>
     request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
       method: 'PUT',

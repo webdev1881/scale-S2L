@@ -4,6 +4,7 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
+import { orderedCategories, orderedProducts } from '@/shared/catalog'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
@@ -349,15 +350,10 @@ const printBlockReason = computed(() => {
  * подхватывает посреди работы, и сбрасывать при этом страницу или выбор покупателя
  * незачем — оператор поправил цену, а не выгнал человека от прибора.
  */
-/**
- * Киоск показывает каталог с конца: API и админка отдают товары по коду, группы —
- * по имени, а на экране первыми стоят последние — свежие артикулы и последняя
- * группа. Так попросил владелец; переворачиваем здесь, а не в API, чтобы админка
- * и заливка по-прежнему видели каталог по порядку кодов.
- */
+/** Порядок карточек — общий с админкой, см. `shared/catalog.ts`. */
 function takeCatalog(items: Product[], cats: Category[]) {
-  loadedProducts.value = [...items].reverse()
-  loadedCategories.value = [...cats].reverse()
+  loadedProducts.value = orderedProducts(items)
+  loadedCategories.value = orderedCategories(cats)
 }
 
 async function refreshCatalog() {
