@@ -187,6 +187,18 @@ const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
 const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
+const searchButton = computed(() => settings.value?.kiosk_search_button ?? true)
+const backButton = computed(() => settings.value?.kiosk_back_button ?? true)
+/**
+ * Доли нижней панели. Две колонки живут только тогда, когда обе кнопки включены:
+ * с одной делить нечего, и она забирает ширину целиком. Пустая половина внутри
+ * двухколоночного режима остаётся нарочно — см. разметку футера.
+ */
+const actionsStyle = computed(() => {
+  if (!(searchButton.value && backButton.value)) return { gridTemplateColumns: '1fr' }
+  const search = settings.value?.kiosk_search_width ?? 50
+  return { gridTemplateColumns: `${100 - search}fr ${search}fr` }
+})
 const headerOnContact = computed(() => settings.value?.kiosk_header_on_contact ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
@@ -1189,12 +1201,14 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                поиск не переезжает между экранами, и палец не попадает по кнопке,
                которая только что встала под него (ту же беду страхует окно
                `backJustHappened`). -->
-          <div class="actions">
-            <button v-if="canReturn" class="tile action" @click="allProducts">
-              {{ t('kiosk.allProducts') }}
-            </button>
-            <span v-else class="action-gap" aria-hidden="true"></span>
-            <button class="tile action search-cta" @click="openSearch">
+          <div v-if="searchButton || backButton" class="actions" :style="actionsStyle">
+            <template v-if="backButton">
+              <button v-if="canReturn" class="tile action" @click="allProducts">
+                {{ t('kiosk.allProducts') }}
+              </button>
+              <span v-else class="action-gap" aria-hidden="true"></span>
+            </template>
+            <button v-if="searchButton" class="tile action search-cta" @click="openSearch">
               <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
                 <circle cx="11" cy="11" r="7" />
                 <path d="M16.5 16.5 21 21" />
@@ -1603,6 +1617,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
    открытой группой, и без неё, а на верхнем уровне он ровно в половину ширины. */
 .actions {
   display: grid;
+  /* Доли задаёт админка (`actionsStyle`), здесь только запасной вариант. */
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }

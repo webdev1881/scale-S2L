@@ -135,6 +135,24 @@ onMounted(load)
           <el-switch v-model="form.kiosk_photo_first" :disabled="form.kiosk_only_with_photo" />
           <div class="hint">{{ t('admin.settings.photoFirstHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.searchButton')">
+          <el-switch v-model="form.kiosk_search_button" />
+          <div class="hint">{{ t('admin.settings.searchButtonHint') }}</div>
+        </el-form-item>
+        <el-form-item :label="t('admin.settings.backButton')">
+          <el-switch v-model="form.kiosk_back_button" />
+          <div class="hint">{{ t('admin.settings.backButtonHint') }}</div>
+        </el-form-item>
+        <el-form-item :label="t('admin.settings.searchWidth')">
+          <el-input-number
+            v-model="form.kiosk_search_width"
+            :min="20"
+            :max="80"
+            :step="5"
+            :disabled="!form.kiosk_search_button || !form.kiosk_back_button"
+          />
+          <div class="hint">{{ t('admin.settings.searchWidthHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.headerOnContact')">
           <el-switch v-model="form.kiosk_header_on_contact" />
           <div class="hint">{{ t('admin.settings.headerOnContactHint') }}</div>

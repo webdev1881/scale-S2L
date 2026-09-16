@@ -126,6 +126,9 @@ export interface DeviceSettings {
   kiosk_header_on_contact: boolean
   kiosk_only_with_photo: boolean
   kiosk_photo_first: boolean
+  kiosk_search_button: boolean
+  kiosk_back_button: boolean
+  kiosk_search_width: number
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number
