@@ -9,9 +9,18 @@ from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
+from ..config import LABELS_DIR
 from ..db import get_db
 from ..models import CategoryCover, Product, Transaction
-from ..schemas import CategoryCoverIn, CategoryOut, ProductIn, ProductOut, TransactionOut
+from ..schemas import (
+    CategoryCoverIn,
+    CategoryOut,
+    ProductIn,
+    ProductOut,
+    PurgeIn,
+    PurgeResult,
+    TransactionOut,
+)
 from ..services import live
 from ..services.photos import MAX_IMAGE_BYTES, PHOTOS_DIR, cover_stem, save_photo
 from ..services.settings_store import DeviceSettings, load_settings, save_settings
@@ -173,6 +182,73 @@ def list_transactions(
 ) -> list[Transaction]:
     stmt = select(Transaction).order_by(Transaction.id.desc()).limit(limit)
     return list(db.scalars(stmt))
+
+
+@router.post("/catalog/purge", response_model=PurgeResult)
+def purge_catalog(payload: PurgeIn, db: Session = Depends(get_db)) -> PurgeResult:
+    """Чистка данных прибора из админки — та же, что `tools/clean_db.py`.
+
+    Оператору она нужна перед сдачей прибора и при смене ассортимента: каталог
+    из 1С приходит полным срезом, но погашенные позиции и журнал проверок
+    остаются, а руками их удалять — сотня подтверждений.
+
+    Журнал удаляется вместе с товарами, а не оставляется «висеть»: он ссылается
+    на товар по `id`, и без своей строки записи журнала указывали бы в пустоту.
+    """
+    result = PurgeResult()
+
+    if payload.scope == "inactive":
+        products = list(db.scalars(select(Product).where(Product.active == 0)))
+    elif payload.scope == "all":
+        products = list(db.scalars(select(Product)))
+    else:
+        products = []
+
+    if products:
+        ids = {p.id for p in products}
+        for transaction in db.scalars(select(Transaction).where(Transaction.product_id.in_(ids))):
+            _drop_label(transaction.label_file)
+            result.labels += 1
+            db.delete(transaction)
+            result.transactions += 1
+        for product in products:
+            if product.image:
+                result.photos += _drop_photo(product.image)
+            db.delete(product)
+            result.products += 1
+
+    if payload.scope in {"journal", "all"}:
+        for transaction in db.scalars(select(Transaction)):
+            _drop_label(transaction.label_file)
+            result.labels += 1
+            db.delete(transaction)
+            result.transactions += 1
+
+    if payload.scope == "all":
+        # Обложки групп держатся на именах групп, а групп без товаров не бывает.
+        for cover in db.scalars(select(CategoryCover)):
+            if cover.image:
+                result.photos += _drop_photo(cover.image)
+            db.delete(cover)
+            result.covers += 1
+
+    db.commit()
+    live.notify("catalog")
+    return result
+
+
+def _drop_photo(name: str) -> int:
+    """Снимок прибора (data/photos). Демо-набор из сборки фронта не трогаем."""
+    path = PHOTOS_DIR / name
+    if path.is_file():
+        path.unlink()
+        return 1
+    return 0
+
+
+def _drop_label(name: str) -> None:
+    if name:
+        (LABELS_DIR / name).unlink(missing_ok=True)
 
 
 @router.get("/settings", response_model=DeviceSettings)

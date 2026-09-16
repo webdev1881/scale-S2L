@@ -4,6 +4,7 @@ import type {
   LabelLayout,
   PrintResult,
   Product,
+  PurgeResult,
   Status,
   Transaction,
   WeightReading,
@@ -51,6 +52,11 @@ export const api = {
     request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
       method: 'PUT',
       body: JSON.stringify({ image_base64, image_format }),
+    }),
+  purgeCatalog: (scope: 'journal' | 'inactive' | 'all') =>
+    request<PurgeResult>('/api/catalog/purge', {
+      method: 'POST',
+      body: JSON.stringify({ scope }),
     }),
   clearCategoryImage: (name: string) =>
     request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {

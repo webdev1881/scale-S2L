@@ -100,6 +100,14 @@ export interface LabelLayout {
   blocks: LabelBlock[]
 }
 
+export interface PurgeResult {
+  products: number
+  transactions: number
+  covers: number
+  photos: number
+  labels: number
+}
+
 export interface DeviceSettings {
   language: 'uk' | 'ru'
   theme: 'dark' | 'light'

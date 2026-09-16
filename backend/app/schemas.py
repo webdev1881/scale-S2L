@@ -35,6 +35,21 @@ class CategoryOut(BaseModel):
     custom_image: bool = False
 
 
+class PurgeIn(BaseModel):
+    # journal — журнал операций и растры этикеток; inactive — погашенные товары;
+    # all — весь каталог целиком. Отдельным полем, а не тремя ручками: действие
+    # одно и то же, разной бывает только область.
+    scope: str = Field(pattern="^(journal|inactive|all)$")
+
+
+class PurgeResult(BaseModel):
+    products: int = 0
+    transactions: int = 0
+    covers: int = 0
+    photos: int = 0
+    labels: int = 0
+
+
 class CategoryCoverIn(BaseModel):
     image_base64: str = Field(min_length=1)
     image_format: str = Field(pattern="^(jpg|jpeg|png|webp)$")

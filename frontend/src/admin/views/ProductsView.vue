@@ -182,6 +182,50 @@ function coverSrc(category: Category) {
   return `/products/${category.image}?v=${coverBusy.value === category.name ? '' : Date.now()}`
 }
 
+// --- очистка данных --------------------------------------------------------
+// Каталог приходит из 1С полным срезом, поэтому «удалить лишнее» — это не правка
+// карточек по одной, а очистка целыми областями: журнал, скрытые товары, всё.
+const purgeVisible = ref(false)
+const purgeBusy = ref('')
+
+type PurgeScope = 'journal' | 'inactive' | 'all'
+
+const PURGE_SCOPES: PurgeScope[] = ['journal', 'inactive', 'all']
+
+function purgeTitle(scope: PurgeScope) {
+  return t(`admin.products.purge${scope[0].toUpperCase()}${scope.slice(1)}`)
+}
+
+function purgeDesc(scope: PurgeScope) {
+  return t(`admin.products.purge${scope[0].toUpperCase()}${scope.slice(1)}Desc`)
+}
+
+async function purge(scope: PurgeScope) {
+  const confirmed = await ElMessageBox.confirm(
+    t('admin.products.purgeConfirm', { what: purgeTitle(scope).toLowerCase() }),
+    t('admin.products.purgeConfirmTitle'),
+    {
+      type: 'warning',
+      confirmButtonText: t('admin.products.purgeRun'),
+      cancelButtonText: t('admin.products.cancel'),
+      confirmButtonClass: 'el-button--danger',
+    },
+  ).catch(() => false)
+  if (!confirmed) return
+
+  purgeBusy.value = scope
+  try {
+    const done = await api.purgeCatalog(scope)
+    ElMessage.success(t('admin.products.purgeDone', { ...done }))
+    purgeVisible.value = false
+    await load()
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.products.purgeFailed'))
+  } finally {
+    purgeBusy.value = ''
+  }
+}
+
 onMounted(load)
 </script>
 
@@ -196,6 +240,9 @@ onMounted(load)
         @input="load"
       />
       <el-button @click="openCovers">{{ t('admin.products.covers') }}</el-button>
+      <el-button type="danger" plain @click="purgeVisible = true">
+        {{ t('admin.products.purge') }}
+      </el-button>
       <el-button type="primary" @click="openCreate">
         {{ t('admin.products.add') }}
       </el-button>
@@ -305,6 +352,29 @@ onMounted(load)
         <el-button @click="dialogVisible = false">{{ t('admin.products.cancel') }}</el-button>
         <el-button type="primary" @click="submit">{{ t('admin.products.save') }}</el-button>
       </template>
+    </el-dialog>
+
+    <el-dialog v-model="purgeVisible" :title="t('admin.products.purgeTitle')" width="520px">
+      <div class="hint covers-hint">{{ t('admin.products.purgeHint') }}</div>
+      <div class="covers">
+        <div v-for="scope in PURGE_SCOPES" :key="scope" class="cover">
+          <div class="cover-body">
+            <div class="cover-name">{{ purgeTitle(scope) }}</div>
+            <div class="hint">{{ purgeDesc(scope) }}</div>
+          </div>
+          <div class="cover-actions">
+            <el-button
+              size="small"
+              type="danger"
+              :plain="scope !== 'all'"
+              :loading="purgeBusy === scope"
+              @click="purge(scope)"
+            >
+              {{ t('admin.products.purgeRun') }}
+            </el-button>
+          </div>
+        </div>
+      </div>
     </el-dialog>
 
     <el-dialog v-model="coversVisible" :title="t('admin.products.coversTitle')" width="560px">
