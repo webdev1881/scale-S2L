@@ -196,6 +196,7 @@ const messages = {
         lines: 'Рядків',
         extras: 'Додатково',
         caption: 'З підписом',
+        captionInline: 'Підпис у рядок',
         box: 'У рамці',
         visible: 'Друкувати',
         kind: {
@@ -209,6 +210,7 @@ const messages = {
           packed: 'Дата пакування',
           best_before: 'Придатний до',
           composition: 'Склад',
+          thanks: 'Подяка покупцю',
           text: 'Свій напис',
           line: 'Лінія',
         },
@@ -499,6 +501,7 @@ const messages = {
         lines: 'Строк',
         extras: 'Дополнительно',
         caption: 'С подписью',
+        captionInline: 'Подпись в строку',
         box: 'В рамке',
         visible: 'Печатать',
         kind: {
@@ -512,6 +515,7 @@ const messages = {
           packed: 'Дата упаковки',
           best_before: 'Годен до',
           composition: 'Состав',
+          thanks: 'Благодарность покупателю',
           text: 'Своя надпись',
           line: 'Линия',
         },

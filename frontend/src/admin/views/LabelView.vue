@@ -42,6 +42,7 @@ const KINDS = [
   'packed',
   'best_before',
   'composition',
+  'thanks',
   'text',
   'line',
 ] as const
@@ -244,6 +245,7 @@ function addBlock() {
     bold: false,
     align: 'left',
     caption: false,
+    caption_inline: false,
     lines: 1,
     box: false,
     text: t('admin.label.newText'),
@@ -557,6 +559,9 @@ watch(
         </el-form-item>
         <el-form-item :label="t('admin.label.extras')">
           <el-checkbox v-model="current.caption">{{ t('admin.label.caption') }}</el-checkbox>
+          <el-checkbox v-model="current.caption_inline" :disabled="!current.caption">
+            {{ t('admin.label.captionInline') }}
+          </el-checkbox>
           <el-checkbox v-model="current.box">{{ t('admin.label.box') }}</el-checkbox>
           <el-checkbox v-model="current.visible">{{ t('admin.label.visible') }}</el-checkbox>
         </el-form-item>

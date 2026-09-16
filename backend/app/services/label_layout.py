@@ -28,6 +28,7 @@ BlockKind = Literal[
     "packed",
     "best_before",
     "composition",
+    "thanks",
     "text",
     "line",
 ]
@@ -46,8 +47,12 @@ class LabelBlock(BaseModel):
     size: int = Field(default=20, ge=8, le=96)
     bold: bool = False
     align: Literal["left", "center", "right"] = "left"
-    # Подпись над значением («Маса», «Ціна за кг») — берётся из словаря по языку.
+    # Подпись рядом со значением («Вага:», «Ціна:») — берётся из словаря по языку.
     caption: bool = False
+    # Подпись в той же строке, что и значение: подпись прижата влево, значение —
+    # по `align`. Так свёрстан образец торговой сети, и так строка занимает вдвое
+    # меньше высоты, чем подпись отдельной строкой сверху.
+    caption_inline: bool = False
     # Сколько строк отдать длинному тексту: название и состав переносятся, хвост
     # обрезается многоточием.
     lines: int = Field(default=1, ge=1, le=6)
@@ -58,17 +63,25 @@ class LabelBlock(BaseModel):
 
 
 def default_blocks() -> list[LabelBlock]:
-    """Заводская раскладка — та же этикетка, что печаталась до конструктора."""
+    """Заводская раскладка — по образцу этикетки торговой сети.
+
+    Сверху название в две строки, слева штрихкод, справа столбцом «Вага», «Ціна»
+    и крупнее «Вартість», ниже название магазина и дата упаковки, внизу — строка
+    благодарности во всю ширину. Размеры под ленту 56x40 мм.
+    """
     return [
-        LabelBlock(kind="store", x=1.5, y=1.5, size=18),
-        LabelBlock(kind="line", x=1.5, y=4.5, height=0.2),
-        LabelBlock(kind="name", x=1.5, y=5.2, size=26, bold=True, lines=2),
-        LabelBlock(kind="weight", x=1.5, y=13, size=22, bold=True, caption=True),
-        LabelBlock(kind="price", x=28, y=13, size=22, bold=True, caption=True),
-        LabelBlock(kind="total", x=1.5, y=19.5, width=53, height=5.5, size=34, bold=True,
-                   align="right", caption=True, box=True),
-        LabelBlock(kind="packed", x=1.5, y=26, size=15),
-        LabelBlock(kind="barcode", x=1.5, y=29.5, height=9, size=16),
+        LabelBlock(kind="name", x=1.5, y=0.8, size=24, bold=True, lines=2),
+        LabelBlock(kind="barcode", x=1.5, y=9.5, width=26, height=10.5, size=15),
+        LabelBlock(kind="weight", x=28.5, y=10, width=26, size=19, bold=True,
+                   align="right", caption=True, caption_inline=True),
+        LabelBlock(kind="price", x=28.5, y=14.6, width=26, size=19, bold=True,
+                   align="right", caption=True, caption_inline=True),
+        LabelBlock(kind="total", x=20, y=20.5, width=34.5, size=23, bold=True,
+                   align="right", caption=True, caption_inline=True),
+        LabelBlock(kind="store", x=1.5, y=25, size=30, bold=True),
+        LabelBlock(kind="packed", x=25, y=30.5, width=29.5, size=14,
+                   align="right", caption=True, caption_inline=True),
+        LabelBlock(kind="thanks", x=1.5, y=34.8, size=16, bold=True, align="center"),
     ]
 
 

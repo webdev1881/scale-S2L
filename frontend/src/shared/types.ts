@@ -75,6 +75,7 @@ export interface LabelBlock {
     | 'packed'
     | 'best_before'
     | 'composition'
+    | 'thanks'
     | 'text'
     | 'line'
   /** Левый верхний угол и размеры в миллиметрах; нулевая ширина — до правого края. */
@@ -87,6 +88,8 @@ export interface LabelBlock {
   bold: boolean
   align: 'left' | 'center' | 'right'
   caption: boolean
+  /** Подпись в одной строке со значением, а не над ним. */
+  caption_inline: boolean
   lines: number
   box: boolean
   text: string
