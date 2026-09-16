@@ -165,6 +165,8 @@ const uiScales = computed<Record<string, string>>(() => {
   '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
     '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
+    // Клавиатура: доля ширины каталога, отступ с каждой стороны — половина остатка.
+    '--ui-kb-inset': `${(100 - (settings.value?.kiosk_keyboard_width ?? 60)) / 2}%`,
     '--ui-photo-scale': String((settings.value?.ui_photo_scale ?? 100) / 100),
     '--ui-photo-scale-group': String((settings.value?.ui_photo_scale_group ?? 100) / 100),
     // Ниже 100 % оператор просит показать снимок целиком, а не тот же кадр
@@ -1699,9 +1701,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .sheet {
   position: absolute;
-  right: 20%;
+  /* Ширину задаёт админка: отступ с каждой стороны — половина того, что осталось
+     от заданной доли. Отступами, а не `width` с центрированием: центрирование
+     сдвигом заняло бы `transform`, которым клавиатура выезжает снизу. */
+  right: var(--ui-kb-inset, 20%);
   bottom: 0;
-  left: 20%;
+  left: var(--ui-kb-inset, 20%);
   z-index: 2000;
   border-radius: var(--s2l-radius);
   overflow: hidden;

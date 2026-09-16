@@ -143,6 +143,10 @@ onMounted(load)
           <el-switch v-model="form.kiosk_back_button" />
           <div class="hint">{{ t('admin.settings.backButtonHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.keyboardWidth')">
+          <el-input-number v-model="form.kiosk_keyboard_width" :min="40" :max="100" :step="5" />
+          <div class="hint">{{ t('admin.settings.keyboardWidthHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.searchWidth')">
           <el-input-number
             v-model="form.kiosk_search_width"
