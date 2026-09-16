@@ -45,7 +45,6 @@ class PurgeIn(BaseModel):
 class PurgeResult(BaseModel):
     products: int = 0
     transactions: int = 0
-    covers: int = 0
     photos: int = 0
     labels: int = 0
 

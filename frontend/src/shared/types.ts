@@ -103,7 +103,6 @@ export interface LabelLayout {
 export interface PurgeResult {
   products: number
   transactions: number
-  covers: number
   photos: number
   labels: number
 }

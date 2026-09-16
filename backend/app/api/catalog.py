@@ -224,13 +224,10 @@ def purge_catalog(payload: PurgeIn, db: Session = Depends(get_db)) -> PurgeResul
             db.delete(transaction)
             result.transactions += 1
 
-    if payload.scope == "all":
-        # Обложки групп держатся на именах групп, а групп без товаров не бывает.
-        for cover in db.scalars(select(CategoryCover)):
-            if cover.image:
-                result.photos += _drop_photo(cover.image)
-            db.delete(cover)
-            result.covers += 1
+    # Обложки групп чистка не трогает вовсе — ни записи, ни файлы. Их подбирают
+    # руками, по одной, и после смены каталога та же группа придёт из 1С с тем же
+    # именем: обложка встанет на место сама. Заново загружать их после каждой
+    # чистки — работа, которой можно не быть.
 
     db.commit()
     live.notify("catalog")
