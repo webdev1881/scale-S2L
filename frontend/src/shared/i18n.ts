@@ -21,7 +21,7 @@ const messages = {
       disconnected: 'Немає зв’язку',
       updating: 'Оновлення цін',
       searchCta: 'ПОШУК товару',
-      searchPlaceholder: 'Натисніть щоб знайти товар за Назвою або Кодом',
+      searchPlaceholder: 'Знайти товар за Назвою або Кодом',
       code: 'Код',
       allCategories: 'Усі',
       searchResults: 'Результати пошуку',
