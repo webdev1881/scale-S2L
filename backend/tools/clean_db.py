@@ -25,7 +25,7 @@ sys.path.insert(0, str(BACKEND))
 
 from app.config import LABELS_DIR, PHOTOS_DIR  # noqa: E402
 from app.db import SessionLocal, engine  # noqa: E402
-from app.models import Product, Transaction  # noqa: E402
+from app.models import CategoryCover, Product, Transaction  # noqa: E402
 
 
 def main() -> int:
@@ -34,8 +34,10 @@ def main() -> int:
         journal = db.scalar(select(text("count(*)")).select_from(Transaction)) or 0
         inactive = list(db.scalars(select(Product).where(Product.active == 0)))
         labels = [p for p in LABELS_DIR.glob("*") if p.is_file()] if LABELS_DIR.exists() else []
-        # Снимки, у которых больше нет товара: имя файла — код товара.
+        # Снимки, у которых больше нет товара: имя файла — код товара. Обложки
+        # групп, выбранные оператором, тоже свои — их стирать нельзя.
         known = {str(p.plu) for p in db.scalars(select(Product).where(Product.active == 1))}
+        known |= {Path(c.image).stem for c in db.scalars(select(CategoryCover)) if c.image}
         stray_photos = [
             p for p in PHOTOS_DIR.glob("*") if p.is_file() and p.stem not in known
         ] if PHOTOS_DIR.exists() else []

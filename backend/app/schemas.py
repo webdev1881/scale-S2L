@@ -30,6 +30,14 @@ class CategoryOut(BaseModel):
     name: str
     image: str
     count: int
+    # Обложку выбрал оператор, а не подставил первый товар группы. Админке это
+    # нужно, чтобы показать кнопку «вернуть автоматическую».
+    custom_image: bool = False
+
+
+class CategoryCoverIn(BaseModel):
+    image_base64: str = Field(min_length=1)
+    image_format: str = Field(pattern="^(jpg|jpeg|png|webp)$")
 
 
 class WeightOut(BaseModel):

@@ -47,6 +47,15 @@ export const api = {
     return request<Product[]>(`/api/products?${query.toString()}`)
   },
   categories: () => request<Category[]>('/api/products/categories'),
+  setCategoryImage: (name: string, image_base64: string, image_format: string) =>
+    request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
+      method: 'PUT',
+      body: JSON.stringify({ image_base64, image_format }),
+    }),
+  clearCategoryImage: (name: string) =>
+    request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
+      method: 'DELETE',
+    }),
   createProduct: (payload: Omit<Product, 'id'>) =>
     request<Product>('/api/products', { method: 'POST', body: JSON.stringify(payload) }),
   updateProduct: (id: number, payload: Omit<Product, 'id'>) =>

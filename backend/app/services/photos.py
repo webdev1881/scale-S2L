@@ -12,6 +12,7 @@
 """
 from __future__ import annotations
 
+import hashlib
 import io
 
 from PIL import Image, ImageOps
@@ -28,6 +29,22 @@ _EXT = {"jpg": ".jpg", "jpeg": ".jpg", "png": ".png", "webp": ".webp"}
 
 def save_product_photo(plu: int, raw: bytes, fmt: str) -> str:
     """Ужимает и сохраняет снимок товара, возвращает имя файла для поля `image`."""
+    return save_photo(str(plu), raw, fmt)
+
+
+def cover_stem(category: str) -> str:
+    """Имя файла обложки группы.
+
+    Не транслитерация названия: группы приходят из 1С по-украински, и имя файла
+    из них выходит то нечитаемым, то совпадающим у разных групп. Хэш короткий,
+    стабильный и заведомо не столкнётся с именами снимков товаров — те состоят
+    из одних цифр.
+    """
+    return "group-" + hashlib.sha1(category.encode("utf-8")).hexdigest()[:10]
+
+
+def save_photo(stem: str, raw: bytes, fmt: str) -> str:
+    """Ужимает и сохраняет снимок под именем `stem`, возвращает имя файла."""
     ext = _EXT.get(fmt.lower())
     if ext is None:
         raise ValueError(f"неизвестный формат снимка: {fmt}")
@@ -40,7 +57,7 @@ def save_product_photo(plu: int, raw: bytes, fmt: str) -> str:
         if ext == ".jpg" and image.mode != "RGB":
             image = image.convert("RGB")
 
-        filename = f"{plu}{ext}"
+        filename = f"{stem}{ext}"
         PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
 
         save_kwargs = {"optimize": True} if ext == ".png" else {"quality": QUALITY, "optimize": True}
@@ -49,6 +66,6 @@ def save_product_photo(plu: int, raw: bytes, fmt: str) -> str:
     # Прежний файл того же товара в другом расширении больше не актуален — иначе
     # оба лежат рядом, и какой из них покажется на карточке, решает сортировка.
     for other_ext in set(_EXT.values()) - {ext}:
-        (PHOTOS_DIR / f"{plu}{other_ext}").unlink(missing_ok=True)
+        (PHOTOS_DIR / f"{stem}{other_ext}").unlink(missing_ok=True)
 
     return filename

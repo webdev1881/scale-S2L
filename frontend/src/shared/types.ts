@@ -20,6 +20,8 @@ export interface Category {
   name: string
   image: string
   count: number
+  /** Обложку выбрал оператор, а не подставил первый товар группы. */
+  custom_image: boolean
 }
 
 export interface WeightReading {

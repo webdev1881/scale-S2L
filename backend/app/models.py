@@ -33,6 +33,21 @@ class Product(Base):
     transactions: Mapped[list["Transaction"]] = relationship(back_populates="product")
 
 
+class CategoryCover(Base):
+    """Обложка группы, выбранная оператором вручную.
+
+    Отдельной таблицы групп нет — они собираются из товаров, — поэтому и обложка
+    хранится не «в группе», а рядом, по имени. Своя запись нужна затем, что по
+    умолчанию обложкой служит снимок первого товара: он меняется при каждой
+    выгрузке из 1С, а выбранная вручную картинка меняться не должна.
+    """
+
+    __tablename__ = "category_covers"
+
+    name: Mapped[str] = mapped_column(String(60), primary_key=True)
+    image: Mapped[str] = mapped_column(String(120), default="")
+
+
 class Transaction(Base):
     """Факт печати этикетки. Локальный журнал; на Фазе 4 выгружается в центр."""
 

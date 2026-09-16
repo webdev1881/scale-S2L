@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
 import { formatMoney } from '@/shared/format'
-import type { Product } from '@/shared/types'
+import type { Category, Product } from '@/shared/types'
 
 type ProductForm = Omit<Product, 'id'>
 
@@ -111,6 +111,77 @@ async function remove(product: Product) {
   await load()
 }
 
+// --- обложки групп ---------------------------------------------------------
+// Группы собираются из товаров, поэтому правятся не в строке таблицы, а
+// отдельным окном: там их десяток, и оператору удобнее видеть их списком.
+const coversVisible = ref(false)
+const categories = ref<Category[]>([])
+const coverBusy = ref('')
+
+async function openCovers() {
+  coversVisible.value = true
+  categories.value = await api.categories()
+}
+
+const FORMATS: Record<string, string> = {
+  'image/jpeg': 'jpg',
+  'image/png': 'png',
+  'image/webp': 'webp',
+}
+
+async function pickCover(category: Category, event: Event) {
+  const input = event.target as HTMLInputElement
+  const file = input.files?.[0]
+  // Поле очищаем сразу: иначе повторный выбор того же файла не даёт события.
+  input.value = ''
+  if (!file) return
+  const format = FORMATS[file.type]
+  if (!format) return ElMessage.warning(t('admin.products.coverFormat'))
+
+  coverBusy.value = category.name
+  try {
+    const base64 = await readBase64(file)
+    const saved = await api.setCategoryImage(category.name, base64, format)
+    replaceCategory(saved)
+    ElMessage.success(t('admin.products.coverSaved'))
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.products.coverFailed'))
+  } finally {
+    coverBusy.value = ''
+  }
+}
+
+async function resetCover(category: Category) {
+  coverBusy.value = category.name
+  try {
+    replaceCategory(await api.clearCategoryImage(category.name))
+    ElMessage.success(t('admin.products.coverCleared'))
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.products.coverFailed'))
+  } finally {
+    coverBusy.value = ''
+  }
+}
+
+function replaceCategory(saved: Category) {
+  categories.value = categories.value.map((c) => (c.name === saved.name ? saved : c))
+}
+
+/** Файл в base64 без префикса `data:`: бэкенд ждёт голые данные, как из 1С. */
+function readBase64(file: File) {
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onerror = () => reject(reader.error)
+    reader.onload = () => resolve(String(reader.result).split(',')[1] ?? '')
+    reader.readAsDataURL(file)
+  })
+}
+
+/** Снимок мог смениться, а имя файла — нет: браузер обязан перечитать его. */
+function coverSrc(category: Category) {
+  return `/products/${category.image}?v=${coverBusy.value === category.name ? '' : Date.now()}`
+}
+
 onMounted(load)
 </script>
 
@@ -124,6 +195,7 @@ onMounted(load)
         style="max-width: 320px"
         @input="load"
       />
+      <el-button @click="openCovers">{{ t('admin.products.covers') }}</el-button>
       <el-button type="primary" @click="openCreate">
         {{ t('admin.products.add') }}
       </el-button>
@@ -234,6 +306,54 @@ onMounted(load)
         <el-button type="primary" @click="submit">{{ t('admin.products.save') }}</el-button>
       </template>
     </el-dialog>
+
+    <el-dialog v-model="coversVisible" :title="t('admin.products.coversTitle')" width="560px">
+      <div class="hint covers-hint">{{ t('admin.products.coversHint') }}</div>
+      <div class="covers">
+        <div v-for="category in categories" :key="category.name" class="cover">
+          <img v-if="category.image" :src="coverSrc(category)" class="cover-thumb" alt="" />
+          <div v-else class="cover-thumb empty">—</div>
+          <div class="cover-body">
+            <div class="cover-name">{{ category.name }}</div>
+            <div class="hint">
+              {{ category.count }} ·
+              {{
+                category.custom_image
+                  ? t('admin.products.coverOwn')
+                  : t('admin.products.coverAuto')
+              }}
+            </div>
+          </div>
+          <div class="cover-actions">
+            <!-- Скрытый input вместо el-upload: файл уходит не отдельным
+                 запросом, а тем же JSON, что и снимки из 1С. -->
+            <el-button
+              size="small"
+              :loading="coverBusy === category.name"
+              @click="($refs['file-' + category.name] as HTMLInputElement[])[0].click()"
+            >
+              {{ t('admin.products.coverUpload') }}
+            </el-button>
+            <input
+              :ref="'file-' + category.name"
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              hidden
+              @change="pickCover(category, $event)"
+            />
+            <el-button
+              v-if="category.custom_image"
+              size="small"
+              link
+              type="danger"
+              @click="resetCover(category)"
+            >
+              {{ t('admin.products.coverReset') }}
+            </el-button>
+          </div>
+        </div>
+      </div>
+    </el-dialog>
   </div>
 </template>
 
@@ -261,6 +381,56 @@ onMounted(load)
   border-radius: 4px;
   vertical-align: middle;
   margin-right: 6px;
+}
+
+.covers-hint {
+  margin-bottom: 12px;
+}
+
+.covers {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.cover {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.cover-thumb {
+  width: 76px;
+  height: 56px;
+  object-fit: cover;
+  border-radius: 6px;
+  flex: none;
+}
+
+.cover-thumb.empty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--el-fill-color-light);
+  color: var(--el-text-color-placeholder);
+}
+
+.cover-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cover-name {
+  font-weight: 600;
+}
+
+.cover-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: none;
 }
 
 .thumb {

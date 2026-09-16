@@ -1,15 +1,19 @@
 """Каталог, журнал операций и настройки — то, чем управляет админка."""
 from __future__ import annotations
 
+import base64
+import binascii
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
 from ..db import get_db
-from ..models import Product, Transaction
-from ..schemas import CategoryOut, ProductIn, ProductOut, TransactionOut
+from ..models import CategoryCover, Product, Transaction
+from ..schemas import CategoryCoverIn, CategoryOut, ProductIn, ProductOut, TransactionOut
 from ..services import live
+from ..services.photos import MAX_IMAGE_BYTES, PHOTOS_DIR, cover_stem, save_photo
 from ..services.settings_store import DeviceSettings, load_settings, save_settings
 
 router = APIRouter(prefix="/api", tags=["catalog"])
@@ -45,6 +49,7 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
     картинок и не поддерживать его в актуальном состоянии вручную.
     """
     products = list(db.scalars(select(Product).where(Product.active == 1).order_by(Product.plu)))
+    covers = {c.name: c.image for c in db.scalars(select(CategoryCover)) if c.image}
     groups: dict[str, CategoryOut] = {}
     for product in products:
         if not product.category:
@@ -58,7 +63,65 @@ def list_categories(db: Session = Depends(get_db)) -> list[CategoryOut]:
             group.count += 1
             if not group.image:
                 group.image = product.image
+    # Выбранная оператором обложка сильнее снимка первого товара: тот меняется
+    # с каждой выгрузкой из 1С, а картинка группы должна стоять на месте.
+    for group in groups.values():
+        custom = covers.get(group.name)
+        if custom:
+            group.image = custom
+            group.custom_image = True
     return sorted(groups.values(), key=lambda g: g.name)
+
+
+@router.put("/products/categories/{name}/image", response_model=CategoryOut)
+def set_category_image(
+    name: str, payload: CategoryCoverIn, db: Session = Depends(get_db)
+) -> CategoryOut:
+    """Кладёт свою обложку группе. Файл ужимается так же, как снимки товаров."""
+    if not db.scalar(select(Product).where(Product.category == name).limit(1)):
+        raise HTTPException(404, f"Группа «{name}» не найдена")
+    try:
+        raw = base64.b64decode(payload.image_base64, validate=True)
+    except (ValueError, binascii.Error) as exc:
+        raise HTTPException(400, "Снимок не читается") from exc
+    if len(raw) > MAX_IMAGE_BYTES:
+        raise HTTPException(400, f"Снимок больше {MAX_IMAGE_BYTES // (1024 * 1024)} МБ")
+    try:
+        filename = save_photo(cover_stem(name), raw, payload.image_format)
+    except (ValueError, OSError) as exc:
+        raise HTTPException(400, str(exc)) from exc
+
+    cover = db.get(CategoryCover, name)
+    if cover is None:
+        cover = CategoryCover(name=name)
+        db.add(cover)
+    cover.image = filename
+    db.commit()
+    live.notify("catalog")
+    return _category_out(db, name)
+
+
+@router.delete("/products/categories/{name}/image", response_model=CategoryOut)
+def clear_category_image(name: str, db: Session = Depends(get_db)) -> CategoryOut:
+    """Возвращает группе обложку по умолчанию — снимок первого товара."""
+    cover = db.get(CategoryCover, name)
+    if cover is not None:
+        # Файл убираем вместе с записью: держать его дальше незачем, а имя
+        # стабильно, и следующая загрузка в эту же группу создаст его заново.
+        if cover.image:
+            (PHOTOS_DIR / cover.image).unlink(missing_ok=True)
+        db.delete(cover)
+        db.commit()
+        live.notify("catalog")
+    return _category_out(db, name)
+
+
+def _category_out(db: Session, name: str) -> CategoryOut:
+    """Одна группа тем же способом, что и весь список."""
+    for group in list_categories(db):
+        if group.name == name:
+            return group
+    raise HTTPException(404, f"Группа «{name}» не найдена")
 
 
 @router.post("/products", response_model=ProductOut, status_code=201)
