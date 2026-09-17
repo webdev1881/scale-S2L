@@ -63,6 +63,12 @@ class Settings(BaseSettings):
     # заголовок X-API-Key: <токен>, как шлёт обработка 1С). Пусто — приём выключен.
     import_token: str = ""
 
+    # Логин и пароль админки (HTTP Basic, см. app/auth.py). Пустой пароль —
+    # админка открыта; так удобно на машине разработчика и опасно на приборе,
+    # который смотрит в интернет через туннель.
+    admin_user: str = "admin"
+    admin_password: str = ""
+
 
     @field_validator("db_url")
     @classmethod

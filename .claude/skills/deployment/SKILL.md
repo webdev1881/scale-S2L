@@ -80,4 +80,6 @@ udev-правила и юнит киоска, тянет образ и подн�
 `CLOUDFLARE_TUNNEL_TOKEN`. В 1С — `Сервер = <имя прибора в домене>`, `SSL = Истина`,
 ресурс `/api/catalog/1c-import`, заголовок `X-API-Key`. Не Tailscale, потому что на
 сервер 1С ставить клиента нельзя; Cloudflare Tunnel требует только имя и HTTPS.
-Подробности — `integrations/1c/README.md` и `docs/deploy.md`.
+Через туннель наружу смотрит и админка, поэтому в `.env` прибора обязателен
+`S2L_ADMIN_PASSWORD` (скилл `admin-ui`). Подробности — `integrations/1c/README.md` и
+`docs/deploy.md`.

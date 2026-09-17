@@ -4,11 +4,12 @@ import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
+from . import auth
 from .api import catalog, device, import_1c
 from .config import BASE_DIR, LABELS_DIR, PHOTOS_DIR, get_settings
 from .db import SessionLocal, init_db
@@ -25,6 +26,7 @@ FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 async def lifespan(app: FastAPI):
     settings = get_settings()
     init_db()
+    auth.warn_if_open()
     # Демо-каталог — для разработки на симуляторе. На приборе пустая база должна
     # остаться пустой: её заполняют клоном с другого прибора или выгрузкой из
     # товароучёта, а демо-товары ссылаются на снимки, которых в сборке давно нет.
@@ -57,6 +59,16 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+
+@app.middleware("http")
+async def admin_auth(request: Request, call_next):  # type: ignore[no-untyped-def]
+    """Пароль на всё, чем управляет оператор; киоск и 1С проходят без него."""
+    if auth.needs_auth(request) and not auth.authorized(request):
+        return auth.challenge()
+    return await call_next(request)
+
 
 app.include_router(catalog.router)
 app.include_router(device.router)
