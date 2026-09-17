@@ -180,7 +180,7 @@ onBeforeUnmount(() => observer?.disconnect())
             <div class="hint">{{ t('admin.settings.scaleButtonsHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.clearHold')">
-            <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.3" :max="10" :step="0.5" />
+            <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.2" :max="10" :step="0.1" />
             <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.unselect')">
