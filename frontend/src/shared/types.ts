@@ -132,6 +132,7 @@ export interface DeviceSettings {
   kiosk_back_button: boolean
   kiosk_search_width: number
   kiosk_keyboard_width: number
+  kiosk_keyboard_height: number
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number

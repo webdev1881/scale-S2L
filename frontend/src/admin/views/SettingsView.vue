@@ -147,6 +147,10 @@ onMounted(load)
           <el-input-number v-model="form.kiosk_keyboard_width" :min="40" :max="100" :step="5" />
           <div class="hint">{{ t('admin.settings.keyboardWidthHint') }}</div>
         </el-form-item>
+        <el-form-item :label="t('admin.settings.keyboardHeight')">
+          <el-input-number v-model="form.kiosk_keyboard_height" :min="20" :max="50" :step="1" />
+          <div class="hint">{{ t('admin.settings.keyboardHeightHint') }}</div>
+        </el-form-item>
         <el-form-item :label="t('admin.settings.searchWidth')">
           <el-input-number
             v-model="form.kiosk_search_width"

@@ -167,6 +167,9 @@ const uiScales = computed<Record<string, string>>(() => {
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
     // Клавиатура: доля ширины каталога, отступ с каждой стороны — половина остатка.
     '--ui-kb-inset': `${(100 - (settings.value?.kiosk_keyboard_width ?? 60)) / 2}%`,
+    // Высота — доля экрана. Без верхнего предела в пикселях: оператор задал долю,
+    // и предел спорил бы с ней ровно там, где её и увеличивают.
+    '--s2l-kb-height': `${settings.value?.kiosk_keyboard_height ?? 32}vh`,
     '--ui-photo-scale': String((settings.value?.ui_photo_scale ?? 100) / 100),
     '--ui-photo-scale-group': String((settings.value?.ui_photo_scale_group ?? 100) / 100),
     // Ниже 100 % оператор просит показать снимок целиком, а не тот же кадр

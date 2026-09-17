@@ -152,6 +152,7 @@
   "kiosk_back_button": true,
   "kiosk_search_width": 50,
   "kiosk_keyboard_width": 60,
+  "kiosk_keyboard_height": 32,
   "kiosk_peek_percent": 44,
   "kiosk_idle_reset_s": 45,
   "kiosk_clear_hold_s": 1.5,
