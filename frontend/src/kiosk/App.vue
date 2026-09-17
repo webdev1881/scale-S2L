@@ -901,15 +901,24 @@ function armLabelCap() {
  */
 let clearTimer: number | undefined
 
-watch(
-  () => [awaitingPickup.value, weight.reading.net_g, weight.reading.stable] as const,
-  ([shown, net, stable]) => {
-    window.clearTimeout(clearTimer)
-    if (!shown) return
-    if (net >= minWeight.value || !stable) return
-    clearTimer = window.setTimeout(closeLabel, clearHoldMs.value)
-  },
+/**
+ * Одно булево, а не сырые отсчёты: таймер заводится, когда платформа стала
+ * пустой, и снимается, когда перестала. Прежняя версия следила за самим весом и
+ * перезаводила таймер на каждом отсчёте — а отсчёты на пустой платформе гуляют
+ * между 0 и 2 г десять раз в секунду, и двухсекундная выдержка не набиралась
+ * никогда: покупка не закрывалась, пока не срабатывал предельный таймер.
+ */
+const platformClear = computed(
+  () =>
+    awaitingPickup.value &&
+    weight.reading.net_g < minWeight.value &&
+    weight.reading.stable,
 )
+
+watch(platformClear, (clear) => {
+  window.clearTimeout(clearTimer)
+  if (clear) clearTimer = window.setTimeout(closeLabel, clearHoldMs.value)
+})
 
 function closeLabel() {
   window.clearTimeout(labelTimer)
