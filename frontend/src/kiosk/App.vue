@@ -208,6 +208,7 @@ const actionsStyle = computed(() => {
 const headerOnContact = computed(() => settings.value?.kiosk_header_on_contact ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
+const unselectMs = computed(() => (settings.value?.kiosk_unselect_s ?? 5) * 1000)
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -920,6 +921,28 @@ watch(platformClear, (clear) => {
   if (clear) clearTimer = window.setTimeout(closeLabel, clearHoldMs.value)
 })
 
+/**
+ * Выбор без печати: нажали карточку с пустой платформой (печать отказала —
+ * «положите товар») и ушли. Пустая платформа держится дольше, чем после печати:
+ * покупатель ещё может положить товар, торопить его незачем. Снимается только
+ * выбор, каталог остаётся где был — человек может всё ещё смотреть на экран.
+ */
+let unselectTimer: number | undefined
+
+const abandonedPick = computed(
+  () =>
+    unselectMs.value > 0 &&
+    selected.value !== null &&
+    !awaitingPickup.value &&
+    weight.reading.net_g < minWeight.value &&
+    weight.reading.stable,
+)
+
+watch(abandonedPick, (abandoned) => {
+  window.clearTimeout(unselectTimer)
+  if (abandoned) unselectTimer = window.setTimeout(() => (selected.value = null), unselectMs.value)
+})
+
 function closeLabel() {
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
@@ -995,6 +1018,7 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
+  window.clearTimeout(unselectTimer)
   window.clearTimeout(busyTimer)
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)

@@ -183,6 +183,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.3" :max="10" :step="0.5" />
             <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.unselect')">
+            <el-input-number v-model="form.kiosk_unselect_s" :min="0" :max="60" :step="1" />
+            <div class="hint">{{ t('admin.settings.unselectHint') }}</div>
+          </el-form-item>
           <el-form-item :label="t('admin.settings.labelMax')">
             <el-input-number v-model="form.kiosk_label_max_s" :min="5" :max="120" :step="5" />
             <div class="hint">{{ t('admin.settings.labelMaxHint') }}</div>
