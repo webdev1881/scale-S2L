@@ -78,15 +78,21 @@ up` откажется стартовать. Для USB-переходников
 1С ходит на прибор снаружи (сервер 1С доступен только по RDP), а приборы стоят за
 NAT провайдера без белого IP — проброс портов на роутере магазина до них не
 доходит. Поэтому прибор сам держит исходящий туннель к Cloudflare, и 1С видит его
-по имени `vesy-<магазин>-<номер>.<ваш домен>`. Один раз на прибор:
+по имени `vesy-<магазин>-<номер>.smk-retail.com` (домен заведён в аккаунте
+Cloudflare владельца; туннели и имена бесплатны). Один раз на прибор:
 
-1. Cloudflare Zero Trust → Networks → Tunnels → Create → «Cloudflared» → Docker:
-   скопировать токен из команды в `CLOUDFLARE_TUNNEL_TOKEN` в `/opt/s2l/.env`,
-   там же раскомментировать `COMPOSE_PROFILES=tunnel`.
-2. В том же туннеле — Public Hostname: имя прибора в вашем домене, сервис
-   `HTTP`, URL `127.0.0.1:8000`.
+1. Cloudflare → Networking → Tunnels → Create Tunnel, имя прибора
+   (`vesy-kyiv-1`). На странице туннеля выбрать Docker и скопировать значение
+   после `--token` в `CLOUDFLARE_TUNNEL_TOKEN` в `/opt/s2l/.env`, там же
+   раскомментировать `COMPOSE_PROFILES=tunnel`.
+2. Туннель → Routes → Add route → Published application: Subdomain — имя
+   прибора, Domain — `smk-retail.com`, Service URL — `http://127.0.0.1:8000`.
+   DNS-запись Cloudflare создаст сам.
 3. `docker compose up -d` — поднимется контейнер `s2l-tunnel`, в панели туннель
    станет `Healthy`. Проверка: `curl https://<имя>/health` с любого компьютера.
+
+Так заведён `vesy-dev.smk-retail.com` — машина разработчика, на ней cloudflared
+стоит как обычная программа, а не в docker.
 
 Через туннель наружу смотрит и админка — `https://<имя>/admin`, поэтому в `.env`
 обязателен `S2L_ADMIN_PASSWORD`: без него прибор откажется прятать админку, и её
