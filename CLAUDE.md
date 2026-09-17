@@ -19,7 +19,7 @@ cd frontend && npm run dev          # киоск :5173/, админка :5173/ad
 cd frontend && npm run build        # после сборки FastAPI сам отдаёт / и /admin
 cd frontend && npm run typecheck    # vue-tsc; запускать перед сдачей изменений
 
-# Образ прибора (симулятор, порт 8000); на прибор — docs/deploy.md
+# Образ прибора (симулятор, порт 8000); на прибор — docs/new-device.md, docs/deploy.md
 docker compose up --build
 ```
 
