@@ -164,12 +164,33 @@ def sim_printer(payload: SimPrinterIn, devices: Devices = Depends(get_devices)) 
 
 @router.websocket("/ws/updates")
 async def ws_updates(websocket: WebSocket) -> None:
-    """Что тронули в админке. Киоск перечитывает по событию, а не по таймеру."""
+    """Что тронули в админке. Киоск перечитывает по событию, а не по таймеру.
+
+    Голый `await queue.get()` без ничего рядом никак не замечает ни отключение
+    клиента, ни остановку сервиса: событий в очереди может не быть сутками, а
+    закрытие сокета этот await не будит — он не про сокет, а про очередь. На
+    рестарте это вешало shutdown на десятки секунд, пока systemd не убивал
+    процесс силой. Поэтому рядом отдельной задачей ждём `receive()` — она и
+    ловит закрытие сокета — и берём то, что подоспело первым.
+    """
     await websocket.accept()
     queue = live.subscribe()
     try:
         while True:
-            await websocket.send_json({"changed": await queue.get()})
+            get_task = asyncio.ensure_future(queue.get())
+            recv_task = asyncio.ensure_future(websocket.receive())
+            done, pending = await asyncio.wait(
+                {get_task, recv_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+            for task in pending:
+                task.cancel()
+            if recv_task in done:
+                message = recv_task.result()
+                if message.get("type") == "websocket.disconnect":
+                    return
+                # Клиент ничего не шлёт по этому сокету — считаем это шумом.
+                continue
+            await websocket.send_json({"changed": get_task.result()})
     except WebSocketDisconnect:
         return
     finally:

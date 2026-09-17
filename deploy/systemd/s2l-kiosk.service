@@ -17,7 +17,10 @@ Environment=WLR_LIBINPUT_NO_DEVICES=1
 
 # cage — вейланд-композитор ровно на одно окно: ни рабочего стола, ни панели,
 # ни возможности свернуть киоск. Легче связки X11 + WM.
-ExecStart=/usr/bin/cage -- /usr/bin/chromium \
+# -s — разрешить переключение VT (Alt+Ctrl+Fn): по умолчанию cage его блокирует
+# вместе с прочим «выходом за пределы приложения», а сервисному доступу
+# (консоль на случай сбоя) это как раз нужно.
+ExecStart=/usr/bin/cage -s -- /usr/bin/chromium \
   --kiosk \
   --app=http://127.0.0.1:8000/ \
   --noerrdialogs \
