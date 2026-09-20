@@ -86,7 +86,10 @@ onUnmounted(() => window.clearInterval(poll))
           <!-- Место для кнопок текущего раздела: страница настроек телепортирует
                сюда «Зберегти», чтобы кнопка не уезжала вниз вместе с формой. -->
           <div id="admin-actions" class="header-actions"></div>
-          <a href="/" target="_blank" class="kiosk-link">{{ t('admin.status.openKiosk') }}</a>
+          <!-- В той же вкладке, а не в новой: на приборе админку открывают из самого
+               киоска (семь касаний по «Товар не обрано»), и возврат должен вернуть ту
+               же вкладку, а не завести второй киоск рядом с первым. -->
+          <a href="/" class="kiosk-link">{{ t('admin.status.openKiosk') }}</a>
         </div>
       </el-header>
 
