@@ -990,6 +990,28 @@ watch(
   },
 )
 
+/**
+ * Тайный вход в админку с самого прибора: семь касаний подряд по плитке «Товар не
+ * обрано». Клавиатуры и мыши у прибора нет, а открыть админку на месте бывает
+ * нужно — цена, снимок, настройка сетки. Семь и не больше полутора секунд между
+ * касаниями: случайно столько не нажмёшь, а оператор сделает за три секунды.
+ * Пароль админки спросит браузер, так что покупатель, даже повторив жест,
+ * дальше окна с паролем не пройдёт.
+ */
+const SECRET_TAPS = 7
+const SECRET_GAP_MS = 1500
+let secretCount = 0
+let secretLast = 0
+
+function secretTap() {
+  const now = Date.now()
+  secretCount = now - secretLast <= SECRET_GAP_MS ? secretCount + 1 : 1
+  secretLast = now
+  if (secretCount < SECRET_TAPS) return
+  secretCount = 0
+  window.location.assign('/admin')
+}
+
 function bumpIdle() {
   // Пока ждём, когда заберут товар, касание отодвигает предел: экран не должен
   // уходить из-под руки того, кто на него смотрит. Снятие товара с платформы
@@ -1266,7 +1288,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 </template>
               </div>
             </template>
-            <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
+            <div v-else class="pick-empty" @click="secretTap">{{ t('kiosk.noProduct') }}</div>
           </div>
 
           <!-- Два действия в одной ширине, пополам. Возврат ко всем товарам нужен
