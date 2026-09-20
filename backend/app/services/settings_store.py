@@ -84,6 +84,12 @@ class DeviceSettings(BaseModel):
     # экране прибора (340 px из 1080). Выше — крупнее клавиши, но каталог под
     # клавиатурой сжимается до одного ряда карточек.
     kiosk_keyboard_height: int = Field(default=32, ge=20, le=50)
+    # Шрифт клавиш: ключ из списка во фронтенде (`shared/fonts.ts`), кегль в
+    # пикселях и жирность. 23 px и жирный — то, что давала прежняя зашитая
+    # `clamp(17px, 2vw, 23px)` на экране 1920.
+    kiosk_keyboard_font: str = Field(default="system", pattern="^(system|arial|dejavu|ubuntu|mono|serif)$")
+    kiosk_keyboard_font_size: int = Field(default=23, ge=14, le=40)
+    kiosk_keyboard_bold: bool = True
     # Сколько процентов следующей карточки видно в жёлобе подсказки при листании.
     # 0 — жёлоба нет вовсе. Задаётся долей карточки, а не пикселями: карточка меняет
     # ширину вместе с числом колонок, и зашитый пиксель означал бы разную подсказку

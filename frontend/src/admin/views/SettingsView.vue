@@ -4,6 +4,7 @@ import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
+import { KIOSK_FONTS, KIOSK_FONT_KEYS } from '@/shared/fonts'
 import { LOCALE_NAMES, SUPPORTED_LOCALES, setLocale } from '@/shared/i18n'
 import type { DeviceSettings } from '@/shared/types'
 
@@ -317,6 +318,35 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_keyboard_height" :min="20" :max="50" :step="1" />
             <div class="hint">{{ t('admin.settings.keyboardHeightHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.keyboardFont')">
+            <el-select v-model="form.kiosk_keyboard_font" style="width: 220px">
+              <el-option
+                v-for="key in KIOSK_FONT_KEYS"
+                :key="key"
+                :value="key"
+                :label="t(`admin.settings.fonts.${key}`)"
+                :style="{ fontFamily: KIOSK_FONTS[key] }"
+              />
+            </el-select>
+            <!-- Образец тем же шрифтом и кеглем, что на клавишах: подбирать шрифт
+                 по названию в списке — гадать. -->
+            <div
+              class="font-sample"
+              :style="{
+                fontFamily: KIOSK_FONTS[form.kiosk_keyboard_font],
+                fontSize: form.kiosk_keyboard_font_size + 'px',
+                fontWeight: form.kiosk_keyboard_bold ? 700 : 400,
+              }"
+            >
+              Й Ц У К Е Н Г Ш Щ З Х Ї · 1 2 3
+            </div>
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.keyboardFontSize')">
+            <el-input-number v-model="form.kiosk_keyboard_font_size" :min="14" :max="40" :step="1" />
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.keyboardBold')">
+            <el-switch v-model="form.kiosk_keyboard_bold" />
+          </el-form-item>
         </div>
       </section>
 
@@ -496,6 +526,15 @@ onBeforeUnmount(() => observer?.disconnect())
 .times {
   margin: 0 10px;
   color: var(--s2l-muted);
+}
+
+.font-sample {
+  width: 100%;
+  margin-top: 8px;
+  padding: 8px 12px;
+  line-height: 1.2;
+  background: var(--el-fill-color-light);
+  border-radius: 8px;
 }
 
 .hint {

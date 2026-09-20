@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
 import { orderedCategories, orderedProducts } from '@/shared/catalog'
+import { KIOSK_FONTS } from '@/shared/fonts'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
@@ -170,6 +171,9 @@ const uiScales = computed<Record<string, string>>(() => {
     // Высота — доля экрана. Без верхнего предела в пикселях: оператор задал долю,
     // и предел спорил бы с ней ровно там, где её и увеличивают.
     '--s2l-kb-height': `${settings.value?.kiosk_keyboard_height ?? 32}vh`,
+    '--ui-kb-font': KIOSK_FONTS[settings.value?.kiosk_keyboard_font ?? 'system'],
+    '--ui-kb-font-size': `${settings.value?.kiosk_keyboard_font_size ?? 23}px`,
+    '--ui-kb-font-weight': (settings.value?.kiosk_keyboard_bold ?? true) ? '700' : '400',
     '--ui-photo-scale': String((settings.value?.ui_photo_scale ?? 100) / 100),
     '--ui-photo-scale-group': String((settings.value?.ui_photo_scale_group ?? 100) / 100),
     // Ниже 100 % оператор просит показать снимок целиком, а не тот же кадр

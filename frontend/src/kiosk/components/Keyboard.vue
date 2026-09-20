@@ -90,8 +90,10 @@ const rows = computed(() => LAYOUTS[locale.value] ?? LAYOUTS.uk)
   /* Клавиша заведомо крупнее пальца: промах на киоске дороже лишнего места */
   min-width: 0;
   height: 100%;
-  font-size: clamp(17px, 2vw, 23px);
-  font-weight: 600;
+  /* Шрифт, кегль и жирность задаёт админка; запасные значения — прежние зашитые. */
+  font-family: var(--ui-kb-font, inherit);
+  font-size: var(--ui-kb-font-size, clamp(17px, 2vw, 23px));
+  font-weight: var(--ui-kb-font-weight, 600);
   color: var(--s2l-ink);
   background: var(--s2l-key);
   border: none;

@@ -133,6 +133,9 @@ export interface DeviceSettings {
   kiosk_search_width: number
   kiosk_keyboard_width: number
   kiosk_keyboard_height: number
+  kiosk_keyboard_font: 'system' | 'arial' | 'dejavu' | 'ubuntu' | 'mono' | 'serif'
+  kiosk_keyboard_font_size: number
+  kiosk_keyboard_bold: boolean
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number
