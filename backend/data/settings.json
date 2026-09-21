@@ -160,6 +160,7 @@
   "kiosk_idle_reset_s": 45,
   "kiosk_clear_hold_s": 0.5,
   "kiosk_unselect_s": 1.0,
+  "kiosk_after_print": "home",
   "kiosk_label_max_s": 10.0,
   "splash_seconds": 3.0,
   "kiosk_force_updating": false,

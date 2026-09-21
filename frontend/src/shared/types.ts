@@ -140,6 +140,7 @@ export interface DeviceSettings {
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number
   kiosk_unselect_s: number
+  kiosk_after_print: 'home' | 'catalog' | 'search'
   kiosk_label_max_s: number
   splash_seconds: number
   kiosk_force_updating: boolean

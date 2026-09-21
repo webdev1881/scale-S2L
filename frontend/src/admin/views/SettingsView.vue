@@ -263,6 +263,14 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.2" :max="10" :step="0.1" />
             <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.afterPrint')">
+            <el-radio-group v-model="form.kiosk_after_print">
+              <el-radio-button value="home">{{ t('admin.settings.afterPrintHome') }}</el-radio-button>
+              <el-radio-button value="catalog">{{ t('admin.settings.afterPrintCatalog') }}</el-radio-button>
+              <el-radio-button value="search">{{ t('admin.settings.afterPrintSearch') }}</el-radio-button>
+            </el-radio-group>
+            <div class="hint">{{ t('admin.settings.afterPrintHint') }}</div>
+          </el-form-item>
           <el-form-item :label="t('admin.settings.unselect')">
             <el-input-number v-model="form.kiosk_unselect_s" :min="0" :max="60" :step="1" />
             <div class="hint">{{ t('admin.settings.unselectHint') }}</div>

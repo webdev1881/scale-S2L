@@ -215,6 +215,7 @@ const headerOnContact = computed(() => settings.value?.kiosk_header_on_contact ?
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const unselectMs = computed(() => (settings.value?.kiosk_unselect_s ?? 5) * 1000)
+const afterPrint = computed(() => settings.value?.kiosk_after_print ?? 'home')
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -863,11 +864,12 @@ async function print() {
   try {
     await api.print(selected.value.id)
     awaitingPickup.value = true
-    // Каталог сразу встаёт начальным: без диалога покупатель почти сразу видит
-    // экран снова, и всё это время следующий человек не должен видеть чужую
-    // страницу, чужую группу и чужой набранный поиск. Цена и стоимость в шапке
-    // остаются — по ним покупатель проверяет, за что заплатит, пока не заберёт товар.
-    resetBrowsing()
+    // Куда встаёт каталог — решает оператор (`kiosk_after_print`): по умолчанию к
+    // началу, чтобы следующий человек не видел чужую группу и чужой поиск; в
+    // отделе, где берут по нескольку товаров, — остаться в группе или сразу с
+    // клавиатурой. Цена и стоимость в шапке остаются — по ним покупатель
+    // проверяет, за что заплатит, пока не заберёт товар.
+    landAfterPurchase()
     // Дальше экран ждёт не таймер, а платформу: покупка кончается тогда, когда
     // покупатель забрал товар. Таймер остаётся страховкой на случай, когда товар
     // не сняли вовсе.
@@ -960,7 +962,37 @@ function closeLabel() {
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
   awaitingPickup.value = false
-  reset()
+  if (afterPrint.value === 'home') return reset()
+  // Покупатель взвешивает дальше: экран остаётся где был, уходит только
+  // выбранный товар с его ценой. Шапка не прячется — человек ещё у прибора.
+  void refreshSettings()
+  selected.value = null
+  hadLoad = loaded.value
+  landAfterPurchase()
+}
+
+/**
+ * Экран после покупки по настройке `kiosk_after_print`. Набранный поиск и код
+ * снимаются в любом режиме: они принадлежали предыдущему товару. Группа и
+ * страница в режимах «каталог» и «клавиатура» остаются.
+ */
+function landAfterPurchase() {
+  switch (afterPrint.value) {
+    case 'catalog':
+      search.value = ''
+      pluInput.value = ''
+      showNumpad.value = false
+      keyboardOpen.value = false
+      break
+    case 'search':
+      search.value = ''
+      pluInput.value = ''
+      showNumpad.value = false
+      openSearch()
+      break
+    default:
+      resetBrowsing()
+  }
 }
 
 /**
