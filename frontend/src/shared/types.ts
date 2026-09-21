@@ -143,6 +143,7 @@ export interface DeviceSettings {
   kiosk_label_max_s: number
   splash_seconds: number
   kiosk_force_updating: boolean
+  kiosk_updating_photo_scale: number
   ui_scale_weight: number
   ui_scale_group_title: number
   ui_scale_product_name: number

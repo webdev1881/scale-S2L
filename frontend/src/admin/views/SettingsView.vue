@@ -220,6 +220,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-switch v-model="form.kiosk_force_updating" />
             <div class="hint">{{ t('admin.settings.forceUpdatingHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.updatingPhotoScale')">
+            <el-input-number v-model="form.kiosk_updating_photo_scale" :min="0" :max="100" :step="2" />
+            <div class="hint">{{ t('admin.settings.updatingPhotoScaleHint') }}</div>
+          </el-form-item>
         </div>
       </section>
 

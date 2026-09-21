@@ -176,12 +176,14 @@ const uiScales = computed<Record<string, string>>(() => {
     '--ui-kb-font-weight': (settings.value?.kiosk_keyboard_bold ?? true) ? '700' : '400',
     '--ui-photo-scale': String((settings.value?.ui_photo_scale ?? 100) / 100),
     '--ui-photo-scale-group': String((settings.value?.ui_photo_scale_group ?? 100) / 100),
-    // Ниже 100 % оператор просит показать снимок целиком, а не тот же кадр
+    // Ниже 90 % оператор просит показать снимок целиком, а не тот же кадр
     // поменьше: `cover` кадрирует по краям, и уменьшение только отодвигало
-    // обрезанную фотографию от краёв карточки, ничего не открывая.
-    '--ui-photo-fit': (settings.value?.ui_photo_scale ?? 100) < 100 ? 'contain' : 'cover',
+    // обрезанную фотографию от краёв карточки, ничего не открывая. Порог не
+    // на 100, а на 90 — иначе смена cover→contain сама по себе давала скачок
+    // размера прямо там, где оператор ждёт плавного уменьшения на 1%.
+    '--ui-photo-fit': (settings.value?.ui_photo_scale ?? 100) < 90 ? 'contain' : 'cover',
     '--ui-photo-fit-group':
-      (settings.value?.ui_photo_scale_group ?? 100) < 100 ? 'contain' : 'cover',
+      (settings.value?.ui_photo_scale_group ?? 100) < 90 ? 'contain' : 'cover',
     '--ui-plate-height': String(settings.value?.ui_plate_height ?? 30),
     // На низкой плашке две строки не помещаются, и вторая срезалась бы посередине
     // букв. Ниже порога подпись сворачивается в одну строку с многоточием.
@@ -1128,6 +1130,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
     <UpdatingOverlay
       v-else-if="!weight.connected || catalogBusy || settings?.kiosk_force_updating"
+      :photo-scale="settings?.kiosk_updating_photo_scale ?? 52"
     />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
