@@ -4,7 +4,7 @@ from __future__ import annotations
 import base64
 import binascii
 
-from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, Query
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
@@ -24,7 +24,15 @@ from ..schemas import (
 )
 from ..services import live
 from ..services.photos import MAX_IMAGE_BYTES, PHOTOS_DIR, cover_stem, save_photo
-from ..services.settings_store import DeviceSettings, load_settings, save_settings
+from ..services.settings_store import (
+    DeviceSettings,
+    apply_preset,
+    delete_preset,
+    list_presets,
+    load_settings,
+    save_preset,
+    save_settings,
+)
 
 router = APIRouter(prefix="/api", tags=["catalog"])
 
@@ -293,3 +301,36 @@ def put_settings_route(payload: DeviceSettings) -> DeviceSettings:
     saved = save_settings(payload)
     live.notify("settings")
     return saved
+
+
+# Пресеты — именованные снимки настроек: переключиться между «залом» и
+# «прилавком» одной кнопкой в шапке, не подбирая заново десяток полей.
+# Сохраняют то, что сейчас в форме, а не то, что уже лежит на диске: незачем
+# сперва жать «Сохранить», чтобы потом сохранить пресет с тем же значением.
+
+
+@router.get("/settings/presets", response_model=list[str])
+def list_presets_route() -> list[str]:
+    return list_presets()
+
+
+@router.put("/settings/presets/{name}", response_model=list[str])
+def save_preset_route(payload: DeviceSettings, name: str = Path(min_length=1, max_length=60)) -> list[str]:
+    save_preset(name, payload)
+    return list_presets()
+
+
+@router.post("/settings/presets/{name}/apply", response_model=DeviceSettings)
+def apply_preset_route(name: str = Path(min_length=1, max_length=60)) -> DeviceSettings:
+    try:
+        settings = apply_preset(name)
+    except KeyError:
+        raise HTTPException(404, f"Пресет «{name}» не найден")
+    live.notify("settings")
+    return settings
+
+
+@router.delete("/settings/presets/{name}", response_model=list[str])
+def delete_preset_route(name: str = Path(min_length=1, max_length=60)) -> list[str]:
+    delete_preset(name)
+    return list_presets()

@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from .label_layout import LabelLayout
 
-from ..config import SETTINGS_FILE
+from ..config import SETTINGS_FILE, SETTINGS_PRESETS_FILE
 
 
 class DeviceSettings(BaseModel):
@@ -189,3 +189,48 @@ def save_settings(settings: DeviceSettings) -> DeviceSettings:
     temp.write_text(payload + "\n", encoding="utf-8")
     os.replace(temp, SETTINGS_FILE)
     return settings
+
+
+def _read_presets() -> dict[str, dict]:
+    if not SETTINGS_PRESETS_FILE.exists():
+        return {}
+    try:
+        data = json.loads(SETTINGS_PRESETS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        # Битый файл пресетов не должен ронять страницу настроек — просто нет пресетов.
+        return {}
+
+
+def _write_presets(presets: dict[str, dict]) -> None:
+    SETTINGS_PRESETS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(presets, ensure_ascii=False, indent=2)
+    temp = SETTINGS_PRESETS_FILE.with_suffix(".json.tmp")
+    temp.write_text(payload + "\n", encoding="utf-8")
+    os.replace(temp, SETTINGS_PRESETS_FILE)
+
+
+def list_presets() -> list[str]:
+    """Имена пресетов по алфавиту — оператор выбирает по названию, порядок сохранения не важен."""
+    return sorted(_read_presets())
+
+
+def save_preset(name: str, settings: DeviceSettings) -> None:
+    """Сохраняет текущие настройки под именем `name`, заменяя одноимённый пресет."""
+    presets = _read_presets()
+    presets[name] = settings.model_dump()
+    _write_presets(presets)
+
+
+def apply_preset(name: str) -> DeviceSettings:
+    """Поднимает пресет в основные настройки прибора и сразу их сохраняет."""
+    presets = _read_presets()
+    if name not in presets:
+        raise KeyError(name)
+    return save_settings(DeviceSettings.model_validate(presets[name]))
+
+
+def delete_preset(name: str) -> None:
+    presets = _read_presets()
+    if presets.pop(name, None) is not None:
+        _write_presets(presets)

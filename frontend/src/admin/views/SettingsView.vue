@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { onBeforeUnmount, onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -43,6 +43,84 @@ async function load() {
   setLocale(form.value.language)
 }
 
+/**
+ * Пресеты — именованные снимки настроек: переключиться между «залом» и
+ * «прилавком» одной кнопкой в шапке, не подбирая заново десяток полей.
+ * Сохраняют то, что сейчас в форме, а не то, что уже на диске — незачем
+ * сперва жать «Сохранить», чтобы потом сохранить пресет с тем же значением.
+ */
+const presets = ref<string[]>([])
+const selectedPreset = ref('')
+const presetBusy = ref(false)
+
+async function loadPresets() {
+  presets.value = await api.settingsPresets()
+}
+
+async function applySelectedPreset() {
+  if (!selectedPreset.value) return
+  presetBusy.value = true
+  try {
+    form.value = await api.applyPreset(selectedPreset.value)
+    setLocale(form.value.language)
+    ElMessage.success(t('admin.settings.presetApplied', { name: selectedPreset.value }))
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.settings.presetApplyFailed'))
+  } finally {
+    presetBusy.value = false
+  }
+}
+
+async function saveAsPreset() {
+  if (!form.value) return
+  let name: string
+  try {
+    const result = await ElMessageBox.prompt('', t('admin.settings.presetSaveTitle'), {
+      inputPlaceholder: t('admin.settings.presetNamePrompt'),
+      confirmButtonText: t('admin.settings.confirm'),
+      cancelButtonText: t('admin.settings.cancel'),
+      inputValidator: (value: string) => !!value?.trim() || t('admin.settings.presetNameRequired'),
+    })
+    name = result.value.trim()
+  } catch {
+    return // диалог отменён
+  }
+  presetBusy.value = true
+  try {
+    presets.value = await api.savePreset(name, form.value)
+    selectedPreset.value = name
+    ElMessage.success(t('admin.settings.presetSaved', { name }))
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.settings.presetSaveFailed'))
+  } finally {
+    presetBusy.value = false
+  }
+}
+
+async function deleteSelectedPreset() {
+  if (!selectedPreset.value) return
+  const name = selectedPreset.value
+  try {
+    await ElMessageBox.confirm(t('admin.settings.presetDeleteConfirm', { name }), t('admin.settings.presetDeleteTitle'), {
+      type: 'warning',
+      confirmButtonText: t('admin.settings.confirm'),
+      cancelButtonText: t('admin.settings.cancel'),
+    })
+  } catch {
+    return // отменено
+  }
+  presetBusy.value = true
+  try {
+    presets.value = await api.deletePreset(name)
+    selectedPreset.value = ''
+    ElMessage.success(t('admin.settings.presetDeleted'))
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.settings.presetDeleteFailed'))
+  } finally {
+    presetBusy.value = false
+  }
+}
+
 async function save() {
   if (!form.value) return
   saving.value = true
@@ -60,6 +138,7 @@ async function save() {
 
 onMounted(async () => {
   await load()
+  void loadPresets()
   // Оглавление подсвечивает блок, который сейчас в верхней части окна.
   observer = new IntersectionObserver(
     (entries) => {
@@ -410,6 +489,30 @@ onBeforeUnmount(() => observer?.disconnect())
          уезжать под нижний край вместе с ней. `defer` нужен потому, что шапка
          рисуется тем же обходом, что и эта страница. -->
     <Teleport to="#admin-actions" defer>
+      <el-select
+        v-model="selectedPreset"
+        class="preset-select"
+        clearable
+        filterable
+        :placeholder="t('admin.settings.presetPlaceholder')"
+      >
+        <el-option v-for="name in presets" :key="name" :label="name" :value="name" />
+      </el-select>
+      <el-button :disabled="!selectedPreset" :loading="presetBusy" @click="applySelectedPreset">
+        {{ t('admin.settings.presetApply') }}
+      </el-button>
+      <el-button :loading="presetBusy" @click="saveAsPreset">
+        {{ t('admin.settings.presetSaveAs') }}
+      </el-button>
+      <el-button
+        :disabled="!selectedPreset"
+        :loading="presetBusy"
+        type="danger"
+        plain
+        @click="deleteSelectedPreset"
+      >
+        {{ t('admin.settings.presetDelete') }}
+      </el-button>
       <el-button type="primary" :loading="saving" @click="save">
         {{ t('admin.settings.save') }}
       </el-button>
@@ -419,6 +522,10 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style scoped>
+.preset-select {
+  width: 180px;
+}
+
 .page {
   display: grid;
   grid-template-columns: 200px minmax(0, 860px);

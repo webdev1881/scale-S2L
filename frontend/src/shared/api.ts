@@ -89,6 +89,19 @@ export const api = {
   saveSettings: (payload: DeviceSettings) =>
     request<DeviceSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(payload) }),
 
+  settingsPresets: () => request<string[]>('/api/settings/presets'),
+  savePreset: (name: string, payload: DeviceSettings) =>
+    request<string[]>(`/api/settings/presets/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  applyPreset: (name: string) =>
+    request<DeviceSettings>(`/api/settings/presets/${encodeURIComponent(name)}/apply`, {
+      method: 'POST',
+    }),
+  deletePreset: (name: string) =>
+    request<string[]>(`/api/settings/presets/${encodeURIComponent(name)}`, { method: 'DELETE' }),
+
   simWeight: (grams: number) =>
     request<WeightReading>('/api/sim/weight', {
       method: 'POST',
