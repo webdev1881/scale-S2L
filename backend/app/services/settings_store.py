@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from .label_layout import LabelLayout
 
-from ..config import SETTINGS_FILE, SETTINGS_PRESETS_FILE
+from ..config import SETTINGS_EXAMPLE_FILE, SETTINGS_FILE, SETTINGS_PRESETS_FILE
 
 
 class DeviceSettings(BaseModel):
@@ -175,7 +175,11 @@ class DeviceSettings(BaseModel):
 def load_settings() -> DeviceSettings:
     if not SETTINGS_FILE.exists():
         # Первый запуск: кладём файл на диск, чтобы его было что открыть и поправить.
-        return save_settings(DeviceSettings())
+        # За основу — образец из репозитория (`settings.example.json`): там уже
+        # подобранные сетка, кегли и цвета, и прибор из коробки выглядит как надо,
+        # а не как набор значений по умолчанию. Образца нет или он битый — берём
+        # умолчания модели.
+        return save_settings(_from_example())
     try:
         data = json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
         # Ширина этикетки могла быть сохранена до того, как появился предел принтера.
@@ -189,6 +193,15 @@ def load_settings() -> DeviceSettings:
         return DeviceSettings.model_validate(data)
     except (OSError, ValueError, json.JSONDecodeError):
         # Битый или недоступный файл не должен ронять киоск.
+        return DeviceSettings()
+
+
+def _from_example() -> DeviceSettings:
+    try:
+        return DeviceSettings.model_validate(
+            json.loads(SETTINGS_EXAMPLE_FILE.read_text(encoding="utf-8"))
+        )
+    except (OSError, ValueError):
         return DeviceSettings()
 
 
