@@ -1163,6 +1163,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
     <UpdatingOverlay
       v-else-if="!weight.connected || catalogBusy || settings?.kiosk_force_updating"
       :photo-scale="settings?.kiosk_updating_photo_scale ?? 52"
+      :text-position="settings?.kiosk_updating_text_position ?? 3"
     />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
