@@ -5,21 +5,39 @@
  * (см. `shared/weight.ts`) — киоск не перезагружается, а просто ждёт и не
  * даёт покупателю тыкать в каталог, который всё равно не отработает печать.
  */
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
+
+const props = defineProps<{ photoScale: number }>()
+
+// Картинка — фон, надпись с крутилкой — поверх неё своей панелью, поэтому
+// размер картинки задаётся отдельно и может дорасти до всего экрана: при
+// желании оператор гасит панель настроек вовсе (0%) или растягивает картинку
+// во весь киоск.
+const pictureStyle = computed(() => ({
+  width: `${props.photoScale}vw`,
+  height: `${props.photoScale}vh`,
+}))
 </script>
 
 <template>
   <div class="updating">
-    <!-- Сначала слово, потом картинка: покупатель у прибора читает экран сверху вниз,
-         и первым он должен получить ответ «что происходит», а не разглядывать
-         иллюстрацию. Картинка держит паузу и показывает, что прибор занят, а не сломан. -->
+    <img
+      v-if="photoScale > 0"
+      class="picture"
+      :style="pictureStyle"
+      src="/updating.jpg"
+      alt=""
+      draggable="false"
+    />
+    <!-- Своя панель, а не голый текст на фоне: при большой картинке надпись должна
+         читаться поверх неё, а не спорить с сюжетом фотографии. -->
     <div class="wait">
       <div class="spinner"></div>
       <p class="label">{{ t('kiosk.updating') }}</p>
     </div>
-    <img class="picture" src="/updating.jpg" alt="" draggable="false" />
   </div>
 </template>
 
@@ -29,31 +47,41 @@ const { t } = useI18n()
   inset: 0;
   z-index: 2500;
   cursor: none;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 40px;
   background: var(--s2l-splash-bg);
 }
 
 /* Доля экрана, а не пиксели: тот же приём, что у карточек каталога — прибор стоит
-   дальше от покупателя, чем монитор от разработчика. Скругление и тень повторяют
-   плитки киоска, чтобы картинка читалась как часть интерфейса, а не как обои. */
+   дальше от покупателя, чем монитор от разработчика. Центр экрана — независимо
+   от размера, поэтому позиционирование абсолютное, а не в потоке с надписью. */
 .picture {
-  width: min(52vw, 720px);
-  max-height: 46vh;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
   object-fit: cover;
   border-radius: calc(var(--s2l-radius) * 1.5);
   box-shadow: 0 18px 48px var(--s2l-shadow-strong);
+  transition:
+    width 0.2s ease,
+    height 0.2s ease;
 }
 
-/* Ожидание идёт строкой: кружок рядом с надписью, а не под ней — иначе экран
-   растягивается на всю высоту и картинке места не остаётся. */
+/* Покупатель читает экран сверху вниз: сперва ответ «что происходит», потом
+   иллюстрация. Абсолютное позиционирование — картинка её не толкает своим
+   размером, даже когда та растянута на весь экран. */
 .wait {
+  position: absolute;
+  top: 8vh;
+  left: 50%;
+  z-index: 1;
+  transform: translateX(-50%);
   display: flex;
   align-items: center;
   gap: 32px;
+  padding: 28px 48px;
+  background: var(--s2l-panel);
+  border-radius: calc(var(--s2l-radius) * 1.5);
+  box-shadow: 0 18px 48px var(--s2l-shadow-strong);
 }
 
 .spinner {

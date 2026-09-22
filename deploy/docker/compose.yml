@@ -1,0 +1,55 @@
+# Прибор: образ из реестра, реальное железо, данные в ./data рядом с этим файлом.
+#
+# Лежит на приборе в /opt/s2l вместе с .env и каталогом data/. Репозиторий на
+# приборе не нужен: всё, что ему требуется, уже внутри образа.
+services:
+  s2l:
+    image: ghcr.io/webdev1881/scale-s2l:latest
+    container_name: s2l
+    restart: unless-stopped
+    # Киоск (chromium в cage) ходит на 127.0.0.1:8000, как и systemd-вариант. Сеть
+    # хоста, а не проброс порта: так адрес одинаков для браузера, curl и логов.
+    network_mode: host
+    env_file: .env
+    volumes:
+      # Настройки прибора, база и растры этикеток. Именно этот каталог переносят
+      # на новый прибор, чтобы получить тот же каталог и те же настройки.
+      - ./data:/opt/s2l/backend/data
+    devices:
+      # Весовая плата и принтер. Имена — из .env; на приборе с udev-правилом это
+      # /dev/s2l-scale и /dev/s2l-printer, без него — /dev/ttyS4 и /dev/usb/lp0.
+      - ${S2L_SCALE_PORT:-/dev/ttyS4}:${S2L_SCALE_PORT:-/dev/ttyS4}
+      - ${S2L_PRINTER_DEVICE:-/dev/usb/lp0}:${S2L_PRINTER_DEVICE:-/dev/usb/lp0}
+    # Доступ к устройствам выдаётся группами, а не запуском от root: dialout (20)
+    # владеет последовательными портами, lp (7) — принтерами. Номера — как в Ubuntu.
+    group_add:
+      - "20"
+      - "7"
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # Туннель наружу для выгрузки из 1С. Приборы стоят за NAT провайдера (белого IP
+  # нет, пробросы не работают), поэтому не 1С ходит внутрь, а прибор сам держит
+  # исходящее соединение с Cloudflare, и 1С видит его по имени вида
+  # vesy-1.example.com. Включается профилем: COMPOSE_PROFILES=tunnel в .env плюс
+  # CLOUDFLARE_TUNNEL_TOKEN; без токена сервис не поднимается и ничего не ломает.
+  tunnel:
+    image: cloudflare/cloudflared:latest
+    container_name: s2l-tunnel
+    restart: unless-stopped
+    profiles: ["tunnel"]
+    # Сеть хоста: публичное имя в Cloudflare указывает на http://127.0.0.1:8000,
+    # тот же адрес, что у киоска и curl.
+    network_mode: host
+    command: tunnel --no-autoupdate run --token ${CLOUDFLARE_TUNNEL_TOKEN}
+    depends_on:
+      - s2l
+    logging:
+      driver: json-file
+      options:
+        max-size: "5m"
+        max-file: "3"
+

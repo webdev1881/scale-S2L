@@ -74,15 +74,21 @@ def _block_value(data: "LabelData", block: LabelBlock) -> tuple[str, str]:
         key = "price_per_kg" if data.unit == "weight" else "price_per_piece"
         return label_text(lang, key, currency=data.currency), f"{data.price:.2f}"
     if block.kind == "total":
-        return label_text(lang, "total"), f"{data.total:.2f} {data.currency}"
+        # Без знака валюты: на этикетке она одна на всю ленту и так понятна, а
+        # место в строке дороже — как и на образце торговой сети.
+        return label_text(lang, "total"), f"{data.total:.2f}"
     if block.kind == "packed":
-        return "", f"{label_text(lang, 'packed')}: {data.packed_at:%d.%m.%Y %H:%M}"
+        # Подпись отдельным полем, а не приклеена к дате: иначе её не поставить
+        # в строку со значением и не убрать, когда место на ленте кончилось.
+        return label_text(lang, "packed"), f"{data.packed_at:%d.%m.%Y}"
     if block.kind == "best_before":
         if not data.best_before:
             return "", ""
-        return "", f"{label_text(lang, 'best_before')}: {data.best_before:%d.%m.%Y}"
+        return label_text(lang, "best_before"), f"{data.best_before:%d.%m.%Y}"
     if block.kind == "composition":
         return "", data.composition
+    if block.kind == "thanks":
+        return "", label_text(lang, "thanks")
     if block.kind == "text":
         return "", block.text
     return "", ""
@@ -122,10 +128,15 @@ def _draw_block(
     text_width = box_width - 2 * inner
 
     if block.caption and caption:
-        cap_font = load_font(max(block.size - 5, 10))
+        cap_font = load_font(max(block.size - 5, 10), bold=block.bold and block.caption_inline)
         draw.text((text_x, text_y), caption, font=cap_font, fill=0)
-        # Значение уходит под подпись, если блок не в рамке: в рамке они стоят рядом.
-        if not block.box:
+        if block.caption_inline:
+            # Подпись съедает левую часть строки, значение встаёт правее неё.
+            used = int(draw.textlength(caption, font=cap_font)) + int(0.6 * DOTS_PER_MM)
+            text_x += used
+            text_width -= used
+        elif not block.box:
+            # Значение уходит под подпись, если блок не в рамке: в рамке они рядом.
             text_y += int(block.size * 0.8)
 
     font = load_font(block.size, bold=block.bold)

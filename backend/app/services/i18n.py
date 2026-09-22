@@ -12,25 +12,30 @@ DEFAULT_LANG: Final = "uk"
 SUPPORTED_LANGS: Final = ("uk", "ru")
 
 LABEL: Final[dict[str, dict[str, str]]] = {
+    # Подписи короткие и с двоеточием: на этикетке они стоят в строку со
+    # значением, как на образце торговой сети. Единица измерения в подпись не
+    # входит — она и так ясна из самой этикетки, а место на ленте дорого.
     "uk": {
-        "mass": "Маса, кг",
-        "price_per_kg": "Ціна, {currency}/кг",
-        "quantity": "Кількість",
-        "price_per_piece": "Ціна, {currency}/шт",
+        "mass": "Вага:",
+        "price_per_kg": "Ціна:",
+        "quantity": "Кількість:",
+        "price_per_piece": "Ціна:",
         "one_piece": "1 шт",
-        "total": "До сплати",
-        "packed": "Упаковано",
+        "total": "Вартість:",
+        "packed": "Дата пак.",
         "best_before": "Придатний до",
+        "thanks": "Дякуємо за покупку! Приходьте ще!",
     },
     "ru": {
-        "mass": "Масса, кг",
-        "price_per_kg": "Цена, {currency}/кг",
-        "quantity": "Количество",
-        "price_per_piece": "Цена, {currency}/шт",
+        "mass": "Вес:",
+        "price_per_kg": "Цена:",
+        "quantity": "Количество:",
+        "price_per_piece": "Цена:",
         "one_piece": "1 шт",
-        "total": "К оплате",
-        "packed": "Упаковано",
+        "total": "Стоимость:",
+        "packed": "Дата упак.",
         "best_before": "Годен до",
+        "thanks": "Спасибо за покупку! Приходите ещё!",
     },
 }
 

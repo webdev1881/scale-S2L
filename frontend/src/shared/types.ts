@@ -20,6 +20,10 @@ export interface Category {
   name: string
   image: string
   count: number
+  /** Обложку выбрал оператор, а не подставил первый товар группы. */
+  custom_image: boolean
+  /** Место группы, заданное перетаскиванием в админке; null — не задано. */
+  sort_order: number | null
 }
 
 export interface WeightReading {
@@ -73,6 +77,7 @@ export interface LabelBlock {
     | 'packed'
     | 'best_before'
     | 'composition'
+    | 'thanks'
     | 'text'
     | 'line'
   /** Левый верхний угол и размеры в миллиметрах; нулевая ширина — до правого края. */
@@ -85,6 +90,8 @@ export interface LabelBlock {
   bold: boolean
   align: 'left' | 'center' | 'right'
   caption: boolean
+  /** Подпись в одной строке со значением, а не над ним. */
+  caption_inline: boolean
   lines: number
   box: boolean
   text: string
@@ -93,6 +100,13 @@ export interface LabelBlock {
 
 export interface LabelLayout {
   blocks: LabelBlock[]
+}
+
+export interface PurgeResult {
+  products: number
+  transactions: number
+  photos: number
+  labels: number
 }
 
 export interface DeviceSettings {
@@ -111,12 +125,26 @@ export interface DeviceSettings {
   kiosk_use_groups: boolean
   kiosk_show_code: boolean
   kiosk_code_button: boolean
+  kiosk_header_on_contact: boolean
+  kiosk_only_with_photo: boolean
+  kiosk_photo_first: boolean
+  kiosk_search_button: boolean
+  kiosk_back_button: boolean
+  kiosk_search_width: number
+  kiosk_keyboard_width: number
+  kiosk_keyboard_height: number
+  kiosk_keyboard_font: 'system' | 'arial' | 'dejavu' | 'ubuntu' | 'mono' | 'serif'
+  kiosk_keyboard_font_size: number
+  kiosk_keyboard_bold: boolean
   kiosk_peek_percent: number
   kiosk_idle_reset_s: number
   kiosk_clear_hold_s: number
+  kiosk_unselect_s: number
+  kiosk_after_print: 'home' | 'catalog' | 'search'
   kiosk_label_max_s: number
   splash_seconds: number
   kiosk_force_updating: boolean
+  kiosk_updating_photo_scale: number
   ui_scale_weight: number
   ui_scale_group_title: number
   ui_scale_product_name: number
@@ -126,6 +154,7 @@ export interface DeviceSettings {
   ui_photo_group: number
   ui_photo_product: number
   ui_photo_scale: number
+  ui_photo_scale_group: number
   ui_plate_height: number
   ui_primary_color: string
   ui_secondary_color: string

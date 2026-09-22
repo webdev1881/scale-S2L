@@ -14,7 +14,8 @@ from __future__ import annotations
 
 import asyncio
 
-# Что изменилось: настройки устройства или каталог товаров.
+# Что изменилось: настройки устройства, каталог товаров или начавшаяся выгрузка
+# из 1С («catalog_busy» — каталог сейчас переписывают, «catalog» — уже переписали).
 Kind = str
 
 _listeners: set[asyncio.Queue[Kind]] = set()

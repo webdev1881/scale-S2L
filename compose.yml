@@ -1,0 +1,18 @@
+# Локальная сборка и запуск без железа: симулятор весов и принтера, порт 8000.
+# Для прибора — deploy/docker/compose.yml: там устройства, реальный HAL и образ
+# из реестра вместо сборки на месте.
+services:
+  s2l:
+    build: .
+    image: ghcr.io/webdev1881/scale-s2l:dev
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    environment:
+      S2L_HAL_BACKEND: fake
+    volumes:
+      # Настройки и база живут снаружи образа: обновление контейнера их не трогает.
+      - s2l-data:/opt/s2l/backend/data
+
+volumes:
+  s2l-data:

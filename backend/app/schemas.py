@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import AliasChoices, BaseModel, ConfigDict, Field
 
 from .services.label_layout import LabelLayout
 
@@ -30,6 +30,38 @@ class CategoryOut(BaseModel):
     name: str
     image: str
     count: int
+    # Место группы, заданное перетаскиванием в админке. None — порядок не задан,
+    # и киоск раскладывает группы сам (см. `displayOrder` во фронтенде).
+    sort_order: int | None = None
+    # Обложку выбрал оператор, а не подставил первый товар группы. Админке это
+    # нужно, чтобы показать кнопку «вернуть автоматическую».
+    custom_image: bool = False
+
+
+class PurgeIn(BaseModel):
+    # journal — журнал операций и растры этикеток; inactive — погашенные товары;
+    # all — весь каталог целиком. Отдельным полем, а не тремя ручками: действие
+    # одно и то же, разной бывает только область.
+    scope: str = Field(pattern="^(journal|inactive|all)$")
+
+
+class PurgeResult(BaseModel):
+    products: int = 0
+    transactions: int = 0
+    photos: int = 0
+    labels: int = 0
+
+
+class CategoryOrderIn(BaseModel):
+    # Имена групп в том порядке, в каком их показывать. Целиком, а не «переставить
+    # одну»: список короткий, а частичная перестановка требует договариваться о том,
+    # что делать с группами, которых в нём нет.
+    names: list[str]
+
+
+class CategoryCoverIn(BaseModel):
+    image_base64: str = Field(min_length=1)
+    image_format: str = Field(pattern="^(jpg|jpeg|png|webp)$")
 
 
 class WeightOut(BaseModel):
@@ -98,7 +130,11 @@ class LabelPreviewRequest(BaseModel):
 
 
 class Import1CProduct(BaseModel):
-    plu: int = Field(ge=1, le=99999)
+    # Обработка 1С шлёт код товара полем `article` (числовой артикул номенклатуры),
+    # своё имя `plu` оставлено для ручных запросов. Диапазон здесь не проверяем:
+    # у 1С артикул бывает пустым или длиннее пяти цифр, и одна такая позиция не
+    # должна ронять весь пакет 422 — она уходит в `errors[]` (см. api/import_1c.py).
+    plu: int | None = Field(default=None, validation_alias=AliasChoices("plu", "article"))
     name: str = Field(min_length=1, max_length=120)
     unit: str = Field(pattern="^(weight|piece)$")
     price: float = Field(ge=0)
@@ -118,7 +154,10 @@ class Import1CRequest(BaseModel):
 
 
 class Import1CError(BaseModel):
+    # Позиция без пригодного артикула кода не имеет — тогда plu = 0, а name подскажет,
+    # что именно 1С прислала.
     plu: int
+    name: str = ""
     error: str
 
 

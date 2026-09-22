@@ -4,6 +4,8 @@ import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
+import { orderedCategories, orderedProducts } from '@/shared/catalog'
+import { KIOSK_FONTS } from '@/shared/fonts'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
@@ -28,9 +30,39 @@ const weight = useWeightStore()
 const splashMs = ref(storedSplashMs())
 const booting = ref(splashMs.value > 0)
 
-const products = ref<Product[]>([])
-const categories = ref<Category[]>([])
+const loadedProducts = ref<Product[]>([])
+const loadedCategories = ref<Category[]>([])
 const settings = ref<DeviceSettings | null>(null)
+
+/**
+ * Каталог, который видит покупатель. С включённой настройкой «только со снимком»
+ * товар без фото на экран не попадает — и по коду не находится: карточка без
+ * снимка среди фотографий выглядит как дыра, а покупатель ищет глазами. Группа
+ * без единого такого товара уходит вместе с ними, иначе открывалась бы пустой.
+ *
+ * Мягкий вариант — «сначала со снимком»: товары без фото остаются, но уходят на
+ * последние страницы. Сортировка устойчивая, поэтому внутри каждой половины
+ * порядок прежний — тот же, с конца (см. `takeCatalog`).
+ */
+const onlyWithPhoto = computed(() => settings.value?.kiosk_only_with_photo ?? false)
+const photoFirst = computed(() => settings.value?.kiosk_photo_first ?? false)
+const products = computed(() => {
+  const list = onlyWithPhoto.value
+    ? loadedProducts.value.filter((p) => p.image)
+    : loadedProducts.value
+  if (!photoFirst.value || onlyWithPhoto.value) return list
+  return [...list].sort((a, b) => Number(Boolean(b.image)) - Number(Boolean(a.image)))
+})
+const categories = computed(() => {
+  if (!onlyWithPhoto.value) return loadedCategories.value
+  const counts = new Map<string, number>()
+  for (const product of products.value) {
+    counts.set(product.category, (counts.get(product.category) ?? 0) + 1)
+  }
+  return loadedCategories.value
+    .filter((category) => counts.has(category.name))
+    .map((category) => ({ ...category, count: counts.get(category.name) ?? 0 }))
+})
 
 const search = ref('')
 const openedCategory = ref<Category | null>(null)
@@ -54,6 +86,27 @@ const awaitingPickup = ref(false)
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
+
+/**
+ * Покупатель у прибора. До первого контакта — касания экрана или груза на
+ * платформе — шапка весов не показывается: пустому экрану нечего взвешивать, а
+ * нули с ценой «0,00» читаются как сломанный прибор. Сессия кончается — экран
+ * снова ждёт следующего без шапки.
+ */
+const engaged = ref(false)
+
+/**
+ * Касание доводит до `engage` только сам `click`, а не `pointerdown` и не
+ * `pointerup`: шапка сдвигает сетку на 186 px, и появись она раньше — `click`
+ * прилетел бы уже по другой карточке (печать идёт от касания). Отложить
+ * `setTimeout(0)` после `pointerup` не спасало: браузер шлёт `click` отдельной
+ * задачей, через кадр, и таймер успевал раньше — первое касание стартового экрана
+ * только показывало шапку. У `click` цель уже выбрана, перерисовка после него
+ * ничего не меняет; протяжка кликом не кончается — её доводит `onSwipeEnd`.
+ */
+function engage() {
+  engaged.value = true
+}
 
 const currency = computed(() => settings.value?.currency ?? '₴')
 
@@ -113,7 +166,24 @@ const uiScales = computed<Record<string, string>>(() => {
   '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
     '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
     '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
+    // Клавиатура: доля ширины каталога, отступ с каждой стороны — половина остатка.
+    '--ui-kb-inset': `${(100 - (settings.value?.kiosk_keyboard_width ?? 60)) / 2}%`,
+    // Высота — доля экрана. Без верхнего предела в пикселях: оператор задал долю,
+    // и предел спорил бы с ней ровно там, где её и увеличивают.
+    '--s2l-kb-height': `${settings.value?.kiosk_keyboard_height ?? 32}vh`,
+    '--ui-kb-font': KIOSK_FONTS[settings.value?.kiosk_keyboard_font ?? 'system'],
+    '--ui-kb-font-size': `${settings.value?.kiosk_keyboard_font_size ?? 23}px`,
+    '--ui-kb-font-weight': (settings.value?.kiosk_keyboard_bold ?? true) ? '700' : '400',
     '--ui-photo-scale': String((settings.value?.ui_photo_scale ?? 100) / 100),
+    '--ui-photo-scale-group': String((settings.value?.ui_photo_scale_group ?? 100) / 100),
+    // Ниже 90 % оператор просит показать снимок целиком, а не тот же кадр
+    // поменьше: `cover` кадрирует по краям, и уменьшение только отодвигало
+    // обрезанную фотографию от краёв карточки, ничего не открывая. Порог не
+    // на 100, а на 90 — иначе смена cover→contain сама по себе давала скачок
+    // размера прямо там, где оператор ждёт плавного уменьшения на 1%.
+    '--ui-photo-fit': (settings.value?.ui_photo_scale ?? 100) < 90 ? 'contain' : 'cover',
+    '--ui-photo-fit-group':
+      (settings.value?.ui_photo_scale_group ?? 100) < 90 ? 'contain' : 'cover',
     '--ui-plate-height': String(settings.value?.ui_plate_height ?? 30),
     // На низкой плашке две строки не помещаются, и вторая срезалась бы посередине
     // букв. Ниже порога подпись сворачивается в одну строку с многоточием.
@@ -129,8 +199,23 @@ const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
 const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
+const searchButton = computed(() => settings.value?.kiosk_search_button ?? true)
+const backButton = computed(() => settings.value?.kiosk_back_button ?? true)
+/**
+ * Доли нижней панели. Две колонки живут только тогда, когда обе кнопки включены:
+ * с одной делить нечего, и она забирает ширину целиком. Пустая половина внутри
+ * двухколоночного режима остаётся нарочно — см. разметку футера.
+ */
+const actionsStyle = computed(() => {
+  if (!(searchButton.value && backButton.value)) return { gridTemplateColumns: '1fr' }
+  const search = settings.value?.kiosk_search_width ?? 50
+  return { gridTemplateColumns: `${100 - search}fr ${search}fr` }
+})
+const headerOnContact = computed(() => settings.value?.kiosk_header_on_contact ?? true)
 const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
+const unselectMs = computed(() => (settings.value?.kiosk_unselect_s ?? 5) * 1000)
+const afterPrint = computed(() => settings.value?.kiosk_after_print ?? 'home')
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -278,10 +363,15 @@ const printBlockReason = computed(() => {
  * подхватывает посреди работы, и сбрасывать при этом страницу или выбор покупателя
  * незачем — оператор поправил цену, а не выгнал человека от прибора.
  */
+/** Порядок карточек — общий с админкой, см. `shared/catalog.ts`. */
+function takeCatalog(items: Product[], cats: Category[]) {
+  loadedProducts.value = orderedProducts(items)
+  loadedCategories.value = orderedCategories(cats)
+}
+
 async function refreshCatalog() {
   const [items, cats] = await Promise.all([api.products(), api.categories()])
-  products.value = items
-  categories.value = cats
+  takeCatalog(items, cats)
 }
 
 /**
@@ -289,16 +379,41 @@ async function refreshCatalog() {
  * перечитывает. Пятисекундный опрос настроек, стоявший здесь раньше, и правку
  * каталога не замечал вовсе, и запрос слал впустую весь день.
  */
-async function onDeviceChanged(kind: 'settings' | 'catalog' | 'reconnect') {
+/**
+ * Выгрузка из 1С переписывает цены прямо сейчас: пока она идёт, киоск закрыт
+ * экраном «Оновлення». Иначе покупатель успевал нажать карточку и получить
+ * этикетку со старой ценой. Бэкенд шлёт «catalog_busy» перед записью и
+ * «catalog» после неё — даже если выгрузка сорвалась.
+ */
+const catalogBusy = ref(false)
+let busyTimer: number | undefined
+
+function holdForCatalog() {
+  catalogBusy.value = true
+  // Страховка на случай, когда «catalog» не пришёл вовсе — оборвалась сеть,
+  // упал бэкенд: прибор не должен остаться за экраном ожидания насовсем.
+  window.clearTimeout(busyTimer)
+  busyTimer = window.setTimeout(() => (catalogBusy.value = false), 60_000)
+}
+
+async function onDeviceChanged(kind: 'settings' | 'catalog' | 'catalog_busy' | 'reconnect') {
+  if (kind === 'catalog_busy') return holdForCatalog()
   if (kind !== 'catalog') await refreshSettings()
   // После обрыва связи неизвестно, что успели поменять, — перечитываем всё.
   if (kind !== 'settings') await refreshCatalog()
+  if (catalogBusy.value) {
+    window.clearTimeout(busyTimer)
+    catalogBusy.value = false
+    // Цены изменились, а выбранный товар держит прежние: начинаем с чистого
+    // экрана. Кроме случая, когда покупатель ещё не забрал взвешенное — ему
+    // обрывать покупку нельзя.
+    if (!awaitingPickup.value) reset()
+  }
 }
 
 async function loadCatalog() {
   const [items, cats, cfg] = await Promise.all([api.products(), api.categories(), api.settings()])
-  products.value = items
-  categories.value = cats
+  takeCatalog(items, cats)
   settings.value = cfg
   // Язык и тема задаются на устройстве, а не в браузере покупателя.
   setLocale(cfg.language)
@@ -522,7 +637,11 @@ function onSwipeEnd(event: PointerEvent) {
   }
   settleRibbon(dir)
   // Гасим клик после любой протяжки, а не только после смены страницы.
-  if (dragged) swallowDragClick(event.clientX, event.clientY)
+  if (dragged) {
+    swallowDragClick(event.clientX, event.clientY)
+    // Протяжка — тоже контакт, а клика после неё не будет: шапку зовём здесь.
+    engage()
+  }
 }
 
 /**
@@ -745,11 +864,12 @@ async function print() {
   try {
     await api.print(selected.value.id)
     awaitingPickup.value = true
-    // Каталог сразу встаёт начальным: без диалога покупатель почти сразу видит
-    // экран снова, и всё это время следующий человек не должен видеть чужую
-    // страницу, чужую группу и чужой набранный поиск. Цена и стоимость в шапке
-    // остаются — по ним покупатель проверяет, за что заплатит, пока не заберёт товар.
-    resetBrowsing()
+    // Куда встаёт каталог — решает оператор (`kiosk_after_print`): по умолчанию к
+    // началу, чтобы следующий человек не видел чужую группу и чужой поиск; в
+    // отделе, где берут по нескольку товаров, — остаться в группе или сразу с
+    // клавиатурой. Цена и стоимость в шапке остаются — по ним покупатель
+    // проверяет, за что заплатит, пока не заберёт товар.
+    landAfterPurchase()
     // Дальше экран ждёт не таймер, а платформу: покупка кончается тогда, когда
     // покупатель забрал товар. Таймер остаётся страховкой на случай, когда товар
     // не сняли вовсе.
@@ -783,28 +903,96 @@ function armLabelCap() {
 }
 
 /**
- * Платформа освободилась и показание устоялось — покупка закончена. Выдержка нужна
- * затем, что платформа качается, пока товар снимают: мгновенный ноль поймал бы
- * середину движения. До печати снятие товара сессию не завершает — это не «ушёл»,
- * а «переложил».
+ * Сняли товар — покупка закончена, экран к началу. Всегда: и после печати, и без
+ * неё — так решил владелец: пустая платформа означает «покупатель ушёл», и
+ * следующий не должен видеть чужой выбор. Считается от груза: пока платформу
+ * ни разу не нагружали, пустота ничего не значит — покупатель может листать
+ * каталог, ещё не положив товар, и сбрасывать его каждые полсекунды нельзя.
+ *
+ * Выдержка короткая (`kiosk_clear_hold_s`, полсекунды) и без ожидания покоя:
+ * платформа качается, пока товар снимают, но ниже наименьшей навески она при
+ * этом остаётся, и полсекунды хватает, чтобы не поймать середину движения.
+ *
+ * Одно булево, а не сырые отсчёты: следя за самим весом, watcher перезаводил
+ * таймер на каждом отсчёте, а отсчёты на пустой платформе гуляют 0↔2 г десять
+ * раз в секунду — выдержка не набиралась никогда.
  */
 let clearTimer: number | undefined
+let hadLoad = false
 
-watch(
-  () => [awaitingPickup.value, weight.reading.net_g, weight.reading.stable] as const,
-  ([shown, net, stable]) => {
-    window.clearTimeout(clearTimer)
-    if (!shown) return
-    if (net >= minWeight.value || !stable) return
-    clearTimer = window.setTimeout(closeLabel, clearHoldMs.value)
-  },
+const loaded = computed(() => weight.reading.net_g >= minWeight.value)
+
+watch(loaded, (now) => {
+  window.clearTimeout(clearTimer)
+  if (now) {
+    hadLoad = true
+    return
+  }
+  if (!hadLoad) return
+  clearTimer = window.setTimeout(() => {
+    hadLoad = false
+    if (awaitingPickup.value) closeLabel()
+    else reset()
+  }, clearHoldMs.value)
+})
+
+/**
+ * Выбор без печати: нажали карточку с пустой платформой (печать отказала —
+ * «положите товар») и ушли. Пустая платформа держится дольше, чем после печати:
+ * покупатель ещё может положить товар, торопить его незачем. Снимается только
+ * выбор, каталог остаётся где был — человек может всё ещё смотреть на экран.
+ */
+let unselectTimer: number | undefined
+
+const abandonedPick = computed(
+  () =>
+    unselectMs.value > 0 &&
+    selected.value !== null &&
+    !awaitingPickup.value &&
+    weight.reading.net_g < minWeight.value &&
+    weight.reading.stable,
 )
+
+watch(abandonedPick, (abandoned) => {
+  window.clearTimeout(unselectTimer)
+  if (abandoned) unselectTimer = window.setTimeout(() => (selected.value = null), unselectMs.value)
+})
 
 function closeLabel() {
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
   awaitingPickup.value = false
-  reset()
+  if (afterPrint.value === 'home') return reset()
+  // Покупатель взвешивает дальше: экран остаётся где был, уходит только
+  // выбранный товар с его ценой. Шапка не прячется — человек ещё у прибора.
+  void refreshSettings()
+  selected.value = null
+  hadLoad = loaded.value
+  landAfterPurchase()
+}
+
+/**
+ * Экран после покупки по настройке `kiosk_after_print`. Набранный поиск и код
+ * снимаются в любом режиме: они принадлежали предыдущему товару. Группа и
+ * страница в режимах «каталог» и «клавиатура» остаются.
+ */
+function landAfterPurchase() {
+  switch (afterPrint.value) {
+    case 'catalog':
+      search.value = ''
+      pluInput.value = ''
+      showNumpad.value = false
+      keyboardOpen.value = false
+      break
+    case 'search':
+      search.value = ''
+      pluInput.value = ''
+      showNumpad.value = false
+      openSearch()
+      break
+    default:
+      resetBrowsing()
+  }
 }
 
 /**
@@ -823,7 +1011,39 @@ function resetBrowsing() {
 function reset() {
   void refreshSettings()
   selected.value = null
+  engaged.value = false
+  hadLoad = loaded.value
   resetBrowsing()
+}
+
+// Груз на платформе — тоже контакт: товар положили раньше, чем коснулись экрана.
+watch(
+  () => weight.reading.net_g >= minWeight.value,
+  (loaded) => {
+    if (loaded) engage()
+  },
+)
+
+/**
+ * Тайный вход в админку с самого прибора: семь касаний подряд по плитке «Товар не
+ * обрано». Клавиатуры и мыши у прибора нет, а открыть админку на месте бывает
+ * нужно — цена, снимок, настройка сетки. Семь и не больше полутора секунд между
+ * касаниями: случайно столько не нажмёшь, а оператор сделает за три секунды.
+ * Пароль админки спросит браузер, так что покупатель, даже повторив жест,
+ * дальше окна с паролем не пройдёт.
+ */
+const SECRET_TAPS = 7
+const SECRET_GAP_MS = 1500
+let secretCount = 0
+let secretLast = 0
+
+function secretTap() {
+  const now = Date.now()
+  secretCount = now - secretLast <= SECRET_GAP_MS ? secretCount + 1 : 1
+  secretLast = now
+  if (secretCount < SECRET_TAPS) return
+  secretCount = 0
+  window.location.assign('/admin')
 }
 
 function bumpIdle() {
@@ -855,6 +1075,7 @@ onMounted(async () => {
   if (gridSlotEl.value) slotResize.observe(gridSlotEl.value)
   window.addEventListener('pointerdown', bumpIdle)
   window.addEventListener('pointerdown', onPointerDown, true)
+  window.addEventListener('click', engage, true)
   bumpIdle()
   stopUpdates = watchDeviceUpdates(onDeviceChanged)
 })
@@ -865,9 +1086,12 @@ onUnmounted(() => {
   window.clearTimeout(idleTimer)
   window.clearTimeout(labelTimer)
   window.clearTimeout(clearTimer)
+  window.clearTimeout(unselectTimer)
+  window.clearTimeout(busyTimer)
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
+  window.removeEventListener('click', engage, true)
 })
 
 watch([search, openedCategory, selected], bumpIdle)
@@ -936,13 +1160,17 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 <template>
   <el-config-provider :locale="elementLocale(locale)">
     <SplashScreen v-if="booting" :duration-ms="splashMs" @done="booting = false" />
-    <UpdatingOverlay v-else-if="!weight.connected || settings?.kiosk_force_updating" />
+    <UpdatingOverlay
+      v-else-if="!weight.connected || catalogBusy || settings?.kiosk_force_updating"
+      :photo-scale="settings?.kiosk_updating_photo_scale ?? 52"
+    />
 
-    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen }" :style="uiScales">
+    <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
       <!-- Весы стоят шапкой во всю ширину: показание нужно видеть с любого места
            у прибора, а не только стоя напротив левого края экрана. Пока ищут товар,
            шапка уходит: товар ещё не выбран, показывать нечего, а её высота нужнее
-           карточкам. -->
+           карточкам. До первого контакта покупателя (касание или груз на платформе)
+           её тоже нет — см. `engaged`. -->
       <header class="scale">
         <WeightPanel
           :reading="weight.reading"
@@ -1095,28 +1323,31 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                 </template>
               </div>
             </template>
-            <div v-else class="pick-empty">{{ t('kiosk.noProduct') }}</div>
+            <div v-else class="pick-empty" @click="secretTap">{{ t('kiosk.noProduct') }}</div>
           </div>
 
-          <!-- Ниже верхнего уровня — в группе, в результатах поиска, при наборе
-               кода — единственное нужное действие это возврат: печать теперь идёт
-               от касания карточки, а поиск по названию всё равно работает поперёк
-               групп, и начинать его осмысленно сверху. Возврат стоит здесь один
-               раз, в строке поиска его больше нет. -->
-          <button v-if="canReturn" class="tile action" @click="allProducts">
-            {{ t('kiosk.allProducts') }}
-          </button>
-          <!-- На верхнем уровне возвращаться некуда, и главное действие покупателя —
-               найти товар. Кнопка занимает то же место и красится так же: это одно
-               и то же место экрана. От «сквозного» клика сразу после возврата (она
-               встаёт ровно под палец) страхует окно `backJustHappened`. -->
-          <button v-else class="tile action search-cta" @click="openSearch">
-            <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
-              <circle cx="11" cy="11" r="7" />
-              <path d="M16.5 16.5 21 21" />
-            </svg>
-            <span>{{ t('kiosk.searchCta') }}</span>
-          </button>
+          <!-- Два действия в одной ширине, пополам. Возврат ко всем товарам нужен
+               только ниже верхнего уровня — в группе, в результатах поиска, при
+               наборе кода; поиск нужен всегда и потому стоит справа, под большой
+               палец. Левая половина на верхнем уровне остаётся пустой нарочно:
+               поиск не переезжает между экранами, и палец не попадает по кнопке,
+               которая только что встала под него (ту же беду страхует окно
+               `backJustHappened`). -->
+          <div v-if="searchButton || backButton" class="actions" :style="actionsStyle">
+            <template v-if="backButton">
+              <button v-if="canReturn" class="tile action" @click="allProducts">
+                {{ t('kiosk.allProducts') }}
+              </button>
+              <span v-else class="action-gap" aria-hidden="true"></span>
+            </template>
+            <button v-if="searchButton" class="tile action search-cta" @click="openSearch">
+              <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
+                <circle cx="11" cy="11" r="7" />
+                <path d="M16.5 16.5 21 21" />
+              </svg>
+              <span>{{ t('kiosk.searchCta') }}</span>
+            </button>
+          </div>
         </footer>
 
         <!-- Клавиатура поиска выезжает снизу внутри этой колонки: она широкая,
@@ -1513,6 +1744,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   color: var(--s2l-muted);
 }
 
+/* Действия экрана: возврат ко всем товарам и поиск. Занимают всю правую часть
+   футера и делят её ровно пополам — так поиск остаётся на одном месте и с
+   открытой группой, и без неё, а на верхнем уровне он ровно в половину ширины. */
+.actions {
+  display: grid;
+  /* Доли задаёт админка (`actionsStyle`), здесь только запасной вариант. */
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
 /* Единственное действие экрана — печать или, пока товар не выбран, поиск.
    Оно всегда справа, под большой палец, и всегда акцентное.
    Селектор с `.bottom`: общее правило плитки ставит содержимое в колонку и весит
@@ -1524,11 +1765,9 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   gap: 14px;
   /* Размеры тянутся тем же ползунком, что и шрифт: зашитые пиксели означали бы,
      что настройка масштаба меняет надпись, но не кнопку под ней. */
-  /* Одна ширина на все состояния слота — поиск, возврат ко всем товарам, печать:
-     иначе слот прыгает при каждой смене надписи. Верхний предел считается от
-     ширины экрана, а не от строки: доля строки для grid-элемента считается от его
-     же ячейки, и кнопка вместо ограничения получала произвольное число. */
-  min-width: min(calc(300px * var(--ui-footer, 1)), 62vw);
+  /* Ширину задаёт ячейка `.actions`, а не сама кнопка: обе половины равны, и
+     кнопка не растягивается под свою надпись. */
+  min-width: 0;
   padding: 0 calc(26px * var(--ui-footer, 1));
   font-size: calc(24px * var(--ui-footer, 1));
   font-weight: 700;
@@ -1550,6 +1789,11 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   cursor: default;
 }
 
+/* Пустая половина на верхнем уровне: место занято, кнопка не переезжает. */
+.action-gap {
+  display: block;
+}
+
 .cta-icon {
   flex: none;
   width: calc(30px * var(--ui-footer, 1));
@@ -1562,9 +1806,12 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
 .sheet {
   position: absolute;
-  right: 20%;
+  /* Ширину задаёт админка: отступ с каждой стороны — половина того, что осталось
+     от заданной доли. Отступами, а не `width` с центрированием: центрирование
+     сдвигом заняло бы `transform`, которым клавиатура выезжает снизу. */
+  right: var(--ui-kb-inset, 20%);
   bottom: 0;
-  left: 20%;
+  left: var(--ui-kb-inset, 20%);
   z-index: 2000;
   border-radius: var(--s2l-radius);
   overflow: hidden;

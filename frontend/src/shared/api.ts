@@ -4,6 +4,7 @@ import type {
   LabelLayout,
   PrintResult,
   Product,
+  PurgeResult,
   Status,
   Transaction,
   WeightReading,
@@ -47,6 +48,25 @@ export const api = {
     return request<Product[]>(`/api/products?${query.toString()}`)
   },
   categories: () => request<Category[]>('/api/products/categories'),
+  setCategoryOrder: (names: string[]) =>
+    request<Category[]>('/api/products/categories/order', {
+      method: 'PUT',
+      body: JSON.stringify({ names }),
+    }),
+  setCategoryImage: (name: string, image_base64: string, image_format: string) =>
+    request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
+      method: 'PUT',
+      body: JSON.stringify({ image_base64, image_format }),
+    }),
+  purgeCatalog: (scope: 'journal' | 'inactive' | 'all') =>
+    request<PurgeResult>('/api/catalog/purge', {
+      method: 'POST',
+      body: JSON.stringify({ scope }),
+    }),
+  clearCategoryImage: (name: string) =>
+    request<Category>(`/api/products/categories/${encodeURIComponent(name)}/image`, {
+      method: 'DELETE',
+    }),
   createProduct: (payload: Omit<Product, 'id'>) =>
     request<Product>('/api/products', { method: 'POST', body: JSON.stringify(payload) }),
   updateProduct: (id: number, payload: Omit<Product, 'id'>) =>
@@ -68,6 +88,19 @@ export const api = {
   settings: () => request<DeviceSettings>('/api/settings'),
   saveSettings: (payload: DeviceSettings) =>
     request<DeviceSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(payload) }),
+
+  settingsPresets: () => request<string[]>('/api/settings/presets'),
+  savePreset: (name: string, payload: DeviceSettings) =>
+    request<string[]>(`/api/settings/presets/${encodeURIComponent(name)}`, {
+      method: 'PUT',
+      body: JSON.stringify(payload),
+    }),
+  applyPreset: (name: string) =>
+    request<DeviceSettings>(`/api/settings/presets/${encodeURIComponent(name)}/apply`, {
+      method: 'POST',
+    }),
+  deletePreset: (name: string) =>
+    request<string[]>(`/api/settings/presets/${encodeURIComponent(name)}`, { method: 'DELETE' }),
 
   simWeight: (grams: number) =>
     request<WeightReading>('/api/sim/weight', {

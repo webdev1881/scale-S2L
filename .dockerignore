@@ -1,0 +1,16 @@
+# В образ попадает только исходник: ни окружений, ни данных прибора, ни сборок.
+.git
+.claude
+.github
+.venv
+**/__pycache__
+**/*.pyc
+frontend/node_modules
+frontend/dist
+backend/data
+backend/.env
+backend/.venv
+deploy
+docs/*
+!docs/prod.xlsx
+*.md

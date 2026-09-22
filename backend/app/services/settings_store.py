@@ -17,7 +17,7 @@ from pydantic import BaseModel, Field
 
 from .label_layout import LabelLayout
 
-from ..config import SETTINGS_FILE
+from ..config import SETTINGS_FILE, SETTINGS_PRESETS_FILE
 
 
 class DeviceSettings(BaseModel):
@@ -55,6 +55,41 @@ class DeviceSettings(BaseModel):
     # покупатель знает код и не хочет искать глазами; в отделе с полусотней позиций
     # она только занимает место рядом с ценой и стоимостью.
     kiosk_code_button: bool = True
+    # Шапка весов только после первого контакта покупателя (касание или груз на
+    # платформе). На стартовом экране нули и «0,00 грн» читаются как сломанный
+    # прибор, а карточкам высота нужнее; выключают там, где показание должно быть
+    # видно всегда — например, если весами пользуется и продавец.
+    kiosk_header_on_contact: bool = True
+    # Показывать только товары со снимком. Карточка без фото среди фотографий
+    # выглядит как дыра; группа, в которой таких товаров не осталось, тоже уходит.
+    kiosk_only_with_photo: bool = False
+    # Товары со снимком — первыми. Слабее предыдущей настройки: та убирает
+    # бесфотографенные вовсе, эта оставляет их, но уводит на последние страницы,
+    # где покупатель их всё же найдёт.
+    kiosk_photo_first: bool = False
+    # Кнопки нижней панели. Поиск нужен не везде: в отделе с полусотней позиций
+    # его не открывают ни разу, а место он занимает. Возврат ко всем товарам
+    # выключают только там, где групп нет вовсе (`kiosk_use_groups`), — иначе из
+    # группы не выйти, пока не сработает сброс по простою.
+    kiosk_search_button: bool = True
+    kiosk_back_button: bool = True
+    # Какую долю нижней панели занимает поиск, проценты. Остальное достаётся
+    # возврату. 50 — поровну; больше — поиск шире, как там, где им пользуются чаще.
+    kiosk_search_width: int = Field(default=50, ge=20, le=80)
+    # Ширина экранной клавиатуры, проценты ширины каталога. Клавиша должна быть
+    # заведомо крупнее пальца, но во всю ширину 1920 клавиатура растягивается так,
+    # что до дальних букв тянутся рукой через весь экран.
+    kiosk_keyboard_width: int = Field(default=60, ge=40, le=100)
+    # Высота клавиатуры, проценты высоты экрана. 32 — то же, что было зашито на
+    # экране прибора (340 px из 1080). Выше — крупнее клавиши, но каталог под
+    # клавиатурой сжимается до одного ряда карточек.
+    kiosk_keyboard_height: int = Field(default=32, ge=20, le=50)
+    # Шрифт клавиш: ключ из списка во фронтенде (`shared/fonts.ts`), кегль в
+    # пикселях и жирность. 23 px и жирный — то, что давала прежняя зашитая
+    # `clamp(17px, 2vw, 23px)` на экране 1920.
+    kiosk_keyboard_font: str = Field(default="system", pattern="^(system|arial|dejavu|ubuntu|mono|serif)$")
+    kiosk_keyboard_font_size: int = Field(default=23, ge=14, le=40)
+    kiosk_keyboard_bold: bool = True
     # Сколько процентов следующей карточки видно в жёлобе подсказки при листании.
     # 0 — жёлоба нет вовсе. Задаётся долей карточки, а не пикселями: карточка меняет
     # ширину вместе с числом колонок, и зашитый пиксель означал бы разную подсказку
@@ -62,10 +97,22 @@ class DeviceSettings(BaseModel):
     kiosk_peek_percent: int = Field(default=28, ge=0, le=60)
     # Сколько секунд бездействия до сброса экрана киоска
     kiosk_idle_reset_s: int = 45
-    # Сколько секунд платформа должна простоять пустой после печати, чтобы киоск
-    # счёл покупку законченной. Платформа качается, пока товар снимают, поэтому
-    # мгновенный ноль ловить нельзя.
-    kiosk_clear_hold_s: float = Field(default=1.5, ge=0.3, le=10)
+    # Сколько секунд платформа должна простоять пустой после снятия товара, чтобы
+    # киоск вернулся к началу — после печати или без неё. Полсекунды: платформа
+    # качается, пока товар снимают, и мгновенный ноль поймал бы середину движения,
+    # но дольше держать чужой выбор перед следующим покупателем незачем.
+    kiosk_clear_hold_s: float = Field(default=0.5, ge=0.2, le=10)
+    # Товар выбран, но не напечатан (нажали карточку с пустой платформой и ушли):
+    # через столько секунд пустой платформы выбор снимается. 0 — не снимать, ждать
+    # сброса по простою. Дольше, чем `kiosk_clear_hold_s`: до печати покупатель
+    # ещё может положить товар, и торопить его незачем.
+    kiosk_unselect_s: float = Field(default=5, ge=0, le=60)
+    # Куда возвращается экран после печати (и после того, как товар сняли):
+    # home — начальный экран; catalog — та же группа и страница, откуда нажали
+    # товар; search — каталог с открытой клавиатурой поиска. Два последних — для
+    # покупателя, который взвешивает несколько товаров подряд и не хочет каждый
+    # раз идти с начала.
+    kiosk_after_print: str = Field(default="home", pattern="^(home|catalog|search)$")
     # Верхний предел показа этикетки: товар с платформы могут не снять вовсе, и без
     # предела экран остался бы занятым чужой покупкой навсегда.
     kiosk_label_max_s: float = Field(default=25, ge=5, le=120)
@@ -74,6 +121,10 @@ class DeviceSettings(BaseModel):
     # Тестовый рубильник: показать блокирующий экран «Оновлення» без реального
     # разрыва связи с бэкендом — чтобы проверить его на приборе и в вёрстке.
     kiosk_force_updating: bool = False
+    # Размер картинки на экране «Оновлення», проценты ширины/высоты экрана.
+    # 0 — картинки нет вовсе, 100 — во весь экран; надпись и крутилка держатся
+    # поверх неё своей панелью, поэтому размер картинки их не задевает.
+    kiosk_updating_photo_scale: int = Field(default=52, ge=0, le=100)
 
     # Масштабы подписей и доля высоты карточки под фотографию. Экран прибора стоит
     # от покупателя дальше, чем монитор от разработчика, и подходящий размер
@@ -94,7 +145,11 @@ class DeviceSettings(BaseModel):
     # Масштаб снимка внутри карточки, проценты. 100 — как есть: фотография
     # заполняет отведённое место и кадрируется по краям. Больше — приближение,
     # меньше — снимок стоит целиком с полями, если товар снят издалека.
+    # Отдельно для товара и для группы: карточка группы крупнее и берёт обложкой
+    # снимок первого товара — то, что в мелкой карточке кадрировано в самый раз,
+    # в крупной оказывается приближено.
     ui_photo_scale: int = Field(default=100, ge=60, le=160)
+    ui_photo_scale_group: int = Field(default=100, ge=60, le=160)
     ui_plate_height: int = Field(default=30, ge=1, le=60)
     # Основной цвет — всё, что относится к каталогу: плашки карточек, их рамки,
     # кнопка набора кода. Второстепенный — действия и итоги: печать, поиск,
@@ -140,3 +195,48 @@ def save_settings(settings: DeviceSettings) -> DeviceSettings:
     temp.write_text(payload + "\n", encoding="utf-8")
     os.replace(temp, SETTINGS_FILE)
     return settings
+
+
+def _read_presets() -> dict[str, dict]:
+    if not SETTINGS_PRESETS_FILE.exists():
+        return {}
+    try:
+        data = json.loads(SETTINGS_PRESETS_FILE.read_text(encoding="utf-8"))
+        return data if isinstance(data, dict) else {}
+    except (OSError, ValueError, json.JSONDecodeError):
+        # Битый файл пресетов не должен ронять страницу настроек — просто нет пресетов.
+        return {}
+
+
+def _write_presets(presets: dict[str, dict]) -> None:
+    SETTINGS_PRESETS_FILE.parent.mkdir(parents=True, exist_ok=True)
+    payload = json.dumps(presets, ensure_ascii=False, indent=2)
+    temp = SETTINGS_PRESETS_FILE.with_suffix(".json.tmp")
+    temp.write_text(payload + "\n", encoding="utf-8")
+    os.replace(temp, SETTINGS_PRESETS_FILE)
+
+
+def list_presets() -> list[str]:
+    """Имена пресетов по алфавиту — оператор выбирает по названию, порядок сохранения не важен."""
+    return sorted(_read_presets())
+
+
+def save_preset(name: str, settings: DeviceSettings) -> None:
+    """Сохраняет текущие настройки под именем `name`, заменяя одноимённый пресет."""
+    presets = _read_presets()
+    presets[name] = settings.model_dump()
+    _write_presets(presets)
+
+
+def apply_preset(name: str) -> DeviceSettings:
+    """Поднимает пресет в основные настройки прибора и сразу их сохраняет."""
+    presets = _read_presets()
+    if name not in presets:
+        raise KeyError(name)
+    return save_settings(DeviceSettings.model_validate(presets[name]))
+
+
+def delete_preset(name: str) -> None:
+    presets = _read_presets()
+    if presets.pop(name, None) is not None:
+        _write_presets(presets)

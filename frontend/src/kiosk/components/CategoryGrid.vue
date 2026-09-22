@@ -105,11 +105,10 @@ defineEmits<{ open: [category: Category] }>()
   display: block;
   width: 100%;
   height: 100%;
-  object-fit: cover;
-  /* Масштаб задаёт оператор: снимки из товароучёта сняты по-разному, и один
-     кадрируется по краям, а другой стоит в кадре далеко. Приближение обрезается
-     границами карточки, уменьшение оставляет поля цвета подложки. */
-  transform: scale(var(--ui-photo-scale, 1));
+  /* То же, что и на карточке товара: ниже 100 % снимок показывается целиком
+     (`contain`), выше — кадрируется по краям карточки. */
+  object-fit: var(--ui-photo-fit-group, cover);
+  transform: scale(var(--ui-photo-scale-group, 1));
 }
 
 .body {

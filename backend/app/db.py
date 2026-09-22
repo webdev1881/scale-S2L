@@ -32,6 +32,27 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 def init_db() -> None:
     """Схема создаётся напрямую. При первом изменении моделей в проде — вводим Alembic."""
     Base.metadata.create_all(engine)
+    _add_missing_columns()
+
+
+# Колонки, добавленные к уже существующим таблицам. `create_all` их не заводит —
+# он создаёт только недостающие таблицы, — а на приборе база живёт с первого дня
+# и пересоздавать её нельзя: в ней каталог и журнал. Пока таких правок единицы,
+# держим их списком здесь; когда станет больше — Alembic.
+_ADDED_COLUMNS: tuple[tuple[str, str, str], ...] = (
+    ("category_covers", "sort_order", "INTEGER"),
+)
+
+
+def _add_missing_columns() -> None:
+    if not settings.db_url.startswith("sqlite"):
+        return
+    with engine.begin() as conn:
+        for table, column, kind in _ADDED_COLUMNS:
+            rows = conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            if not rows or any(row[1] == column for row in rows):
+                continue
+            conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {column} {kind}")
 
 
 def get_db() -> Iterator[Session]:

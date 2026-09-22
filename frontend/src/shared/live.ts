@@ -3,7 +3,7 @@
  * сервер: оператор трогает настройки раз в день, а опрос стоил бы запроса каждые
  * несколько секунд — при том, что прибор и так держит сокет ради веса.
  */
-export type DeviceChange = 'settings' | 'catalog' | 'reconnect'
+export type DeviceChange = 'settings' | 'catalog' | 'catalog_busy' | 'reconnect'
 
 export function watchDeviceUpdates(onChange: (kind: DeviceChange) => void): () => void {
   let socket: WebSocket | null = null

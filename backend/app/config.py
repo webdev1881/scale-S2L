@@ -11,9 +11,18 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 LABELS_DIR = DATA_DIR / "labels"
+# Снимки, пришедшие на прибор извне (выгрузка из 1С). Лежат в данных, а не в сборке
+# фронта: сборка внутри docker-образа переписывается при каждом обновлении, а
+# каталог `data/` — том, который переживает пересоздание контейнера и переносится
+# на новый прибор вместе с базой.
+PHOTOS_DIR = DATA_DIR / "photos"
 # Настройки прибора лежат отдельным файлом: их удобно посмотреть, положить
 # в резервную копию и подложить на новый прибор, не трогая базу.
 SETTINGS_FILE = DATA_DIR / "settings.json"
+# Именованные снимки настроек — переключиться между «залом» и «прилавком» одной
+# кнопкой в шапке, не подбирая заново десяток полей. Отдельный файл рядом с
+# основными настройками по той же причине, что и они сами.
+SETTINGS_PRESETS_FILE = DATA_DIR / "settings_presets.json"
 
 
 class Settings(BaseSettings):
@@ -28,6 +37,9 @@ class Settings(BaseSettings):
 
     # fake — симулятор для разработки без весов, real — драйверы железа
     hal_backend: Literal["fake", "real"] = "fake"
+    # Демо-каталог в пустую базу (только на симуляторе). Выключают, когда пустая
+    # база нужна по делу — например, под выгрузку из 1С (tools/mock_data.py).
+    seed_demo: bool = True
 
     # Подтверждено на приборе: весовая плата висит на встроенном RS232, 19200 бод
     scale_port: str = "/dev/ttyS4"
@@ -52,8 +64,14 @@ class Settings(BaseSettings):
     weight_stream_hz: float = 10.0
 
     # Токен для приёма выгрузки каталога из 1С (POST /api/catalog/1c-import,
-    # заголовок Authorization: Bearer <токен>). Пусто — приём выключен.
+    # заголовок X-API-Key: <токен>, как шлёт обработка 1С). Пусто — приём выключен.
     import_token: str = ""
+
+    # Логин и пароль админки (HTTP Basic, см. app/auth.py). Пустой пароль —
+    # админка открыта; так удобно на машине разработчика и опасно на приборе,
+    # который смотрит в интернет через туннель.
+    admin_user: str = "admin"
+    admin_password: str = ""
 
 
     @field_validator("db_url")
@@ -82,4 +100,5 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     LABELS_DIR.mkdir(parents=True, exist_ok=True)
+    PHOTOS_DIR.mkdir(parents=True, exist_ok=True)
     return Settings()

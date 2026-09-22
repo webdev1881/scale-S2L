@@ -37,7 +37,16 @@ sys.path.insert(0, str(BACKEND))
 from app.db import SessionLocal  # noqa: E402
 from app.models import Product  # noqa: E402
 
-PHOTOS = BACKEND.parent / "frontend" / "public" / "products"
+# В репозитории снимки лежат в public/, в образе прибора — только собранная копия в
+# dist/: node в образе нет, и public/ туда не попадает. Заливка на приборе идёт
+# изнутри контейнера, поэтому берём то, что есть.
+_PHOTO_DIRS = (
+    BACKEND.parent / "frontend" / "public" / "products",
+    BACKEND.parent / "frontend" / "dist" / "products",
+)
+PHOTOS = next((d for d in _PHOTO_DIRS if d.is_dir()), _PHOTO_DIRS[0])
+# Снимки, присланные на прибор (1С), лежат в данных и перекрывают набор из сборки.
+DEVICE_PHOTOS = BACKEND / "data" / "photos"
 # Выгрузка лежит в `docs/`, а не рядом со снимками: всё, что попадает в
 # `public/products`, уезжает в сборку и раздаётся прибором — список артикулов с
 # наименованиями там ни к чему.
@@ -81,11 +90,14 @@ def read_rows(book: Path) -> list[tuple[str, str]]:
 
 def photo_index() -> dict[str, str]:
     """Снимки по артикулу. Сортировка решает споры: `.webp` перебивает `.jpg`."""
-    return {
-        p.stem.lower(): p.name
-        for p in sorted(PHOTOS.iterdir())
-        if p.is_file() and p.suffix.lower() in SUFFIXES
-    }
+    files: dict[str, str] = {}
+    for folder in (PHOTOS, DEVICE_PHOTOS):
+        if not folder.is_dir():
+            continue
+        for p in sorted(folder.iterdir()):
+            if p.is_file() and p.suffix.lower() in SUFFIXES:
+                files[p.stem.lower()] = p.name
+    return files
 
 
 def unit_of(name: str) -> str:

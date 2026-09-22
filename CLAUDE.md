@@ -8,13 +8,19 @@ Element Plus. Целевое устройство — Ubuntu 24.04 x86_64 в р�
 ## Команды
 
 ```bash
-# Бэкенд (Windows-пути; на Linux — .venv/bin/)
+# Всё сразу: бэкенд с автоперезагрузкой и браузер с киоском (--admin — и админка)
+cd backend && .venv/Scripts/python tools/dev.py
+
+# Только бэкенд (Windows-пути; на Linux — .venv/bin/)
 cd backend && .venv/Scripts/python -m uvicorn app.main:app --reload --port 8000
 
 # Фронтенд
 cd frontend && npm run dev          # киоск :5173/, админка :5173/admin.html
 cd frontend && npm run build        # после сборки FastAPI сам отдаёт / и /admin
 cd frontend && npm run typecheck    # vue-tsc; запускать перед сдачей изменений
+
+# Образ прибора (симулятор, порт 8000); на прибор — docs/new-device.md, docs/deploy.md
+docker compose up --build
 ```
 
 ## Правила проекта — в скиллах
@@ -36,6 +42,8 @@ cd frontend && npm run typecheck    # vue-tsc; запускать перед с�
 | `catalog-data` | БД, поиск, мягкое удаление, заливка каталога |
 | `product-photos` | Снимки товаров: привязка, вес, загрузка на экран |
 | `behaviour-logs` | Логи и замеры поведения: журнал операций, касания, ловушки |
+| `deployment` | Docker-образ, compose прибора, install.sh, обновление |
+| `1c-exchange` | Приём каталога из 1С, туннель до прибора, проверка обмена, мок данных |
 
 Главное правило, которое стоит помнить всегда: код вне `backend/app/hal/` не обращается
 к железу напрямую (подробности — в скилле `hardware-hal`).
