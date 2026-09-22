@@ -87,6 +87,11 @@ const messages = {
         printerOnline: 'Принтер: готовий',
         printerOffline: 'Принтер: помилка',
         openKiosk: 'Відкрити кіоск →',
+        updatedCatalog: 'Каталог з 1С',
+        updatedSettings: 'Налаштування',
+        updatedBuild: 'Версія ПЗ',
+        updatedPage: 'Оновлено',
+        updatedNever: 'не було',
       },
       products: {
         search: 'Пошук за назвою або кодом',
@@ -485,6 +490,11 @@ const messages = {
         printerOnline: 'Принтер: готов',
         printerOffline: 'Принтер: ошибка',
         openKiosk: 'Открыть киоск →',
+        updatedCatalog: 'Каталог из 1С',
+        updatedSettings: 'Настройки',
+        updatedBuild: 'Версия ПО',
+        updatedPage: 'Обновлено',
+        updatedNever: 'не было',
       },
       products: {
         search: 'Поиск по названию или коду',

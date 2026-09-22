@@ -7,6 +7,7 @@ import type {
   PurgeResult,
   Status,
   Transaction,
+  UpdatedAt,
   WeightReading,
 } from './types'
 
@@ -72,6 +73,8 @@ export const api = {
   updateProduct: (id: number, payload: Omit<Product, 'id'>) =>
     request<Product>(`/api/products/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
   deleteProduct: (id: number) => request<void>(`/api/products/${id}`, { method: 'DELETE' }),
+
+  updatedAt: () => request<UpdatedAt>('/api/updated-at'),
 
   weight: () => request<WeightReading>('/api/scale/weight'),
   tare: () => request<WeightReading>('/api/scale/tare', { method: 'POST' }),

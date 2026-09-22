@@ -43,6 +43,13 @@ RUN useradd --system --uid 1000 --create-home s2l \
     && chown -R s2l:s2l /opt/s2l
 USER s2l
 
+# Версия прибора: её показывает шапка админки, чтобы было видно, обновился ли
+# прибор после `docker compose pull`. Значения подставляет сборка (см.
+# .github/workflows/docker.yml); собранный руками образ останется без них, и
+# версией станет время сборки фронта.
+ARG BUILD_SHA=""
+ARG BUILD_AT=""
+ENV S2L_BUILD_SHA=$BUILD_SHA S2L_BUILD_AT=$BUILD_AT
 ENV S2L_HOST=0.0.0.0 S2L_PORT=8000 PYTHONUNBUFFERED=1
 EXPOSE 8000
 VOLUME ["/opt/s2l/backend/data"]

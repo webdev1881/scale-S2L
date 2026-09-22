@@ -5,19 +5,49 @@ import { useRoute } from 'vue-router'
 
 import { api } from '@/shared/api'
 import { elementLocale, setLocale } from '@/shared/i18n'
-import type { Status } from '@/shared/types'
+import type { Status, UpdatedAt } from '@/shared/types'
 
 const { t, locale } = useI18n()
 const route = useRoute()
 const status = ref<Status | null>(null)
 let poll: number | undefined
 
+/**
+ * Даты последних обновлений в шапке. Оператор приходит к прибору с вопросом
+ * «свежий ли тут каталог и та ли сборка» — и ответ должен быть на экране всегда,
+ * а не за тремя кликами. Время опроса берём с часов браузера: оно отвечает на
+ * другой вопрос — жива ли связь с прибором прямо сейчас.
+ */
+const updated = ref<UpdatedAt | null>(null)
+const polledAt = ref<Date | null>(null)
+
 async function refresh() {
   try {
     status.value = await api.status()
+    polledAt.value = new Date()
   } catch {
     status.value = null
   }
+  try {
+    updated.value = await api.updatedAt()
+  } catch {
+    /* не ответил — оставляем прежние отметки, они не устарели от одного сбоя */
+  }
+}
+
+/** «22.09 14:05» — день и время без года: прибор смотрят сегодняшними глазами. */
+function stamp(value: string | null | undefined) {
+  if (!value) return t('admin.status.updatedNever')
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return value
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(date.getDate())}.${pad(date.getMonth() + 1)} ${pad(date.getHours())}:${pad(date.getMinutes())}`
+}
+
+function clock(date: Date | null) {
+  if (!date) return '—'
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`
 }
 
 onMounted(async () => {
@@ -82,6 +112,36 @@ onUnmounted(() => window.clearInterval(poll))
             HAL: {{ status?.backend ?? '—' }}
           </el-tag>
         </div>
+        <!-- Даты последних обновлений: каталог из 1С, правка настроек, версия ПО
+             и время последнего успешного опроса прибора. -->
+        <dl class="updated">
+          <div>
+            <dt>{{ t('admin.status.updatedCatalog') }}</dt>
+            <dd>
+              {{ stamp(updated?.catalog_at) }}
+              <span v-if="updated?.catalog_products" class="dim">
+                · {{ updated.catalog_products }}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ t('admin.status.updatedSettings') }}</dt>
+            <dd>{{ stamp(updated?.settings_at) }}</dd>
+          </div>
+          <div>
+            <dt>{{ t('admin.status.updatedBuild') }}</dt>
+            <dd>
+              {{ stamp(updated?.build_at) }}
+              <span v-if="updated?.build_sha" class="dim">
+                · {{ updated.build_sha.slice(0, 7) }}
+              </span>
+            </dd>
+          </div>
+          <div>
+            <dt>{{ t('admin.status.updatedPage') }}</dt>
+            <dd :class="{ stale: !status }">{{ clock(polledAt) }}</dd>
+          </div>
+        </dl>
         <div class="header-right">
           <!-- Место для кнопок текущего раздела: страница настроек телепортирует
                сюда «Зберегти», чтобы кнопка не уезжала вниз вместе с формой. -->
@@ -138,6 +198,37 @@ onUnmounted(() => window.clearInterval(poll))
 .badges {
   display: flex;
   gap: 8px;
+}
+
+/* Даты живут между плашками состояния и кнопками раздела: строка мелкая, читают
+   её редко, но она обязана быть на месте всегда. На узком окне переносится. */
+.updated {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 18px;
+  margin: 0 18px;
+  font-size: 12px;
+  line-height: 1.3;
+}
+
+.updated dt {
+  color: var(--el-text-color-placeholder);
+}
+
+.updated dd {
+  margin: 0;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.updated .dim {
+  font-weight: 400;
+  color: var(--el-text-color-secondary);
+}
+
+/* Связь с прибором потеряна: время опроса замерло, и это должно быть видно. */
+.updated dd.stale {
+  color: var(--el-color-danger);
 }
 
 .header-right {

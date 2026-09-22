@@ -84,6 +84,20 @@ class StatusOut(BaseModel):
     printer: DeviceStatusOut
 
 
+class UpdatedAtOut(BaseModel):
+    """Когда прибор последний раз что-то принял. Шапка админки показывает это
+    всегда: оператор должен видеть, свежий ли перед ним каталог и та ли сборка."""
+
+    # Выгрузка из 1С: время и сколько позиций пришло.
+    catalog_at: str | None = None
+    catalog_products: int | None = None
+    # Правка настроек — время файла settings.json.
+    settings_at: str | None = None
+    # Версия ПО: время сборки и хеш коммита (на приборе — из образа).
+    build_at: str | None = None
+    build_sha: str | None = None
+
+
 class PrintRequest(BaseModel):
     product_id: int
     # Если не передан — берётся текущий нетто с весов (обычный сценарий киоска)

@@ -3,12 +3,14 @@ from __future__ import annotations
 
 import asyncio
 import io
+from datetime import datetime
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import Response
 from sqlalchemy.orm import Session
 
-from ..config import get_settings
+from ..config import FRONTEND_DIST, SETTINGS_FILE, get_settings
 from ..errors import PrintError
 from ..db import get_db
 from ..hal.printer.fake import FakePrinter
@@ -23,9 +25,10 @@ from ..schemas import (
     SimPrinterIn,
     SimWeightIn,
     StatusOut,
+    UpdatedAtOut,
     WeightOut,
 )
-from ..services import live
+from ..services import device_state, live
 from ..services.label_layout import LabelLayout
 from ..services.label import LabelData, render_label
 from ..services.printing import build_barcode, compute_total, weigh_and_print
@@ -66,6 +69,31 @@ def device_status(devices: Devices = Depends(get_devices)) -> StatusOut:
         scale=DeviceStatusOut(online=scale.online, kind=scale.kind, detail=scale.detail),
         printer=DeviceStatusOut(online=printer.online, kind=printer.kind, detail=printer.detail),
     )
+
+
+@router.get("/updated-at", response_model=UpdatedAtOut)
+def updated_at() -> UpdatedAtOut:
+    """Даты последних обновлений прибора — для шапки админки."""
+    settings = get_settings()
+    state = device_state.read()
+    catalog = state.get("catalog_import") or {}
+
+    build_at = settings.build_at or _mtime(FRONTEND_DIST / "index.html")
+    return UpdatedAtOut(
+        catalog_at=catalog.get("at"),
+        catalog_products=catalog.get("products"),
+        settings_at=_mtime(SETTINGS_FILE),
+        build_at=build_at,
+        build_sha=settings.build_sha or None,
+    )
+
+
+def _mtime(path: Path) -> str | None:
+    """Время последней записи файла — там, где отдельной отметки не нужно."""
+    try:
+        return datetime.fromtimestamp(path.stat().st_mtime).isoformat(timespec="seconds")
+    except OSError:
+        return None
 
 
 @router.post("/print", response_model=PrintResult)

@@ -27,7 +27,7 @@ from ..config import get_settings
 from ..db import get_db
 from ..models import Product
 from ..schemas import Import1CError, Import1CRequest, Import1CResult
-from ..services import live
+from ..services import device_state, live
 from ..services.photos import MAX_IMAGE_BYTES, save_product_photo
 
 router = APIRouter(prefix="/api", tags=["1c"])
@@ -137,6 +137,7 @@ def _apply(payload: Import1CRequest, db: Session) -> Import1CResult:
             deactivated += 1
 
     db.commit()
+    device_state.mark("catalog_import", products=len(seen))
 
     return Import1CResult(
         received=len(payload.products),

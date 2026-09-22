@@ -11,7 +11,7 @@ from fastapi.staticfiles import StaticFiles
 
 from . import auth
 from .api import catalog, device, import_1c
-from .config import BASE_DIR, LABELS_DIR, PHOTOS_DIR, get_settings
+from .config import BASE_DIR, FRONTEND_DIST, LABELS_DIR, PHOTOS_DIR, get_settings
 from .db import SessionLocal, init_db
 from .hal.registry import build_devices, get_devices, set_devices
 from .seed import seed_if_empty
@@ -19,7 +19,6 @@ from .seed import seed_if_empty
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s: %(message)s")
 log = logging.getLogger("s2l")
 
-FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 
 
 @asynccontextmanager

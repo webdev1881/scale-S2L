@@ -16,6 +16,9 @@ LABELS_DIR = DATA_DIR / "labels"
 # каталог `data/` — том, который переживает пересоздание контейнера и переносится
 # на новый прибор вместе с базой.
 PHOTOS_DIR = DATA_DIR / "photos"
+# Собранный фронт. Здесь, а не в main.py: его время сборки — это и версия ПО
+# прибора, которую показывает админка (`/api/updated-at`).
+FRONTEND_DIST = BASE_DIR.parent / "frontend" / "dist"
 # Настройки прибора лежат отдельным файлом: их удобно посмотреть, положить
 # в резервную копию и подложить на новый прибор, не трогая базу.
 SETTINGS_FILE = DATA_DIR / "settings.json"
@@ -72,6 +75,11 @@ class Settings(BaseSettings):
     # который смотрит в интернет через туннель.
     admin_user: str = "admin"
     admin_password: str = ""
+
+    # Версия прибора: проставляются при сборке образа (см. Dockerfile), на
+    # машине разработчика пусты — тогда версией считается время сборки фронта.
+    build_sha: str = ""
+    build_at: str = ""
 
 
     @field_validator("db_url")

@@ -109,6 +109,15 @@ export interface PurgeResult {
   labels: number
 }
 
+/** Даты последних обновлений прибора — их всегда показывает шапка админки. */
+export interface UpdatedAt {
+  catalog_at: string | null
+  catalog_products: number | null
+  settings_at: string | null
+  build_at: string | null
+  build_sha: string | null
+}
+
 export interface DeviceSettings {
   language: 'uk' | 'ru'
   theme: 'dark' | 'light'
