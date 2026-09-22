@@ -155,7 +155,7 @@
   "kiosk_keyboard_height": 43,
   "kiosk_keyboard_font": "system",
   "kiosk_keyboard_font_size": 23,
-  "kiosk_keyboard_bold": true,
+  "kiosk_keyboard_bold": false,
   "kiosk_peek_percent": 44,
   "kiosk_idle_reset_s": 45,
   "kiosk_clear_hold_s": 0.5,
