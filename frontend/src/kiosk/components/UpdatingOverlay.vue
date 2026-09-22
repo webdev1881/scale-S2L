@@ -10,7 +10,7 @@ import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
 
-const props = defineProps<{ photoScale: number }>()
+const props = defineProps<{ photoScale: number; textPosition: number }>()
 
 // Картинка — фон, надпись с крутилкой — поверх неё своей панелью, поэтому
 // размер картинки задаётся отдельно и может дорасти до всего экрана: при
@@ -20,6 +20,11 @@ const pictureStyle = computed(() => ({
   width: `${props.photoScale}vw`,
   height: `${props.photoScale}vh`,
 }))
+
+// Доля высоты экрана, а не пиксели: 0 — панель прижата к самому верху, 100 —
+// к низу. Диапазон широкий специально: под разные картинки и вкусы оператора
+// подходит разное место, а не только «сверху» или «по центру».
+const waitStyle = computed(() => ({ top: `${props.textPosition}vh` }))
 </script>
 
 <template>
@@ -34,7 +39,7 @@ const pictureStyle = computed(() => ({
     />
     <!-- Своя панель, а не голый текст на фоне: при большой картинке надпись должна
          читаться поверх неё, а не спорить с сюжетом фотографии. -->
-    <div class="wait">
+    <div class="wait" :style="waitStyle">
       <div class="spinner"></div>
       <p class="label">{{ t('kiosk.updating') }}</p>
     </div>
@@ -71,7 +76,6 @@ const pictureStyle = computed(() => ({
    размером, даже когда та растянута на весь экран. */
 .wait {
   position: absolute;
-  top: 8vh;
   left: 50%;
   z-index: 1;
   transform: translateX(-50%);

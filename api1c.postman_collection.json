@@ -1,0 +1,181 @@
+{
+  "info": {
+    "name": "WASP api1c — 1C catalog import",
+    "description": "1C -> kiosk catalog import API running on the WASP machine (Docker container `wasp-api1c-1`, host network, port 8100). Contract source: /home/aurora/Документи/из 1С.txt. Implementation: /home/aurora/WASP/api1c/.\n\nSet `baseUrl` to the kiosk machine's current LAN IP if it changes (DHCP, not static) — check with `ip -4 addr show enp3s0` on that machine.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://172.25.102.58:8100" },
+    { "key": "apiKey", "value": "5f5e746fee35a8fddb825aa710485ae8c3b5a6947b8ec3d3fb272b703e120d50" }
+  ],
+  "item": [
+    {
+      "name": "Health check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": { "raw": "{{baseUrl}}/health", "host": ["{{baseUrl}}"], "path": ["health"] },
+        "description": "No auth required. Expect {\"status\": \"ok\"}."
+      }
+    },
+    {
+      "name": "Import — create product (minimal)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [\n    {\n      \"name\": \"Тестовий товар з Postman\",\n      \"unit\": \"weight\",\n      \"price\": 42.5,\n      \"category\": \"Фрукти\",\n      \"in_stock\": true\n    }\n  ]\n}"
+        },
+        "description": "Matches the real 1C contract exactly. `name`/`unit`/`price` are always mandatory. `category` empty/omitted -> category left unchanged. New PLU is auto-assigned starting at 900000; new category auto-created (visible)."
+      }
+    },
+    {
+      "name": "Import — create product with photo",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"generated_at\": \"2026-09-15T10:00:00+03:00\",\n  \"replace_images\": false,\n  \"products\": [\n    {\n      \"name\": \"Груша\",\n      \"unit\": \"weight\",\n      \"price\": 55.0,\n      \"category\": \"Фрукти\",\n      \"in_stock\": true,\n      \"image_base64\": \"<paste base64 JPEG/PNG/WEBP here, no data: prefix>\",\n      \"image_format\": \"jpg\"\n    }\n  ]\n}"
+        },
+        "description": "image_base64 saved to a NEW product unconditionally. For an EXISTING product, the photo is only overwritten when replace_images: true at the request root; otherwise it's silently ignored for that item."
+      }
+    },
+    {
+      "name": "Import — update price only (category unchanged)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [\n    {\n      \"name\": \"Груша\",\n      \"unit\": \"weight\",\n      \"price\": 59.9\n    }\n  ]\n}"
+        },
+        "description": "Matches by name (Груша must already exist). category omitted -> not touched. Remember: this call is treated as the FULL current catalog — any other active product not listed here gets soft-deactivated (see the reconciliation note on the batch example)."
+      }
+    },
+    {
+      "name": "Import — deactivate product (in_stock: false)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [\n    {\n      \"name\": \"Груша\",\n      \"unit\": \"weight\",\n      \"price\": 59.9,\n      \"in_stock\": false\n    }\n  ]\n}"
+        },
+        "description": "in_stock: false soft-hides the product from the kiosk (id_sections zeroed), row is never deleted. Overrides `category` if both are sent in the same item."
+      }
+    },
+    {
+      "name": "Import — batch (multiple products, full catalog)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [\n    { \"name\": \"Груша\", \"unit\": \"weight\", \"price\": 59.9, \"category\": \"Фрукти\" },\n    { \"name\": \"Банан\", \"unit\": \"weight\", \"price\": 38.0, \"category\": \"Фрукти\" },\n    { \"name\": \"Цукерки Рошен\", \"unit\": \"piece\", \"price\": 12.5, \"category\": \"Кондитерка\" }\n  ]\n}"
+        },
+        "description": "IMPORTANT: every request is treated as the FULL current 1C catalog. Any product with pre_code >= 900000 (i.e. created by this API) that is NOT named in products[] gets soft-deactivated automatically, exactly like an explicit in_stock: false. Always resend the complete active assortment, not just what changed."
+      }
+    },
+    {
+      "name": "Import — error: empty products[] (expect 400)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": []\n}"
+        },
+        "description": "An empty batch is rejected outright with 400 — treated as a likely bug in the export, not \"no products today\"."
+      }
+    },
+    {
+      "name": "Import — error: photo without image_format (non-blocking)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "{{apiKey}}" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [\n    {\n      \"name\": \"Товар з поганим фото\",\n      \"unit\": \"piece\",\n      \"price\": 10,\n      \"image_base64\": \"/9j/4AAQSkZJRgABAQAAAQABAAD/2wBD\"\n    }\n  ]\n}"
+        },
+        "description": "image_format is required whenever image_base64 is present. Missing/invalid values land in the response's errors[] array but do NOT block the rest of the item — name/price/category are still applied."
+      }
+    },
+    {
+      "name": "Import — error: wrong API key (expect 401)",
+      "request": {
+        "method": "POST",
+        "header": [
+          { "key": "X-API-Key", "value": "wrong-key" },
+          { "key": "Content-Type", "value": "application/json" }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/catalog/1c-import",
+          "host": ["{{baseUrl}}"],
+          "path": ["api", "catalog", "1c-import"]
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"products\": [ { \"name\": \"x\", \"unit\": \"piece\", \"price\": 1 } ]\n}"
+        }
+      }
+    }
+  ]
+}

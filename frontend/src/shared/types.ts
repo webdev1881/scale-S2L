@@ -145,6 +145,7 @@ export interface DeviceSettings {
   splash_seconds: number
   kiosk_force_updating: boolean
   kiosk_updating_photo_scale: number
+  kiosk_updating_text_position: number
   ui_scale_weight: number
   ui_scale_group_title: number
   ui_scale_product_name: number

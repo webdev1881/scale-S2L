@@ -311,6 +311,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_updating_photo_scale" :min="0" :max="100" :step="2" />
             <div class="hint">{{ t('admin.settings.updatingPhotoScaleHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.updatingTextPosition')">
+            <el-input-number v-model="form.kiosk_updating_text_position" :min="0" :max="100" :step="1" />
+            <div class="hint">{{ t('admin.settings.updatingTextPositionHint') }}</div>
+          </el-form-item>
         </div>
       </section>
 
