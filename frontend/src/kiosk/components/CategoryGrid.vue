@@ -105,9 +105,8 @@ defineEmits<{ open: [category: Category] }>()
   display: block;
   width: 100%;
   height: 100%;
-  /* То же, что и на карточке товара: ниже 100 % снимок показывается целиком
-     (`contain`), выше — кадрируется по краям карточки. */
-  object-fit: var(--ui-photo-fit-group, cover);
+  /* То же, что и на карточке товара: снимок вписан целиком, размер — масштабом. */
+  object-fit: contain;
   transform: scale(var(--ui-photo-scale-group, 1));
 }
 
