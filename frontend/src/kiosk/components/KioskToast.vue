@@ -5,18 +5,23 @@
  * весы стоят дальше, чем монитор от разработчика, и мелкий текст без пульсации
  * теряется среди карточек. Размер, цвет, пульсация и время показа — настройка
  * админки, а не разработчика: у разных залов разная громкость важного сообщения.
+ *
+ * `blocking` — для беды, которая сама не пройдёт: кончилась бумага, открыта
+ * крышка. Такое сообщение не тает по таймеру и накрывает экран: покупатель
+ * иначе продолжает тыкать в карточки, а этикетки всё равно не будет.
  */
 defineProps<{
   message: string
   fontSize: number
   color: string
   pulse: boolean
+  blocking?: boolean
 }>()
 </script>
 
 <template>
   <Transition name="kiosk-toast">
-    <div v-if="message" class="kiosk-toast-wrap">
+    <div v-if="message" class="kiosk-toast-wrap" :class="{ blocking }">
       <div class="kiosk-toast" :class="{ pulse }" :style="{ fontSize: `${fontSize}px`, background: color }">
         {{ message }}
       </div>
@@ -34,6 +39,22 @@ defineProps<{
   max-width: 86vw;
   /* Тост не должен перехватывать касание: он информирует, а не блокирует каталог. */
   pointer-events: none;
+}
+
+/* Блокирующее сообщение: тёмная пелена во весь экран, касания в неё и упираются.
+   Сообщение посередине, а не сверху: смотреть больше не на что. */
+.kiosk-toast-wrap.blocking {
+  inset: 0;
+  top: 0;
+  left: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  max-width: none;
+  padding: 0 7vw;
+  background: var(--s2l-splash-bg);
+  transform: none;
+  pointer-events: auto;
 }
 
 .kiosk-toast {

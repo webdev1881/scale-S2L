@@ -8,7 +8,7 @@ import { KIOSK_FONTS } from '@/shared/fonts'
 import { formatKg, formatMoney, localeTag } from '@/shared/format'
 import { elementLocale, setLocale, translateError } from '@/shared/i18n'
 import { applyTheme, rememberSplash, storedSplashMs } from '@/shared/boot'
-import type { Category, DeviceSettings, Product } from '@/shared/types'
+import type { Category, DeviceSettings, Product, Status } from '@/shared/types'
 import { watchDeviceUpdates } from '@/shared/live'
 import { useWeightStore } from '@/shared/weight'
 
@@ -88,6 +88,34 @@ const awaitingPickup = ref(false)
 // от разработчика, и мелкое сообщение в углу экрана там просто не видно.
 const toastMessage = ref('')
 let toastTimer: number | undefined
+
+/**
+ * Беда принтера, которая сама не пройдёт: кончилась бумага, открыта крышка,
+ * устройство пропало. Такое сообщение не тает по таймеру и держит экран
+ * закрытым, пока сотрудник не починит: покупателю бесполезно листать каталог,
+ * когда этикетку всё равно не напечатать. Состояние спрашиваем опросом, а не
+ * по отказу печати: узнать о пустом рулоне надо до того, как человек выбрал
+ * товар и положил его на платформу.
+ */
+const printerFault = ref('')
+let printerPoll: number | undefined
+
+function faultOf(status: Status): string {
+  if (status.printer.online) return ''
+  const detail = status.printer.detail ?? {}
+  if (detail.paper_out) return translateError('print.paper_out')
+  if (detail.cover_open) return translateError('print.cover_open')
+  return translateError('print.unavailable')
+}
+
+async function pollPrinter() {
+  try {
+    printerFault.value = faultOf(await api.status())
+  } catch {
+    // Связи с прибором нет вовсе — это уже другая заставка («Оновлення»),
+    // и спорить с ней своим экраном незачем.
+  }
+}
 
 function showToast(message: string) {
   toastMessage.value = message
@@ -370,6 +398,8 @@ const total = computed(() => {
  * касание: покупатель нажал и обязан узнать, почему ничего не произошло.
  */
 function blockReasonFor(product: Product | null) {
+  // Принтер молчит — печатать нечем, и это первое, что стоит сказать.
+  if (printerFault.value) return printerFault.value
   if (!product) return t('blocked.selectProduct')
   if (product.unit === 'piece') {
     // Цена штучного не зависит от веса, но товар всё равно кладут на платформу:
@@ -1114,6 +1144,8 @@ onMounted(async () => {
   window.addEventListener('pointerdown', onPointerDown, true)
   window.addEventListener('click', engage, true)
   bumpIdle()
+  void pollPrinter()
+  printerPoll = window.setInterval(pollPrinter, 3000)
   stopUpdates = watchDeviceUpdates(onDeviceChanged)
 })
 
@@ -1125,6 +1157,7 @@ onUnmounted(() => {
   window.clearTimeout(clearTimer)
   window.clearTimeout(unselectTimer)
   window.clearTimeout(busyTimer)
+  window.clearInterval(printerPoll)
   stopUpdates?.()
   window.removeEventListener('pointerdown', bumpIdle)
   window.removeEventListener('pointerdown', onPointerDown, true)
@@ -1203,11 +1236,13 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
       :text-position="settings?.kiosk_updating_text_position ?? 3"
     />
 
+    <!-- Беда принтера вытесняет обычный тост: она важнее и не тает сама. -->
     <KioskToast
-      :message="toastMessage"
+      :message="printerFault || toastMessage"
       :font-size="settings?.kiosk_toast_font_size ?? 32"
       :color="settings?.kiosk_toast_color ?? '#d97706'"
       :pulse="settings?.kiosk_toast_pulse ?? true"
+      :blocking="!!printerFault"
     />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">
