@@ -7,7 +7,9 @@ backend/data/*.db
 # каждом экземпляре, и в репозитории давали конфликт при каждом пуле. Образец
 # с подобранными значениями лежит рядом: settings.example.json.
 backend/data/settings.json
-backend/data/settings_presets.json
+# Пресеты, наоборот, общие для всех приборов — библиотека предустановок,
+# выбирается в шапке настроек. В git осознанно, несмотря на тот же риск
+# конфликта при пуле, что и у settings.json.
 backend/data/labels/
 backend/data/mock/
 backend/data/photos/

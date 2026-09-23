@@ -155,6 +155,10 @@ export interface DeviceSettings {
   kiosk_force_updating: boolean
   kiosk_updating_photo_scale: number
   kiosk_updating_text_position: number
+  kiosk_toast_font_size: number
+  kiosk_toast_duration_s: number
+  kiosk_toast_color: string
+  kiosk_toast_pulse: boolean
   ui_scale_weight: number
   ui_scale_group_title: number
   ui_scale_product_name: number

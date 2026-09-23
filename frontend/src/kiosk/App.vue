@@ -1,5 +1,4 @@
 <script setup lang="ts">
-import { ElMessage } from 'element-plus'
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
@@ -15,6 +14,7 @@ import { useWeightStore } from '@/shared/weight'
 
 import CategoryGrid from './components/CategoryGrid.vue'
 import Keyboard from './components/Keyboard.vue'
+import KioskToast from './components/KioskToast.vue'
 import Numpad from './components/Numpad.vue'
 import Pager from './components/Pager.vue'
 import ProductGrid from './components/ProductGrid.vue'
@@ -83,6 +83,20 @@ const printing = ref(false)
 // Модального окна с этикеткой больше нет — экран сразу возвращается в каталог,
 // но защита платформы «покупка кончается снятием товара» на этом флаге и держится.
 const awaitingPickup = ref(false)
+
+// Крупный тост вместо ElMessage: весы стоят дальше от покупателя, чем монитор
+// от разработчика, и мелкое сообщение в углу экрана там просто не видно.
+const toastMessage = ref('')
+let toastTimer: number | undefined
+
+function showToast(message: string) {
+  toastMessage.value = message
+  window.clearTimeout(toastTimer)
+  const seconds = settings.value?.kiosk_toast_duration_s ?? 4
+  toastTimer = window.setTimeout(() => {
+    toastMessage.value = ''
+  }, seconds * 1000)
+}
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
@@ -847,7 +861,7 @@ function findByPlu() {
   const exact = products.value.find((product) => product.plu === plu)
   const found = exact ?? (visibleProducts.value.length === 1 ? visibleProducts.value[0] : null)
   if (!found) {
-    ElMessage.warning(t('kiosk.pluNotFound', { plu: pluInput.value }))
+    showToast(t('kiosk.pluNotFound', { plu: pluInput.value }))
     return
   }
   // selectProduct сам провалится в группу товара и снимет фильтр по коду.
@@ -858,7 +872,7 @@ async function print() {
   if (!selected.value || printing.value) return
   // Молча не отказываем: касание было, и без ответа прибор выглядит сломанным.
   if (printBlockReason.value) {
-    return ElMessage({ message: printBlockReason.value, type: 'warning', duration: 4000 })
+    return showToast(printBlockReason.value)
   }
   printing.value = true
   try {
@@ -877,7 +891,7 @@ async function print() {
   } catch (error) {
     const message =
       error instanceof ApiError ? translateError(error.message) : t('kiosk.printFailed')
-    ElMessage({ message, type: 'warning', duration: 4000 })
+    showToast(message)
   } finally {
     printing.value = false
   }
@@ -896,7 +910,7 @@ function armLabelCap() {
     // Предел сработал при занятой платформе — значит товар забыли. Молчать нельзя:
     // следующий покупатель встанет к прибору с чужим грузом на чаше.
     if (weight.reading.net_g >= minWeight.value) {
-      ElMessage({ message: t('kiosk.takeGoods'), type: 'warning', duration: 5000 })
+      showToast(t('kiosk.takeGoods'))
     }
     closeLabel()
   }, labelMaxMs.value)
@@ -1164,6 +1178,13 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
       v-else-if="!weight.connected || catalogBusy || settings?.kiosk_force_updating"
       :photo-scale="settings?.kiosk_updating_photo_scale ?? 52"
       :text-position="settings?.kiosk_updating_text_position ?? 3"
+    />
+
+    <KioskToast
+      :message="toastMessage"
+      :font-size="settings?.kiosk_toast_font_size ?? 32"
+      :color="settings?.kiosk_toast_color ?? '#d97706'"
+      :pulse="settings?.kiosk_toast_pulse ?? true"
     />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">

@@ -315,6 +315,20 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_updating_text_position" :min="0" :max="100" :step="1" />
             <div class="hint">{{ t('admin.settings.updatingTextPositionHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.toastFontSize')">
+            <el-input-number v-model="form.kiosk_toast_font_size" :min="16" :max="64" :step="2" />
+            <div class="hint">{{ t('admin.settings.toastFontSizeHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.toastDuration')">
+            <el-input-number v-model="form.kiosk_toast_duration_s" :min="1" :max="15" :step="0.5" />
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.toastColor')">
+            <el-color-picker v-model="form.kiosk_toast_color" />
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.toastPulse')">
+            <el-switch v-model="form.kiosk_toast_pulse" />
+            <div class="hint">{{ t('admin.settings.toastPulseHint') }}</div>
+          </el-form-item>
         </div>
       </section>
 
