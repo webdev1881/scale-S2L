@@ -540,7 +540,7 @@ let settleTimer = 0
  * кнопку раньше, и его нажатие пропадало. Именно это и выглядело как «кнопки
  * срабатывают только со второго раза».
  */
-function swallowDragClick(x: number, y: number) {
+function swallowDragClick(x: number, y: number, windowMs = 120) {
   let timer = 0
   const stop = (event: Event) => {
     const click = event as MouseEvent
@@ -555,7 +555,7 @@ function swallowDragClick(x: number, y: number) {
   window.addEventListener('click', stop, true)
   // Если клика не будет вовсе (браузер тоже умеет его не слать), слушатель уходит
   // сам через кадр-другой и ничьё нажатие не задевает.
-  timer = window.setTimeout(() => window.removeEventListener('click', stop, true), 120)
+  timer = window.setTimeout(() => window.removeEventListener('click', stop, true), windowMs)
 }
 
 const reducedMotion = () =>
@@ -888,6 +888,14 @@ function onPointerDown(event: PointerEvent) {
   // Клавиатуру снимет сам `selectProduct`, когда выбор состоится: до этого момента
   // на экране ничего двигаться не должно.
   if (target.closest('.card')) return
+  // Закрытие двигает экран: исчезает отступ под клавиатурой, и нижняя панель
+  // съезжает вниз — ровно туда, где палец. `click` после такого касания попадал
+  // по «ПОШУК товару», и клавиатура открывалась заново: со стороны выглядело так,
+  // будто касание рядом с узкой клавиатурой её вызывает. Гасим этот клик тем же
+  // приёмом, что и клик после протяжки. Окно длиннее обычного: панель встаёт на
+  // место только после ухода клавиатуры (переход 0.22 с), а касание пальцем даёт
+  // `click` и через треть секунды после отрыва.
+  swallowDragClick(event.clientX, event.clientY, 500)
   if (target.closest('.grid-slot')) return closeKeyboard()
   cancelKeyboard()
 }
