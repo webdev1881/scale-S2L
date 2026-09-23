@@ -119,12 +119,32 @@ async function pollPrinter() {
 
 function showToast(message: string) {
   toastMessage.value = message
+  toastWeight = weight.reading.net_g
   window.clearTimeout(toastTimer)
   const seconds = settings.value?.kiosk_toast_duration_s ?? 4
   toastTimer = window.setTimeout(() => {
     toastMessage.value = ''
   }, seconds * 1000)
 }
+
+/**
+ * Сообщение уходит, как только покупатель взялся за товар: вес изменился — значит
+ * он уже делает то, о чём просили («заберіть товар», «покладіть товар»), и держать
+ * надпись до конца выдержки незачем. Вес сравниваем с тем, что был при показе, а
+ * порог берём от наименьшей навески: платформа качается, и пара граммов — не
+ * действие покупателя.
+ */
+let toastWeight = 0
+
+watch(
+  () => weight.reading.net_g,
+  (net) => {
+    if (!toastMessage.value) return
+    if (Math.abs(net - toastWeight) < minWeight.value) return
+    window.clearTimeout(toastTimer)
+    toastMessage.value = ''
+  },
+)
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
