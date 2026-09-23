@@ -471,6 +471,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-switch v-model="form.kiosk_back_button" />
             <div class="hint">{{ t('admin.settings.backButtonHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.actionsFullWidth')">
+            <el-switch v-model="form.kiosk_actions_full_width" />
+            <div class="hint">{{ t('admin.settings.actionsFullWidthHint') }}</div>
+          </el-form-item>
           <el-form-item :label="t('admin.settings.searchWidth')">
             <el-input-number
               v-model="form.kiosk_search_width"

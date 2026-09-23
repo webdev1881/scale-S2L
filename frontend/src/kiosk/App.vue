@@ -235,6 +235,7 @@ const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
 const showUnit = computed(() => settings.value?.kiosk_show_unit ?? true)
 const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
 const searchButton = computed(() => settings.value?.kiosk_search_button ?? true)
+const actionsFullWidth = computed(() => settings.value?.kiosk_actions_full_width ?? false)
 const backButton = computed(() => settings.value?.kiosk_back_button ?? true)
 /**
  * Доли нижней панели. Две колонки живут только тогда, когда обе кнопки включены:
@@ -1382,7 +1383,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
         <!-- Футер собран теми же плитками, что и шапка: сумма слева, выбранный
              товар посередине, действие справа — под большой палец. -->
-        <footer class="bottom">
+        <footer class="bottom" :class="{ 'stacked-actions': actionsFullWidth }">
           <!-- Сумма живёт в шапке, повторять её здесь незачем. Освободившееся
                место отдано таре и обнулению — их включают в админке там, где
                покупатель сам ставит тару. -->
@@ -1775,6 +1776,30 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   border-radius: var(--s2l-radius);
 }
 
+/* Кнопки во всю ширину: плитка выбранного товара уходит строкой выше, а ряд
+   кнопок делится по заданной доле — при 50 % каждая ровно в половину экрана.
+   До кнопки тянутся стоя у прибора, и ширина здесь дороже соседства с плиткой. */
+.bottom.stacked-actions {
+  grid-template-columns: auto 1fr;
+}
+
+.bottom.stacked-actions .actions {
+  grid-column: 1 / -1;
+}
+
+/* Плитка выбранного товара занимает свою строку целиком: рядом с ней всё равно
+   пусто, а растянутая — вмещает длинное название без переноса на две строки. */
+.bottom.stacked-actions .pick {
+  grid-column: 1 / -1;
+}
+
+/* Две строки вместо одной уже забрали высоту у карточек — плитку делаем ниже:
+   в ней текст, а не цель для пальца, и держать её вровень с кнопкой незачем. */
+.bottom.stacked-actions .pick,
+.bottom.stacked-actions .scale-actions .tile {
+  min-height: calc(64px * var(--ui-footer, 1));
+}
+
 .bottom .tile {
   display: flex;
   flex-direction: column;
@@ -1822,9 +1847,16 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 .pick-name {
   font-size: calc(22px * var(--ui-footer, 1));
   font-weight: 600;
+  /* Длинное название переносится на вторую строку, а не обрывается многоточием:
+     в каталоге из 1С имена длинные («Помідор сливка Брісколіно органічний кг»),
+     и по обрезку покупатель не поймёт, что именно он взвешивает. Третья строка
+     уже растит футер — её отсекаем. */
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.2;
 }
 
 .pick-meta,

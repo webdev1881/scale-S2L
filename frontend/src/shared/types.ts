@@ -141,6 +141,7 @@ export interface DeviceSettings {
   kiosk_search_button: boolean
   kiosk_back_button: boolean
   kiosk_search_width: number
+  kiosk_actions_full_width: boolean
   kiosk_keyboard_width: number
   kiosk_keyboard_height: number
   kiosk_keyboard_font: 'system' | 'arial' | 'dejavu' | 'ubuntu' | 'mono' | 'serif'
