@@ -133,6 +133,7 @@ export interface DeviceSettings {
   kiosk_scale_buttons: boolean
   kiosk_use_groups: boolean
   kiosk_show_code: boolean
+  kiosk_show_unit: boolean
   kiosk_code_button: boolean
   kiosk_header_on_contact: boolean
   kiosk_only_with_photo: boolean

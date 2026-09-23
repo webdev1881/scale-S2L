@@ -434,6 +434,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_peek_percent" :min="0" :max="60" :step="2" />
             <div class="hint">{{ t('admin.settings.peekHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.showUnit')">
+            <el-switch v-model="form.kiosk_show_unit" />
+            <div class="hint">{{ t('admin.settings.showUnitHint') }}</div>
+          </el-form-item>
           <el-form-item :label="t('admin.settings.showCode')">
             <el-switch v-model="form.kiosk_show_code" />
             <div class="hint">{{ t('admin.settings.showCodeHint') }}</div>

@@ -16,6 +16,8 @@ const props = defineProps<{
   codeOpen: boolean
   /** Показывать ли кнопку набора кода: в отделе она может быть лишней. */
   codeButton?: boolean
+  /** Показывать «кг»/«шт» рядом с ценой. */
+  showUnit?: boolean
 }>()
 defineEmits<{ toggleCode: [] }>()
 const { t } = useI18n()
@@ -25,10 +27,14 @@ const netKg = computed(() => formatKg(Math.max(props.reading.net_g, 0)))
 // Пока товар не выбран, показываем нули, а не прочерк: место числа занято
 // числом, и при выборе меняется только значение, а не вид блока.
 const priceText = computed(() => {
-  const per = props.product?.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
   // Валюта стоит рядом в «Вартості» и в итоге внизу — в цене она только удлиняет
-  // строку, из-за которой число приходится ужимать.
-  return `${formatMoney(props.product?.price ?? 0)} ${per}`
+  // строку, из-за которой число приходится ужимать. Единицу («кг», «шт») по той же
+  // причине можно убрать настройкой: в отделе, где всё на вес, она ничего не
+  // сообщает.
+  const money = formatMoney(props.product?.price ?? 0)
+  if (!props.showUnit) return money
+  const per = props.product?.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+  return `${money} ${per}`
 })
 
 // Стоимость пересчитывается на каждый отсчёт весов — покупатель видит сумму

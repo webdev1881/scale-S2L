@@ -15,6 +15,8 @@ const props = defineProps<{
   calm?: boolean
   /** Показывать код товара поверх снимка. */
   showCode?: boolean
+  /** Показывать «кг»/«шт» рядом с ценой. */
+  showUnit?: boolean
 }>()
 defineEmits<{ select: [product: Product] }>()
 </script>
@@ -61,7 +63,9 @@ defineEmits<{ select: [product: Product] }>()
              в шапке и в итоге, а место на плашке дорогое. -->
         <span class="price">
           {{ formatMoney(product.price) }}
-          {{ product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg') }}
+          <template v-if="showUnit">
+            {{ product.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg') }}
+          </template>
         </span>
       </div>
     </button>

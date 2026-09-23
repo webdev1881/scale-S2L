@@ -232,6 +232,7 @@ const scaleButtons = computed(() => settings.value?.kiosk_scale_buttons ?? true)
 const useGroups = computed(() => settings.value?.kiosk_use_groups ?? true)
 const peekPercent = computed(() => settings.value?.kiosk_peek_percent ?? 28)
 const showCode = computed(() => settings.value?.kiosk_show_code ?? true)
+const showUnit = computed(() => settings.value?.kiosk_show_unit ?? true)
 const codeButton = computed(() => settings.value?.kiosk_code_button ?? true)
 const searchButton = computed(() => settings.value?.kiosk_search_button ?? true)
 const backButton = computed(() => settings.value?.kiosk_back_button ?? true)
@@ -1252,6 +1253,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
           :total="total"
           :code-open="showNumpad"
           :code-button="codeButton"
+          :show-unit="showUnit"
           @toggle-code="showNumpad ? cancelNumpad() : openNumpad()"
         />
       </header>
@@ -1340,6 +1342,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
                       :rows="visibleRows"
                       :calm="calmCards"
                       :show-code="showCode"
+                      :show-unit="showUnit"
                       @select="selectProduct"
                     />
                   </template>
@@ -1384,9 +1387,15 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
             <template v-if="selected">
               <div class="pick-name">{{ selected.name }}</div>
               <div class="pick-meta">
-                {{ formatMoney(selected.price) }} {{ currency }}/{{
-                  selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
-                }}
+                <!-- Строка под названием — пояснение, а не крупное число: единицу
+                     здесь оставляем, даже когда её убрали с карточки, иначе «за что
+                     эта цена» не сказано нигде. Убирается только дробь «грн/кг». -->
+                {{ formatMoney(selected.price) }}
+                <template v-if="showUnit">
+                  {{ currency }}/{{
+                    selected.unit === 'piece' ? t('kiosk.perPiece') : t('kiosk.perKg')
+                  }}
+                </template>
                 <template v-if="selected.unit === 'weight'">
                   · {{ formatKg(netG) }} {{ t('kiosk.perKg') }}
                 </template>
