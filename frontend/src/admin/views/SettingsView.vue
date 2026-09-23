@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { onBeforeUnmount, onMounted, ref } from 'vue'
+import { onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import { api, ApiError } from '@/shared/api'
@@ -40,7 +40,62 @@ function jump(id: string) {
 
 async function load() {
   form.value = await api.settings()
+  applied.value = { ...form.value }
   setLocale(form.value.language)
+}
+
+/**
+ * «Одразу на ваги»: правка уезжает на прибор без «Зберегти». Оператор настраивает
+ * сетку и кегли, глядя на сам прибор, а не на форму, — и ходить к кнопке после
+ * каждого щелчка стрелкой бессмысленно. Выбор живёт в браузере, а не в настройках
+ * прибора: это привычка того, кто сейчас настраивает, а не свойство весов.
+ *
+ * Название магазина исключено нарочно: оно печатается на этикетке, и прибор не
+ * должен увидеть его недописанным — уходит только по «Зберегти».
+ */
+const LIVE_KEY = 's2l-live-settings'
+const live = ref(localStorage.getItem(LIVE_KEY) === '1')
+const liveBusy = ref(false)
+/** Что сейчас стоит на приборе — чтобы не слать правку, которой нет. */
+const applied = ref<DeviceSettings | null>(null)
+let liveTimer: number | undefined
+
+watch(live, (on) => {
+  localStorage.setItem(LIVE_KEY, on ? '1' : '0')
+  if (on) queueLive()
+})
+
+watch(
+  form,
+  () => {
+    if (live.value) queueLive()
+  },
+  { deep: true },
+)
+
+/** Пауза перед отправкой: ползунок и поле ввода дают десяток правок в секунду. */
+function queueLive() {
+  window.clearTimeout(liveTimer)
+  liveTimer = window.setTimeout(pushLive, 400)
+}
+
+async function pushLive() {
+  if (!form.value || !applied.value) return
+  // Название магазина берём то, что уже на приборе: недописанное имя туда не едет.
+  const payload: DeviceSettings = { ...form.value, store_name: applied.value.store_name }
+  if (JSON.stringify(payload) === JSON.stringify(applied.value)) return
+
+  liveBusy.value = true
+  try {
+    applied.value = await api.saveSettings(payload)
+    // Форму не трогаем: оператор может печатать прямо сейчас, и подмена значений
+    // из ответа стёрла бы половину слова.
+    setLocale(payload.language)
+  } catch (error) {
+    ElMessage.error(error instanceof ApiError ? error.message : t('admin.settings.liveFailed'))
+  } finally {
+    liveBusy.value = false
+  }
 }
 
 /**
@@ -62,6 +117,7 @@ async function applySelectedPreset() {
   presetBusy.value = true
   try {
     form.value = await api.applyPreset(selectedPreset.value)
+    applied.value = { ...form.value }
     setLocale(form.value.language)
     ElMessage.success(t('admin.settings.presetApplied', { name: selectedPreset.value }))
   } catch (error) {
@@ -126,6 +182,7 @@ async function save() {
   saving.value = true
   try {
     form.value = await api.saveSettings(form.value)
+    applied.value = { ...form.value }
     // Язык применяется сразу — иначе оператор не увидит результат своего выбора.
     setLocale(form.value.language)
     ElMessage.success(t('admin.settings.saved'))
@@ -198,6 +255,7 @@ onBeforeUnmount(() => observer?.disconnect())
           </el-form-item>
           <el-form-item :label="t('admin.settings.storeName')">
             <el-input v-model="form.store_name" maxlength="60" />
+            <div v-if="live" class="hint">{{ t('admin.settings.liveStoreName') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.currency')">
             <el-input v-model="form.currency" maxlength="4" style="width: 100px" />
@@ -519,6 +577,12 @@ onBeforeUnmount(() => observer?.disconnect())
          уезжать под нижний край вместе с ней. `defer` нужен потому, что шапка
          рисуется тем же обходом, что и эта страница. -->
     <Teleport to="#admin-actions" defer>
+      <el-tooltip :content="t('admin.settings.liveHint')" placement="bottom">
+        <label class="live">
+          <el-switch v-model="live" :loading="liveBusy" size="small" />
+          <span>{{ t('admin.settings.live') }}</span>
+        </label>
+      </el-tooltip>
       <el-select
         v-model="selectedPreset"
         class="preset-select"
@@ -552,6 +616,17 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style scoped>
+.live {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-right: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  user-select: none;
+}
+
 .preset-select {
   width: 180px;
 }
