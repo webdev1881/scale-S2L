@@ -230,6 +230,12 @@ const requireStable = computed(() => settings.value?.require_stable ?? true)
 const clearHoldMs = computed(() => (settings.value?.kiosk_clear_hold_s ?? 1.5) * 1000)
 const unselectMs = computed(() => (settings.value?.kiosk_unselect_s ?? 5) * 1000)
 const afterPrint = computed(() => settings.value?.kiosk_after_print ?? 'home')
+const pieceNeedsLoad = computed(() => settings.value?.kiosk_piece_needs_load ?? true)
+/**
+ * «Платформа не пуста» для штучного товара. Не наименьшая навеска: пучок зелени
+ * легче её, а от шума АЦП (±2 г на живой плате) порога в пять граммов хватает.
+ */
+const PIECE_PRESENCE_G = 5
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
@@ -365,7 +371,14 @@ const total = computed(() => {
  */
 const printBlockReason = computed(() => {
   if (!selected.value) return t('blocked.selectProduct')
-  if (selected.value.unit === 'piece') return null
+  if (selected.value.unit === 'piece') {
+    // Цена штучного не зависит от веса, но товар всё равно кладут на платформу:
+    // иначе случайное касание карточки печатает этикетку мгновенно.
+    if (pieceNeedsLoad.value && weight.reading.net_g < PIECE_PRESENCE_G) {
+      return t('blocked.putGoods')
+    }
+    return null
+  }
   if (weight.reading.error) return translateError(weight.reading.error)
   if (netG.value < minWeight.value) return t('blocked.putGoods')
   if (requireStable.value && !weight.reading.stable) return t('blocked.waitStable')
