@@ -211,7 +211,6 @@ onMounted(async () => {
 
 onBeforeUnmount(() => observer?.disconnect())
 </script>
-
 <template>
   <div v-if="form" class="page">
     <nav class="toc">
@@ -228,6 +227,53 @@ onBeforeUnmount(() => observer?.disconnect())
     </nav>
 
     <el-form :model="form" label-position="top" class="blocks">
+      <!-- Панель страницы: пресеты и живое применение. Раньше они жили в шапке
+           админки вперемешку с кнопками сохранения и датами — шапка не читалась.
+           Здесь они рядом с тем, на что влияют. -->
+      <div class="toolbar">
+        <div class="toolbar-presets">
+          <span class="toolbar-title">{{ t('admin.settings.presetsTitle') }}</span>
+          <el-select
+            v-model="selectedPreset"
+            class="preset-select"
+            clearable
+            filterable
+            size="small"
+            :placeholder="t('admin.settings.presetPlaceholder')"
+          >
+            <el-option v-for="name in presets" :key="name" :label="name" :value="name" />
+          </el-select>
+          <el-button
+            size="small"
+            :disabled="!selectedPreset"
+            :loading="presetBusy"
+            @click="applySelectedPreset"
+          >
+            {{ t('admin.settings.presetApply') }}
+          </el-button>
+          <el-button size="small" :loading="presetBusy" @click="saveAsPreset">
+            {{ t('admin.settings.presetSaveAs') }}
+          </el-button>
+          <el-button
+            size="small"
+            :disabled="!selectedPreset"
+            :loading="presetBusy"
+            type="danger"
+            plain
+            @click="deleteSelectedPreset"
+          >
+            {{ t('admin.settings.presetDelete') }}
+          </el-button>
+        </div>
+
+        <el-tooltip :content="t('admin.settings.liveHint')" placement="bottom">
+          <label class="live">
+            <el-switch v-model="live" :loading="liveBusy" size="small" />
+            <span>{{ t('admin.settings.live') }}</span>
+          </label>
+        </el-tooltip>
+      </div>
+
       <!-- Пристрій -->
       <section id="s-device" class="block">
         <header class="block-head">
@@ -274,9 +320,11 @@ onBeforeUnmount(() => observer?.disconnect())
         </header>
         <div class="fields">
           <el-form-item :label="t('admin.settings.labelSize')">
-            <el-input-number v-model="form.label_width_mm" :min="20" :max="56" />
-            <span class="times">×</span>
-            <el-input-number v-model="form.label_height_mm" :min="20" :max="120" />
+            <div class="row nowrap">
+              <el-input-number v-model="form.label_width_mm" :min="20" :max="56" />
+              <span class="times">×</span>
+              <el-input-number v-model="form.label_height_mm" :min="20" :max="120" />
+            </div>
             <div class="hint">{{ t('admin.settings.labelSizeHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.template')">
@@ -309,29 +357,55 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.min_print_weight_g" :min="0" :max="1000" />
             <div class="hint">{{ t('admin.settings.minWeightHint') }}</div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.requireStable')">
+        </div>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.requireStable') }}</b>
+              <i>{{ t('admin.settings.requireStableHint') }}</i>
+            </span>
             <el-switch v-model="form.require_stable" />
-            <div class="hint">{{ t('admin.settings.requireStableHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.scaleButtons')">
-            <el-switch v-model="form.kiosk_scale_buttons" />
-            <div class="hint">{{ t('admin.settings.scaleButtonsHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.clearHold')">
-            <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.2" :max="10" :step="0.1" />
-            <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.pieceNeedsLoad')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.pieceNeedsLoad') }}</b>
+              <i>{{ t('admin.settings.pieceNeedsLoadHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_piece_needs_load" />
-            <div class="hint">{{ t('admin.settings.pieceNeedsLoadHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.afterPrint')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.scaleButtons') }}</b>
+              <i>{{ t('admin.settings.scaleButtonsHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_scale_buttons" />
+          </label>
+        </div>
+      </section>
+
+      <!-- Сесія покупця -->
+      <section id="s-session" class="block">
+        <header class="block-head">
+          <KioskSketch zone="overlay" class="block-sketch" />
+          <div>
+            <h2>{{ t('admin.settings.sections.session') }}</h2>
+            <p>{{ t('admin.settings.sections.sessionLead') }}</p>
+          </div>
+        </header>
+
+        <h3 class="group">{{ t('admin.settings.groups.afterPrint') }}</h3>
+        <div class="fields">
+          <el-form-item class="wide" :label="t('admin.settings.afterPrint')">
             <el-radio-group v-model="form.kiosk_after_print">
               <el-radio-button value="home">{{ t('admin.settings.afterPrintHome') }}</el-radio-button>
               <el-radio-button value="catalog">{{ t('admin.settings.afterPrintCatalog') }}</el-radio-button>
               <el-radio-button value="search">{{ t('admin.settings.afterPrintSearch') }}</el-radio-button>
             </el-radio-group>
             <div class="hint">{{ t('admin.settings.afterPrintHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.clearHold')">
+            <el-input-number v-model="form.kiosk_clear_hold_s" :min="0.2" :max="10" :step="0.1" />
+            <div class="hint">{{ t('admin.settings.clearHoldHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.unselect')">
             <el-input-number v-model="form.kiosk_unselect_s" :min="0" :max="60" :step="1" />
@@ -341,60 +415,68 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_label_max_s" :min="5" :max="120" :step="5" />
             <div class="hint">{{ t('admin.settings.labelMaxHint') }}</div>
           </el-form-item>
-        </div>
-      </section>
-
-      <!-- Екран і сесія -->
-      <section id="s-session" class="block">
-        <header class="block-head">
-          <KioskSketch zone="overlay" class="block-sketch" />
-          <div>
-            <h2>{{ t('admin.settings.sections.session') }}</h2>
-            <p>{{ t('admin.settings.sections.sessionLead') }}</p>
-          </div>
-        </header>
-        <div class="fields">
           <el-form-item :label="t('admin.settings.idleReset')">
             <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
           </el-form-item>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.screens') }}</h3>
+        <div class="fields">
           <el-form-item :label="t('admin.settings.splash')">
             <el-input-number v-model="form.splash_seconds" :min="0" :max="10" :step="0.5" />
             <div class="hint">{{ t('admin.settings.splashHint') }}</div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.headerOnContact')">
-            <el-switch v-model="form.kiosk_header_on_contact" />
-            <div class="hint">{{ t('admin.settings.headerOnContactHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.forceUpdating')">
-            <el-switch v-model="form.kiosk_force_updating" />
-            <div class="hint">{{ t('admin.settings.forceUpdatingHint') }}</div>
-          </el-form-item>
           <el-form-item :label="t('admin.settings.updatingPhotoScale')">
-            <el-input-number v-model="form.kiosk_updating_photo_scale" :min="0" :max="100" :step="2" />
+            <el-input-number v-model="form.kiosk_updating_photo_scale" :min="20" :max="100" :step="1" />
             <div class="hint">{{ t('admin.settings.updatingPhotoScaleHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.updatingTextPosition')">
-            <el-input-number v-model="form.kiosk_updating_text_position" :min="0" :max="100" :step="1" />
+            <el-input-number v-model="form.kiosk_updating_text_position" :min="1" :max="4" :step="1" />
             <div class="hint">{{ t('admin.settings.updatingTextPositionHint') }}</div>
           </el-form-item>
+        </div>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.headerOnContact') }}</b>
+              <i>{{ t('admin.settings.headerOnContactHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_header_on_contact" />
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.forceUpdating') }}</b>
+              <i>{{ t('admin.settings.forceUpdatingHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_force_updating" />
+          </label>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.messages') }}</h3>
+        <div class="fields">
           <el-form-item :label="t('admin.settings.toastFontSize')">
-            <el-input-number v-model="form.kiosk_toast_font_size" :min="16" :max="64" :step="2" />
+            <el-input-number v-model="form.kiosk_toast_font_size" :min="18" :max="72" :step="1" />
             <div class="hint">{{ t('admin.settings.toastFontSizeHint') }}</div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.toastDuration')">
-            <el-input-number v-model="form.kiosk_toast_duration_s" :min="1" :max="15" :step="0.5" />
+            <el-input-number v-model="form.kiosk_toast_duration_s" :min="1" :max="15" :step="1" />
           </el-form-item>
           <el-form-item :label="t('admin.settings.toastColor')">
             <el-color-picker v-model="form.kiosk_toast_color" />
           </el-form-item>
-          <el-form-item :label="t('admin.settings.toastPulse')">
+        </div>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.toastPulse') }}</b>
+              <i>{{ t('admin.settings.toastPulseHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_toast_pulse" />
-            <div class="hint">{{ t('admin.settings.toastPulseHint') }}</div>
-          </el-form-item>
+          </label>
         </div>
       </section>
 
-      <!-- Каталог -->
+      <!-- Каталог і картки -->
       <section id="s-catalog" class="block">
         <header class="block-head">
           <KioskSketch zone="grid" class="block-sketch" />
@@ -403,25 +485,27 @@ onBeforeUnmount(() => observer?.disconnect())
             <p>{{ t('admin.settings.sections.catalogLead') }}</p>
           </div>
         </header>
+
+        <h3 class="group">{{ t('admin.settings.groups.grid') }}</h3>
         <div class="fields">
-          <el-form-item :label="t('admin.settings.useGroups')">
-            <el-switch v-model="form.kiosk_use_groups" />
-            <div class="hint">{{ t('admin.settings.useGroupsHint') }}</div>
-          </el-form-item>
           <!-- Сетка групп показывается только тогда, когда группы включены:
                настройка, которая ничего не меняет, хуже отсутствующей. -->
           <el-form-item v-if="form.kiosk_use_groups" :label="t('admin.settings.grid')">
-            <el-input-number v-model="form.grid_cols" :min="2" :max="6" />
-            <span class="times">×</span>
-            <el-input-number v-model="form.grid_rows" :min="1" :max="5" />
+            <div class="row nowrap">
+              <el-input-number v-model="form.grid_cols" :min="2" :max="6" />
+              <span class="times">×</span>
+              <el-input-number v-model="form.grid_rows" :min="1" :max="5" />
+            </div>
             <div class="hint">
               {{ t('admin.settings.gridHint', { count: form.grid_cols * form.grid_rows }) }}
             </div>
           </el-form-item>
           <el-form-item :label="t('admin.settings.gridProducts')">
-            <el-input-number v-model="form.product_grid_cols" :min="2" :max="6" />
-            <span class="times">×</span>
-            <el-input-number v-model="form.product_grid_rows" :min="1" :max="5" />
+            <div class="row nowrap">
+              <el-input-number v-model="form.product_grid_cols" :min="2" :max="6" />
+              <span class="times">×</span>
+              <el-input-number v-model="form.product_grid_rows" :min="1" :max="5" />
+            </div>
             <div class="hint">
               {{
                 t('admin.settings.gridProductsHint', {
@@ -434,21 +518,62 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_peek_percent" :min="0" :max="60" :step="2" />
             <div class="hint">{{ t('admin.settings.peekHint') }}</div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.showUnit')">
+        </div>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.useGroups') }}</b>
+              <i>{{ t('admin.settings.useGroupsHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_use_groups" />
+          </label>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.card') }}</h3>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.showUnit') }}</b>
+              <i>{{ t('admin.settings.showUnitHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_show_unit" />
-            <div class="hint">{{ t('admin.settings.showUnitHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.showCode')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.showCode') }}</b>
+              <i>{{ t('admin.settings.showCodeHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_show_code" />
-            <div class="hint">{{ t('admin.settings.showCodeHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.onlyWithPhoto')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.onlyWithPhoto') }}</b>
+              <i>{{ t('admin.settings.onlyWithPhotoHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_only_with_photo" />
-            <div class="hint">{{ t('admin.settings.onlyWithPhotoHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.photoFirst')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.photoFirst') }}</b>
+              <i>{{ t('admin.settings.photoFirstHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_photo_first" :disabled="form.kiosk_only_with_photo" />
-            <div class="hint">{{ t('admin.settings.photoFirstHint') }}</div>
+          </label>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.photo') }}</h3>
+        <div class="fields">
+          <el-form-item :label="t('admin.settings.photoScale')">
+            <el-input-number v-model="form.ui_photo_scale" :min="60" :max="160" :step="1" />
+            <div class="hint">{{ t('admin.settings.photoScaleHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.photoScaleGroup')">
+            <el-input-number v-model="form.ui_photo_scale_group" :min="60" :max="160" :step="1" />
+            <div class="hint">{{ t('admin.settings.photoScaleGroupHint') }}</div>
+          </el-form-item>
+          <el-form-item :label="t('admin.settings.plateHeight')">
+            <el-input-number v-model="form.ui_plate_height" :min="1" :max="60" :step="1" />
+            <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
           </el-form-item>
         </div>
       </section>
@@ -462,19 +587,39 @@ onBeforeUnmount(() => observer?.disconnect())
             <p>{{ t('admin.settings.sections.controlsLead') }}</p>
           </div>
         </header>
-        <div class="fields">
-          <el-form-item :label="t('admin.settings.searchButton')">
+
+        <h3 class="group">{{ t('admin.settings.groups.footer') }}</h3>
+        <div class="switches">
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.searchButton') }}</b>
+              <i>{{ t('admin.settings.searchButtonHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_search_button" />
-            <div class="hint">{{ t('admin.settings.searchButtonHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.backButton')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.backButton') }}</b>
+              <i>{{ t('admin.settings.backButtonHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_back_button" />
-            <div class="hint">{{ t('admin.settings.backButtonHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.actionsFullWidth')">
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.actionsFullWidth') }}</b>
+              <i>{{ t('admin.settings.actionsFullWidthHint') }}</i>
+            </span>
             <el-switch v-model="form.kiosk_actions_full_width" />
-            <div class="hint">{{ t('admin.settings.actionsFullWidthHint') }}</div>
-          </el-form-item>
+          </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.codeButton') }}</b>
+              <i>{{ t('admin.settings.codeButtonHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_code_button" />
+          </label>
+        </div>
+        <div class="fields">
           <el-form-item :label="t('admin.settings.searchWidth')">
             <el-input-number
               v-model="form.kiosk_search_width"
@@ -485,10 +630,10 @@ onBeforeUnmount(() => observer?.disconnect())
             />
             <div class="hint">{{ t('admin.settings.searchWidthHint') }}</div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.codeButton')">
-            <el-switch v-model="form.kiosk_code_button" />
-            <div class="hint">{{ t('admin.settings.codeButtonHint') }}</div>
-          </el-form-item>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.keyboard') }}</h3>
+        <div class="fields">
           <el-form-item :label="t('admin.settings.keyboardWidth')">
             <el-input-number v-model="form.kiosk_keyboard_width" :min="40" :max="100" :step="5" />
             <div class="hint">{{ t('admin.settings.keyboardWidthHint') }}</div>
@@ -497,16 +642,27 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_keyboard_height" :min="20" :max="50" :step="1" />
             <div class="hint">{{ t('admin.settings.keyboardHeightHint') }}</div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.keyboardFont')">
-            <el-select v-model="form.kiosk_keyboard_font" style="width: 220px">
-              <el-option
-                v-for="key in KIOSK_FONT_KEYS"
-                :key="key"
-                :value="key"
-                :label="t(`admin.settings.fonts.${key}`)"
-                :style="{ fontFamily: KIOSK_FONTS[key] }"
+          <el-form-item class="wide" :label="t('admin.settings.keyboardFont')">
+            <div class="row">
+              <el-select v-model="form.kiosk_keyboard_font" style="width: 200px">
+                <el-option
+                  v-for="key in KIOSK_FONT_KEYS"
+                  :key="key"
+                  :value="key"
+                  :label="t(`admin.settings.fonts.${key}`)"
+                  :style="{ fontFamily: KIOSK_FONTS[key] }"
+                />
+              </el-select>
+              <el-input-number
+                v-model="form.kiosk_keyboard_font_size"
+                :min="14"
+                :max="40"
+                :step="1"
               />
-            </el-select>
+              <el-checkbox v-model="form.kiosk_keyboard_bold">
+                {{ t('admin.settings.keyboardBold') }}
+              </el-checkbox>
+            </div>
             <!-- Образец тем же шрифтом и кеглем, что на клавишах: подбирать шрифт
                  по названию в списке — гадать. -->
             <div
@@ -520,12 +676,6 @@ onBeforeUnmount(() => observer?.disconnect())
               Й Ц У К Е Н Г Ш Щ З Х Ї · 1 2 3
             </div>
           </el-form-item>
-          <el-form-item :label="t('admin.settings.keyboardFontSize')">
-            <el-input-number v-model="form.kiosk_keyboard_font_size" :min="14" :max="40" :step="1" />
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.keyboardBold')">
-            <el-switch v-model="form.kiosk_keyboard_bold" />
-          </el-form-item>
         </div>
       </section>
 
@@ -538,6 +688,8 @@ onBeforeUnmount(() => observer?.disconnect())
             <p>{{ t('admin.settings.sections.lookLead') }}</p>
           </div>
         </header>
+
+        <h3 class="group">{{ t('admin.settings.groups.sizes') }}</h3>
         <div class="fields">
           <el-form-item :label="t('admin.settings.scaleWeight')">
             <el-input-number v-model="form.ui_scale_weight" :min="0.7" :max="2" :step="0.1" />
@@ -557,18 +709,10 @@ onBeforeUnmount(() => observer?.disconnect())
           <el-form-item :label="t('admin.settings.scaleProductCode')">
             <el-input-number v-model="form.ui_scale_product_code" :min="0.7" :max="2" :step="0.1" />
           </el-form-item>
-          <el-form-item :label="t('admin.settings.photoScale')">
-            <el-input-number v-model="form.ui_photo_scale" :min="60" :max="160" :step="1" />
-            <div class="hint">{{ t('admin.settings.photoScaleHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.photoScaleGroup')">
-            <el-input-number v-model="form.ui_photo_scale_group" :min="60" :max="160" :step="1" />
-            <div class="hint">{{ t('admin.settings.photoScaleGroupHint') }}</div>
-          </el-form-item>
-          <el-form-item :label="t('admin.settings.plateHeight')">
-            <el-input-number v-model="form.ui_plate_height" :min="1" :max="60" :step="1" />
-            <div class="hint">{{ t('admin.settings.plateHeightHint') }}</div>
-          </el-form-item>
+        </div>
+
+        <h3 class="group">{{ t('admin.settings.groups.colors') }}</h3>
+        <div class="fields">
           <el-form-item :label="t('admin.settings.primaryColor')">
             <el-color-picker v-model="form.ui_primary_color" />
             <div class="hint">{{ t('admin.settings.primaryHint') }}</div>
@@ -581,40 +725,10 @@ onBeforeUnmount(() => observer?.disconnect())
       </section>
     </el-form>
 
-    <!-- Кнопки живут в шапке: форма длинная, и кнопка сохранения не должна
-         уезжать под нижний край вместе с ней. `defer` нужен потому, что шапка
-         рисуется тем же обходом, что и эта страница. -->
+    <!-- Сохранение живёт в шапке: форма длинная, и кнопка не должна уезжать под
+         нижний край вместе с ней. `defer` нужен потому, что шапка рисуется тем же
+         обходом, что и эта страница. -->
     <Teleport to="#admin-actions" defer>
-      <el-tooltip :content="t('admin.settings.liveHint')" placement="bottom">
-        <label class="live">
-          <el-switch v-model="live" :loading="liveBusy" size="small" />
-          <span>{{ t('admin.settings.live') }}</span>
-        </label>
-      </el-tooltip>
-      <el-select
-        v-model="selectedPreset"
-        class="preset-select"
-        clearable
-        filterable
-        :placeholder="t('admin.settings.presetPlaceholder')"
-      >
-        <el-option v-for="name in presets" :key="name" :label="name" :value="name" />
-      </el-select>
-      <el-button :disabled="!selectedPreset" :loading="presetBusy" @click="applySelectedPreset">
-        {{ t('admin.settings.presetApply') }}
-      </el-button>
-      <el-button :loading="presetBusy" @click="saveAsPreset">
-        {{ t('admin.settings.presetSaveAs') }}
-      </el-button>
-      <el-button
-        :disabled="!selectedPreset"
-        :loading="presetBusy"
-        type="danger"
-        plain
-        @click="deleteSelectedPreset"
-      >
-        {{ t('admin.settings.presetDelete') }}
-      </el-button>
       <el-button type="primary" :loading="saving" @click="save">
         {{ t('admin.settings.save') }}
       </el-button>
@@ -624,24 +738,9 @@ onBeforeUnmount(() => observer?.disconnect())
 </template>
 
 <style scoped>
-.live {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin-right: 6px;
-  font-size: 13px;
-  color: var(--el-text-color-regular);
-  cursor: pointer;
-  user-select: none;
-}
-
-.preset-select {
-  width: 180px;
-}
-
 .page {
   display: grid;
-  grid-template-columns: 200px minmax(0, 860px);
+  grid-template-columns: 210px minmax(0, 900px);
   gap: 24px;
   align-items: start;
 }
@@ -692,8 +791,48 @@ onBeforeUnmount(() => observer?.disconnect())
   gap: 16px;
 }
 
+/* Панель страницы: пресеты слева, живое применение справа. */
+.toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 10px 16px;
+  background: var(--el-fill-color-light);
+  border-radius: 10px;
+}
+
+.toolbar-presets {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.toolbar-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-secondary);
+}
+
+.preset-select {
+  width: 180px;
+}
+
+.live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--el-text-color-regular);
+  cursor: pointer;
+  user-select: none;
+}
+
 .block {
-  padding: 18px 22px 8px;
+  padding: 18px 22px 10px;
   background: var(--el-bg-color);
   border: 1px solid var(--el-border-color-lighter);
   border-radius: 12px;
@@ -706,7 +845,7 @@ onBeforeUnmount(() => observer?.disconnect())
   align-items: center;
   gap: 18px;
   padding-bottom: 14px;
-  margin-bottom: 8px;
+  margin-bottom: 10px;
   border-bottom: 1px solid var(--el-border-color-lighter);
 }
 
@@ -717,7 +856,7 @@ onBeforeUnmount(() => observer?.disconnect())
 
 .block-head h2 {
   margin: 0 0 4px;
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 600;
 }
 
@@ -726,6 +865,27 @@ onBeforeUnmount(() => observer?.disconnect())
   font-size: 13px;
   line-height: 1.5;
   color: var(--s2l-muted);
+}
+
+/* Подзаголовок внутри блока: в больших разделах десяток полей, и без деления
+   на «после печати», «заставки», «повідомлення» они читаются как список. */
+.group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 18px 0 10px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--el-text-color-secondary);
+}
+
+.group::after {
+  content: '';
+  flex: 1;
+  height: 1px;
+  background: var(--el-border-color-lighter);
 }
 
 /* Две колонки полей с подписью сверху: вдвое короче простыни с подписями слева,
@@ -745,6 +905,73 @@ onBeforeUnmount(() => observer?.disconnect())
   margin-bottom: 4px;
   font-weight: 500;
   line-height: 1.3;
+}
+
+/* Поле во всю ширину блока: переключатель из трёх вариантов и шрифт клавиатуры
+   в колонку не влезают. */
+.fields :deep(.el-form-item.wide) {
+  grid-column: 1 / -1;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+/* «Столбцов × строк» и «ширина × высота» в одну строку: разорванные по разным
+   строкам числа читаются как два независимых поля. Ужимаем сами поля, а не
+   переносим. */
+.row.nowrap {
+  flex-wrap: nowrap;
+  gap: 0;
+}
+
+.row.nowrap :deep(.el-input-number) {
+  width: 120px;
+}
+
+/* Выключатели — списком, а не сеткой полей: у каждого своя подпись-пояснение,
+   и в двух колонках они рвутся по-разному, а строка читается ровно. */
+.switches {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin-bottom: 8px;
+}
+
+.switch-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 18px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.switch-row:hover {
+  background: var(--el-fill-color-light);
+}
+
+.switch-row span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.switch-row b {
+  font-weight: 500;
+  line-height: 1.3;
+}
+
+.switch-row i {
+  font-style: normal;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--s2l-muted);
 }
 
 .times {
@@ -770,7 +997,7 @@ onBeforeUnmount(() => observer?.disconnect())
   color: var(--s2l-muted);
 }
 
-@media (max-width: 900px) {
+@media (max-width: 1100px) {
   .page {
     grid-template-columns: 1fr;
   }

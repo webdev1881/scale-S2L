@@ -206,8 +206,6 @@ const uiScales = computed<Record<string, string>>(() => {
   '--ui-price': String(settings.value?.ui_scale_product_price ?? 1),
   '--ui-code': String(settings.value?.ui_scale_product_code ?? 1),
   '--ui-footer': String(settings.value?.ui_scale_footer ?? 1),
-    '--ui-photo-group': String(settings.value?.ui_photo_group ?? 60),
-    '--ui-photo-product': String(settings.value?.ui_photo_product ?? 60),
     // Клавиатура: доля ширины каталога, отступ с каждой стороны — половина остатка.
     '--ui-kb-inset': `${(100 - (settings.value?.kiosk_keyboard_width ?? 60)) / 2}%`,
     // Высота — доля экрана. Без верхнего предела в пикселях: оператор задал долю,
