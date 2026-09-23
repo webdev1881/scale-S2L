@@ -369,9 +369,9 @@ const total = computed(() => {
  * от касания карточки, — поэтому причина показывается сообщением в ответ на само
  * касание: покупатель нажал и обязан узнать, почему ничего не произошло.
  */
-const printBlockReason = computed(() => {
-  if (!selected.value) return t('blocked.selectProduct')
-  if (selected.value.unit === 'piece') {
+function blockReasonFor(product: Product | null) {
+  if (!product) return t('blocked.selectProduct')
+  if (product.unit === 'piece') {
     // Цена штучного не зависит от веса, но товар всё равно кладут на платформу:
     // иначе случайное касание карточки печатает этикетку мгновенно.
     if (pieceNeedsLoad.value && weight.reading.net_g < PIECE_PRESENCE_G) {
@@ -380,10 +380,14 @@ const printBlockReason = computed(() => {
     return null
   }
   if (weight.reading.error) return translateError(weight.reading.error)
-  if (netG.value < minWeight.value) return t('blocked.putGoods')
+  // Тара вычитается из веса уже выбранного товара; у ещё не выбранного её нет.
+  const net = Math.max(weight.reading.net_g - (product.tare_g ?? 0), 0)
+  if (net < minWeight.value) return t('blocked.putGoods')
   if (requireStable.value && !weight.reading.stable) return t('blocked.waitStable')
   return null
-})
+}
+
+const printBlockReason = computed(() => blockReasonFor(selected.value))
 
 /**
  * Только товары и группы. Отдельно от начальной загрузки: правку каталога киоск
@@ -721,6 +725,12 @@ function backToCategories() {
  * первое пришлось на неустоявшийся вес.
  */
 function selectProduct(product: Product) {
+  // Печать не пройдёт — товар и не выбираем: плашка с ценой и стоимостью за
+  // несуществующий вес только сбивает («0,00 грн» рядом с названием читается
+  // как цена). На экране остаётся «Товар не обрано», а причину говорит тост.
+  const blocked = blockReasonFor(product)
+  if (blocked) return showToast(blocked)
+
   selected.value = product
   // Товар выбран по коду — показываем, где он лежит, и снимаем фильтр: иначе в
   // каталоге осталась бы одна карточка, а строки с кодом на экране уже нет.
