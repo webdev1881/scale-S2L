@@ -117,10 +117,17 @@ async function pollPrinter() {
   }
 }
 
-function showToast(message: string) {
+/**
+ * `sticky` — сообщение, которое не тает по выдержке: забытый на платформе товар
+ * никуда не денется сам, и следующий покупатель должен видеть, почему прибор
+ * занят. Снимет его снятие груза — то же изменение веса, что и обычный тост.
+ */
+function showToast(message: string, sticky = false) {
   toastMessage.value = message
   toastWeight = weight.reading.net_g
+  toastSticky = sticky
   window.clearTimeout(toastTimer)
+  if (sticky) return
   const seconds = settings.value?.kiosk_toast_duration_s ?? 4
   toastTimer = window.setTimeout(() => {
     toastMessage.value = ''
@@ -135,13 +142,22 @@ function showToast(message: string) {
  * действие покупателя.
  */
 let toastWeight = 0
+let toastSticky = false
 
 watch(
   () => weight.reading.net_g,
   (net) => {
     if (!toastMessage.value) return
-    if (Math.abs(net - toastWeight) < minWeight.value) return
+    // «Заберіть товар» держится, пока товар лежит: покупатель может подвинуть его
+    // или доложить ещё — просьба от этого не теряет силы. Уходит от пустой
+    // платформы, а не от любого шевеления.
+    if (toastSticky) {
+      if (net >= minWeight.value) return
+    } else if (Math.abs(net - toastWeight) < minWeight.value) {
+      return
+    }
     window.clearTimeout(toastTimer)
+    toastSticky = false
     toastMessage.value = ''
   },
 )
@@ -987,7 +1003,7 @@ function armLabelCap() {
     // Предел сработал при занятой платформе — значит товар забыли. Молчать нельзя:
     // следующий покупатель встанет к прибору с чужим грузом на чаше.
     if (weight.reading.net_g >= minWeight.value) {
-      showToast(t('kiosk.takeGoods'))
+      showToast(t('kiosk.takeGoods'), true)
     }
     closeLabel()
   }, labelMaxMs.value)
