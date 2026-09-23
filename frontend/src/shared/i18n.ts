@@ -65,7 +65,7 @@ const messages = {
     errors: {
       scale_no_link: 'Немає зв’язку з вагами',
       scale_overload: 'Перевантаження',
-      print_paper_out: 'Закінчився папір. Покличте співробітника магазину',
+      print_paper_out: 'Закінчився папір\nПокличте співробітника магазину',
       print_cover_open: 'Відкрита кришка принтера',
       print_unavailable: 'Принтер недоступний',
       print_not_stable: 'Вага не стабілізувалася — зачекайте',
@@ -477,7 +477,7 @@ const messages = {
     errors: {
       scale_no_link: 'Нет связи с весами',
       scale_overload: 'Перегрузка',
-      print_paper_out: 'Закончилась бумага. Позовите сотрудника магазина',
+      print_paper_out: 'Закончилась бумага\nПозовите сотрудника магазина',
       print_cover_open: 'Открыта крышка принтера',
       print_unavailable: 'Принтер недоступен',
       print_not_stable: 'Вес не стабилизировался — подождите',

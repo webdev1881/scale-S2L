@@ -65,6 +65,9 @@ defineProps<{
   font-weight: 700;
   line-height: 1.25;
   text-align: center;
+  /* Перенос строки из самого текста («Закінчився папір» + строка про сотрудника):
+     где рвать длинную фразу, решает перевод, а не ширина экрана. */
+  white-space: pre-line;
 }
 
 .kiosk-toast.pulse {
