@@ -244,6 +244,10 @@ const backButton = computed(() => settings.value?.kiosk_back_button ?? true)
  */
 const actionsStyle = computed(() => {
   if (!(searchButton.value && backButton.value)) return { gridTemplateColumns: '1fr' }
+  // В режиме половин пустая половина не держится: одна кнопка занимает всю
+  // половину панели (половину экрана), две делят её пополам — по четверти. От
+  // «сквозного» клика после возврата страхует окно `backJustHappened`.
+  if (actionsFullWidth.value && !canReturn.value) return { gridTemplateColumns: '1fr' }
   const search = settings.value?.kiosk_search_width ?? 50
   return { gridTemplateColumns: `${100 - search}fr ${search}fr` }
 })
@@ -1383,7 +1387,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
 
         <!-- Футер собран теми же плитками, что и шапка: сумма слева, выбранный
              товар посередине, действие справа — под большой палец. -->
-        <footer class="bottom" :class="{ 'stacked-actions': actionsFullWidth }">
+        <footer class="bottom" :class="{ 'half-actions': actionsFullWidth }">
           <!-- Сумма живёт в шапке, повторять её здесь незачем. Освободившееся
                место отдано таре и обнулению — их включают в админке там, где
                покупатель сам ставит тару. -->
@@ -1428,7 +1432,10 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
               <button v-if="canReturn" class="tile action" @click="allProducts">
                 {{ t('kiosk.allProducts') }}
               </button>
-              <span v-else class="action-gap" aria-hidden="true"></span>
+              <!-- Пустая половина нужна только в обычной раскладке: там она держит
+                   поиск на месте. В режиме половин её нет — кнопка растёт на всю
+                   половину панели. -->
+              <span v-else-if="!actionsFullWidth" class="action-gap" aria-hidden="true"></span>
             </template>
             <button v-if="searchButton" class="tile action search-cta" @click="openSearch">
               <svg class="cta-icon" viewBox="0 0 24 24" aria-hidden="true">
@@ -1776,28 +1783,23 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
   border-radius: var(--s2l-radius);
 }
 
-/* Кнопки во всю ширину: плитка выбранного товара уходит строкой выше, а ряд
-   кнопок делится по заданной доле — при 50 % каждая ровно в половину экрана.
-   До кнопки тянутся стоя у прибора, и ширина здесь дороже соседства с плиткой. */
-.bottom.stacked-actions {
-  grid-template-columns: auto 1fr;
+/* Ровные половины: плитка выбранного товара и ряд кнопок делят панель пополам.
+   Одна кнопка — половина экрана, две — по четверти; при обычной раскладке кнопки
+   забирали четыре пятых, и ширина плитки скакала вслед за длиной надписи.
+   Flex, а не колонки сетки: тара и обнуление появляются по настройке, и число
+   колонок менялось бы вместе с ними. */
+.bottom.half-actions {
+  display: flex;
 }
 
-.bottom.stacked-actions .actions {
-  grid-column: 1 / -1;
+.bottom.half-actions .scale-actions {
+  flex: none;
 }
 
-/* Плитка выбранного товара занимает свою строку целиком: рядом с ней всё равно
-   пусто, а растянутая — вмещает длинное название без переноса на две строки. */
-.bottom.stacked-actions .pick {
-  grid-column: 1 / -1;
-}
-
-/* Две строки вместо одной уже забрали высоту у карточек — плитку делаем ниже:
-   в ней текст, а не цель для пальца, и держать её вровень с кнопкой незачем. */
-.bottom.stacked-actions .pick,
-.bottom.stacked-actions .scale-actions .tile {
-  min-height: calc(64px * var(--ui-footer, 1));
+.bottom.half-actions .pick,
+.bottom.half-actions .actions {
+  flex: 1 1 50%;
+  min-width: 0;
 }
 
 .bottom .tile {
