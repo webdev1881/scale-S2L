@@ -721,6 +721,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-color-picker v-model="form.ui_secondary_color" />
             <div class="hint">{{ t('admin.settings.secondaryHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.photoBgColor')">
+            <el-color-picker v-model="form.ui_photo_bg" />
+            <div class="hint">{{ t('admin.settings.photoBgHint') }}</div>
+          </el-form-item>
         </div>
       </section>
     </el-form>

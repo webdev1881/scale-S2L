@@ -259,6 +259,7 @@ const uiScales = computed<Record<string, string>>(() => {
     '--ui-plate-bg': primary,
     '--ui-plate-ink': inkOn(primary, '#1d2129'),
     '--ui-plate-accent': plateAccent(primary),
+    '--ui-photo-bg': settings.value?.ui_photo_bg ?? '#ffffff',
   }
 })
 const minWeight = computed(() => settings.value?.min_print_weight_g ?? 5)

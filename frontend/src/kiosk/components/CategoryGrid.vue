@@ -95,7 +95,7 @@ defineEmits<{ open: [category: Category] }>()
      высоту всегда спорят, и одна из них оказывается обманом. */
   flex: 1 1 auto;
   min-height: 0;
-  background: var(--s2l-soft);
+  background: var(--ui-photo-bg, var(--s2l-soft));
   /* Приближённый снимок обязан остаться в своём месте: без обрезки он наползал бы
      на плашку с названием. */
   overflow: hidden;
