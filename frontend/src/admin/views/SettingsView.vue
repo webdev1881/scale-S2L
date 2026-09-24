@@ -415,6 +415,10 @@ onBeforeUnmount(() => observer?.disconnect())
             <el-input-number v-model="form.kiosk_label_max_s" :min="5" :max="120" :step="5" />
             <div class="hint">{{ t('admin.settings.labelMaxHint') }}</div>
           </el-form-item>
+          <el-form-item :label="t('admin.settings.printFailStreak')">
+            <el-input-number v-model="form.kiosk_print_fail_streak" :min="1" :max="5" :step="1" />
+            <div class="hint">{{ t('admin.settings.printFailStreakHint') }}</div>
+          </el-form-item>
           <el-form-item :label="t('admin.settings.idleReset')">
             <el-input-number v-model="form.kiosk_idle_reset_s" :min="10" :max="600" />
           </el-form-item>

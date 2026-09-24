@@ -96,8 +96,17 @@ let toastTimer: number | undefined
  * когда этикетку всё равно не напечатать. Состояние спрашиваем опросом, а не
  * по отказу печати: узнать о пустом рулоне надо до того, как человек выбрал
  * товар и положил его на платформу.
+ *
+ * Реальный принтер прибора (дешёвый USB-клон) не отдаёт статус бумаги и крышки
+ * ни одним проверенным протоколом — ни классом USB-принтеров, ни ESC/POS, ни
+ * документированной командой TSPL2 `<ESC>!?`: на все запросы молчит. Опрос ниже
+ * остаётся ради симулятора (`kind: 'fake'`) и на случай, если на приборе когда-то
+ * окажется другая плата. `printFaultHeuristic` — запасной сигнал именно для
+ * этого железа: см. `armLabelCap`.
  */
-const printerFault = ref('')
+const printerStatusFault = ref('')
+const printFaultHeuristic = ref('')
+const printerFault = computed(() => printerStatusFault.value || printFaultHeuristic.value)
 let printerPoll: number | undefined
 
 function faultOf(status: Status): string {
@@ -110,7 +119,7 @@ function faultOf(status: Status): string {
 
 async function pollPrinter() {
   try {
-    printerFault.value = faultOf(await api.status())
+    printerStatusFault.value = faultOf(await api.status())
   } catch {
     // Связи с прибором нет вовсе — это уже другая заставка («Оновлення»),
     // и спорить с ней своим экраном незачем.
@@ -164,6 +173,8 @@ watch(
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
+// Подряд идущие срывы получения этикетки — см. `armLabelCap`.
+let printFailStreak = 0
 
 /**
  * Покупатель у прибора. До первого контакта — касания экрана или груза на
@@ -298,6 +309,7 @@ const pieceNeedsLoad = computed(() => settings.value?.kiosk_piece_needs_load ?? 
  */
 const PIECE_PRESENCE_G = 5
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
+const printFailStreakLimit = computed(() => settings.value?.kiosk_print_fail_streak ?? 2)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
 // товаров в группе больше и плотность нужна другая.
@@ -1005,6 +1017,15 @@ function armLabelCap() {
     // следующий покупатель встанет к прибору с чужим грузом на чаше.
     if (weight.reading.net_g >= minWeight.value) {
       showToast(t('kiosk.takeGoods'), true)
+      // Реальный принтер не отдаёт статус бумаги и крышки (проверено на приборе —
+      // протокол молчит), поэтому единственный доступный признак беды — сам
+      // покупатель раз за разом не забирает то, для чего пришёл. Один случай ничего
+      // не значит (отвлёкся, передумал), поэтому считаем подряд идущие срывы и
+      // сдаёмся только после нескольких: `kiosk_print_fail_streak`.
+      printFailStreak += 1
+      if (printFailStreak >= printFailStreakLimit.value) {
+        printFaultHeuristic.value = translateError('print.repeated_failure')
+      }
     }
     closeLabel()
   }, labelMaxMs.value)
@@ -1039,8 +1060,12 @@ watch(loaded, (now) => {
   if (!hadLoad) return
   clearTimer = window.setTimeout(() => {
     hadLoad = false
-    if (awaitingPickup.value) closeLabel()
-    else reset()
+    // Забрали вовремя — печать в этот раз явно сработала, счётчик подряд идущих
+    // срывов не должен копиться на пустом месте.
+    if (awaitingPickup.value) {
+      printFailStreak = 0
+      closeLabel()
+    } else reset()
   }, clearHoldMs.value)
 })
 

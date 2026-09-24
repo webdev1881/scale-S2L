@@ -154,6 +154,7 @@ export interface DeviceSettings {
   kiosk_after_print: 'home' | 'catalog' | 'search'
   kiosk_piece_needs_load: boolean
   kiosk_label_max_s: number
+  kiosk_print_fail_streak: number
   splash_seconds: number
   kiosk_force_updating: boolean
   kiosk_updating_photo_scale: number
