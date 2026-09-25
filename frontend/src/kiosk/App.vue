@@ -101,12 +101,19 @@ let toastTimer: number | undefined
  * ни одним проверенным протоколом — ни классом USB-принтеров, ни ESC/POS, ни
  * документированной командой TSPL2 `<ESC>!?`: на все запросы молчит. Опрос ниже
  * остаётся ради симулятора (`kind: 'fake'`) и на случай, если на приборе когда-то
- * окажется другая плата. `printFaultHeuristic` — запасной сигнал именно для
- * этого железа: см. `armLabelCap`.
+ * окажется другая плата. Раз софт беду не видит, у беды — два других источника:
+ * `printFaultHeuristic` копится сам по срывам выдачи (см. `armLabelCap`), а
+ * `kiosk_printer_alert` — ручной рубильник в админке для сотрудника, который
+ * заметил проблему на самом принтере раньше, чем накопится эвристика.
  */
 const printerStatusFault = ref('')
 const printFaultHeuristic = ref('')
-const printerFault = computed(() => printerStatusFault.value || printFaultHeuristic.value)
+const printerFault = computed(
+  () =>
+    printerStatusFault.value ||
+    printFaultHeuristic.value ||
+    (settings.value?.kiosk_printer_alert ? translateError('print.repeated_failure') : ''),
+)
 let printerPoll: number | undefined
 
 function faultOf(status: Status): string {

@@ -157,6 +157,7 @@ export interface DeviceSettings {
   kiosk_print_fail_streak: number
   splash_seconds: number
   kiosk_force_updating: boolean
+  kiosk_printer_alert: boolean
   kiosk_updating_photo_scale: number
   kiosk_updating_text_position: number
   kiosk_toast_font_size: number

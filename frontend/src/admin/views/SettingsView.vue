@@ -454,6 +454,13 @@ onBeforeUnmount(() => observer?.disconnect())
             </span>
             <el-switch v-model="form.kiosk_force_updating" />
           </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.printerAlert') }}</b>
+              <i>{{ t('admin.settings.printerAlertHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_printer_alert" />
+          </label>
         </div>
 
         <h3 class="group">{{ t('admin.settings.groups.messages') }}</h3>
