@@ -101,17 +101,20 @@ let toastTimer: number | undefined
  * ни одним проверенным протоколом — ни классом USB-принтеров, ни ESC/POS, ни
  * документированной командой TSPL2 `<ESC>!?`: на все запросы молчит. Опрос ниже
  * остаётся ради симулятора (`kind: 'fake'`) и на случай, если на приборе когда-то
- * окажется другая плата. Раз софт беду не видит, у беды — два других источника:
- * `printFaultHeuristic` копится сам по срывам выдачи (см. `armLabelCap`), а
- * `kiosk_printer_alert` — ручной рубильник в админке для сотрудника, который
- * заметил проблему на самом принтере раньше, чем накопится эвристика.
+ * окажется другая плата.
+ *
+ * Раз софт беду сам не видит, единственный флаг тревоги — `kiosk_printer_alert`
+ * в настройках: сотрудник поднимает его сам из админки (блок «Екран і сесія»),
+ * либо киоск поднимает его сам через `api.raisePrinterAlert()` — накопив
+ * достаточно срывов выдачи (см. `armLabelCap`). Снять флаг умеет только
+ * сотрудник, в той же админке: без этого блокирующий экран было бы нечем
+ * снять — покупателю через него ничего не купить и не «починить» эвристику
+ * самим собой.
  */
 const printerStatusFault = ref('')
-const printFaultHeuristic = ref('')
 const printerFault = computed(
   () =>
     printerStatusFault.value ||
-    printFaultHeuristic.value ||
     (settings.value?.kiosk_printer_alert ? translateError('print.repeated_failure') : ''),
 )
 let printerPoll: number | undefined
@@ -182,6 +185,17 @@ let idleTimer: number | undefined
 let labelTimer: number | undefined
 // Подряд идущие срывы получения этикетки — см. `armLabelCap`.
 let printFailStreak = 0
+
+// Сотрудник снял тревогу в админке (блок «Екран і сесія» → «Тривога про
+// принтер») — считаем, что принтер починили, и начинаем счёт срывов заново.
+// Без этого старый счёт, недобежавший до порога перед починкой, мог бы почти
+// сразу поднять тревогу снова.
+watch(
+  () => settings.value?.kiosk_printer_alert,
+  (alert, was) => {
+    if (was && !alert) printFailStreak = 0
+  },
+)
 
 /**
  * Покупатель у прибора. До первого контакта — касания экрана или груза на
@@ -1030,8 +1044,10 @@ function armLabelCap() {
       // не значит (отвлёкся, передумал), поэтому считаем подряд идущие срывы и
       // сдаёмся только после нескольких: `kiosk_print_fail_streak`.
       printFailStreak += 1
-      if (printFailStreak >= printFailStreakLimit.value) {
-        printFaultHeuristic.value = translateError('print.repeated_failure')
+      // Флаг поднимаем один раз за серию — не при каждом срыве после порога:
+      // повторные запросы того же значения на сервер не нужны.
+      if (printFailStreak === printFailStreakLimit.value) {
+        void api.raisePrinterAlert().then((fresh) => (settings.value = fresh))
       }
     }
     closeLabel()

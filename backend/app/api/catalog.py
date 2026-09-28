@@ -303,6 +303,21 @@ def put_settings_route(payload: DeviceSettings) -> DeviceSettings:
     return saved
 
 
+@router.post("/printer/alert", response_model=DeviceSettings)
+def raise_printer_alert_route() -> DeviceSettings:
+    """Киоск сам поднимает тревогу о принтере — эвристика по срывам выдачи
+    (см. kiosk_print_fail_streak в settings_store.py) не может достучаться до
+    /api/settings, туда нужен пароль админа. Только поднять флаг, снять его —
+    дело оператора из админки; поэтому маршрут не принимает payload и не умеет
+    выключать тревогу обратно."""
+    current = load_settings()
+    if current.kiosk_printer_alert:
+        return current
+    saved = save_settings(current.model_copy(update={"kiosk_printer_alert": True}))
+    live.notify("settings")
+    return saved
+
+
 # Пресеты — именованные снимки настроек: переключиться между «залом» и
 # «прилавком» одной кнопкой в шапке, не подбирая заново десяток полей.
 # Сохраняют то, что сейчас в форме, а не то, что уже лежит на диске: незачем

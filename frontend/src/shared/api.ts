@@ -91,6 +91,9 @@ export const api = {
   settings: () => request<DeviceSettings>('/api/settings'),
   saveSettings: (payload: DeviceSettings) =>
     request<DeviceSettings>('/api/settings', { method: 'PUT', body: JSON.stringify(payload) }),
+  // Киоску можно только поднять тревогу о принтере, не снять её — снимает оператор
+  // в админке (см. kiosk_printer_alert в SettingsView.vue).
+  raisePrinterAlert: () => request<DeviceSettings>('/api/printer/alert', { method: 'POST' }),
 
   settingsPresets: () => request<string[]>('/api/settings/presets'),
   savePreset: (name: string, payload: DeviceSettings) =>
