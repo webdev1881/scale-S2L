@@ -484,6 +484,13 @@ onBeforeUnmount(() => observer?.disconnect())
             </span>
             <el-switch v-model="form.kiosk_toast_pulse" />
           </label>
+          <label class="switch-row">
+            <span>
+              <b>{{ t('admin.settings.takeGoodsCenter') }}</b>
+              <i>{{ t('admin.settings.takeGoodsCenterHint') }}</i>
+            </span>
+            <el-switch v-model="form.kiosk_take_goods_center" />
+          </label>
         </div>
       </section>
 

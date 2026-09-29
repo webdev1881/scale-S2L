@@ -140,9 +140,17 @@ async function pollPrinter() {
  * `sticky` — сообщение, которое не тает по выдержке: забытый на платформе товар
  * никуда не денется сам, и следующий покупатель должен видеть, почему прибор
  * занят. Снимет его снятие груза — то же изменение веса, что и обычный тост.
+ *
+ * `center` — не блокирует и не перехватывает касания (в отличие от `printerFault`),
+ * просто ставит именно это сообщение по центру экрана вместо верхней плашки:
+ * так заметнее тому, кто стоит в стороне. Сейчас включается только настройкой
+ * `kiosk_take_goods_center` для «Заберіть товар з платформи».
  */
-function showToast(message: string, sticky = false) {
+const toastCenter = ref(false)
+
+function showToast(message: string, sticky = false, center = false) {
   toastMessage.value = message
+  toastCenter.value = center
   toastWeight = weight.reading.net_g
   toastSticky = sticky
   window.clearTimeout(toastTimer)
@@ -1037,7 +1045,7 @@ function armLabelCap() {
     // Предел сработал при занятой платформе — значит товар забыли. Молчать нельзя:
     // следующий покупатель встанет к прибору с чужим грузом на чаше.
     if (weight.reading.net_g >= minWeight.value) {
-      showToast(t('kiosk.takeGoods'), true)
+      showToast(t('kiosk.takeGoods'), true, settings.value?.kiosk_take_goods_center ?? false)
       // Реальный принтер не отдаёт статус бумаги и крышки (проверено на приборе —
       // протокол молчит), поэтому единственный доступный признак беды — сам
       // покупатель раз за разом не забирает то, для чего пришёл. Один случай ничего
@@ -1332,6 +1340,7 @@ watch(locale, () => (document.title = t('title.kiosk')), { immediate: true })
       :color="settings?.kiosk_toast_color ?? '#d97706'"
       :pulse="settings?.kiosk_toast_pulse ?? true"
       :blocking="!!printerFault"
+      :center="!printerFault && toastCenter"
     />
 
     <div class="kiosk" :class="{ 'hushed-scale': keyboardOpen || (headerOnContact && !engaged) }" :style="uiScales">

@@ -9,6 +9,10 @@
  * `blocking` — для беды, которая сама не пройдёт: кончилась бумага, открыта
  * крышка. Такое сообщение не тает по таймеру и накрывает экран: покупатель
  * иначе продолжает тыкать в карточки, а этикетки всё равно не будет.
+ *
+ * `center` — для сообщения вроде «Заберіть товар з платформи»: сверху экрана
+ * его легко не заметить, стоя в стороне, а по центру оно бросается в глаза
+ * так же, как блокирующее, при этом оставаясь некликабельным поверх каталога.
  */
 defineProps<{
   message: string
@@ -16,12 +20,13 @@ defineProps<{
   color: string
   pulse: boolean
   blocking?: boolean
+  center?: boolean
 }>()
 </script>
 
 <template>
   <Transition name="kiosk-toast">
-    <div v-if="message" class="kiosk-toast-wrap" :class="{ blocking }">
+    <div v-if="message" class="kiosk-toast-wrap" :class="{ blocking, center }">
       <div class="kiosk-toast" :class="{ pulse }" :style="{ fontSize: `${fontSize}px`, background: color }">
         {{ message }}
       </div>
@@ -39,6 +44,19 @@ defineProps<{
   max-width: 86vw;
   /* Тост не должен перехватывать касание: он информирует, а не блокирует каталог. */
   pointer-events: none;
+}
+
+/* По центру экрана, но без пелены и без перехвата касаний — в отличие от
+   `.blocking`, каталог за сообщением остаётся живым: покупателя рядом может
+   и не быть, а листать товары тому, кто есть, никто не запрещал. */
+.kiosk-toast-wrap.center:not(.blocking) {
+  top: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.kiosk-toast-wrap.center:not(.blocking).kiosk-toast-enter-from,
+.kiosk-toast-wrap.center:not(.blocking).kiosk-toast-leave-to {
+  transform: translate(-50%, -50%) translateY(-16px);
 }
 
 /* Блокирующее сообщение: тёмная пелена во весь экран, касания в неё и упираются.

@@ -164,6 +164,7 @@ export interface DeviceSettings {
   kiosk_toast_duration_s: number
   kiosk_toast_color: string
   kiosk_toast_pulse: boolean
+  kiosk_take_goods_center: boolean
   ui_scale_weight: number
   ui_scale_group_title: number
   ui_scale_product_name: number
