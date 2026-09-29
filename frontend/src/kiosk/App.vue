@@ -105,12 +105,11 @@ let toastTimer: number | undefined
  * окажется другая плата.
  *
  * Раз софт беду сам не видит, единственный флаг тревоги — `kiosk_printer_alert`
- * в настройках: сотрудник поднимает его сам из админки (блок «Екран і сесія»),
- * либо киоск поднимает его сам через `api.raisePrinterAlert()` — накопив
- * достаточно срывов выдачи (см. `armLabelCap`). Снять флаг умеет только
- * сотрудник, в той же админке: без этого блокирующий экран было бы нечем
- * снять — покупателю через него ничего не купить и не «починить» эвристику
- * самим собой.
+ * в настройках, и поднимает его только сотрудник из админки (блок «Екран і
+ * сесія»). Была ещё автоматическая эвристика по срывам выдачи, но её пока
+ * отключили — слишком грубо путала нехватку бумаги с забытым покупателем
+ * товаром; `api.raisePrinterAlert()` (POST /api/printer/alert) в HAL остался
+ * на будущее, просто сейчас его никто не вызывает.
  */
 const printerStatusFault = ref('')
 const printerFault = computed(
@@ -192,19 +191,6 @@ watch(
 
 let idleTimer: number | undefined
 let labelTimer: number | undefined
-// Подряд идущие срывы получения этикетки — см. `armLabelCap`.
-let printFailStreak = 0
-
-// Сотрудник снял тревогу в админке (блок «Екран і сесія» → «Тривога про
-// принтер») — считаем, что принтер починили, и начинаем счёт срывов заново.
-// Без этого старый счёт, недобежавший до порога перед починкой, мог бы почти
-// сразу поднять тревогу снова.
-watch(
-  () => settings.value?.kiosk_printer_alert,
-  (alert, was) => {
-    if (was && !alert) printFailStreak = 0
-  },
-)
 
 /**
  * Покупатель у прибора. До первого контакта — касания экрана или груза на
@@ -342,7 +328,6 @@ const pieceNeedsLoad = computed(() => settings.value?.kiosk_piece_needs_load ?? 
  */
 const PIECE_PRESENCE_G = 5
 const labelMaxMs = computed(() => (settings.value?.kiosk_label_max_s ?? 25) * 1000)
-const printFailStreakLimit = computed(() => settings.value?.kiosk_print_fail_streak ?? 2)
 
 // Сетка своя на каждом уровне: групп мало и им идут крупные карточки,
 // товаров в группе больше и плотность нужна другая.
@@ -1051,17 +1036,6 @@ function armLabelCap() {
     if (weight.reading.net_g >= minWeight.value) {
       showToast(t('kiosk.takeGoods'), true, settings.value?.kiosk_take_goods_center ?? false)
       playTakeGoodsRing(settings.value?.kiosk_take_goods_ring_s ?? 1.5)
-      // Реальный принтер не отдаёт статус бумаги и крышки (проверено на приборе —
-      // протокол молчит), поэтому единственный доступный признак беды — сам
-      // покупатель раз за разом не забирает то, для чего пришёл. Один случай ничего
-      // не значит (отвлёкся, передумал), поэтому считаем подряд идущие срывы и
-      // сдаёмся только после нескольких: `kiosk_print_fail_streak`.
-      printFailStreak += 1
-      // Флаг поднимаем один раз за серию — не при каждом срыве после порога:
-      // повторные запросы того же значения на сервер не нужны.
-      if (printFailStreak === printFailStreakLimit.value) {
-        void api.raisePrinterAlert().then((fresh) => (settings.value = fresh))
-      }
     }
     closeLabel()
   }, labelMaxMs.value)
@@ -1096,12 +1070,8 @@ watch(loaded, (now) => {
   if (!hadLoad) return
   clearTimer = window.setTimeout(() => {
     hadLoad = false
-    // Забрали вовремя — печать в этот раз явно сработала, счётчик подряд идущих
-    // срывов не должен копиться на пустом месте.
-    if (awaitingPickup.value) {
-      printFailStreak = 0
-      closeLabel()
-    } else reset()
+    if (awaitingPickup.value) closeLabel()
+    else reset()
   }, clearHoldMs.value)
 })
 
