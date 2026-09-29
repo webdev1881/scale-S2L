@@ -475,6 +475,10 @@ onBeforeUnmount(() => observer?.disconnect())
           <el-form-item :label="t('admin.settings.toastColor')">
             <el-color-picker v-model="form.kiosk_toast_color" />
           </el-form-item>
+          <el-form-item :label="t('admin.settings.takeGoodsRing')">
+            <el-input-number v-model="form.kiosk_take_goods_ring_s" :min="0" :max="5" :step="0.5" />
+            <div class="hint">{{ t('admin.settings.takeGoodsRingHint') }}</div>
+          </el-form-item>
         </div>
         <div class="switches">
           <label class="switch-row">

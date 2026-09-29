@@ -18,6 +18,7 @@ import KioskToast from './components/KioskToast.vue'
 import Numpad from './components/Numpad.vue'
 import Pager from './components/Pager.vue'
 import ProductGrid from './components/ProductGrid.vue'
+import { playTakeGoodsRing, unlockRingAudio } from './ring'
 import SplashScreen from './components/SplashScreen.vue'
 import UpdatingOverlay from './components/UpdatingOverlay.vue'
 import WeightPanel from './components/WeightPanel.vue'
@@ -224,6 +225,9 @@ const engaged = ref(false)
  */
 function engage() {
   engaged.value = true
+  // Звук «Заберіть товар» звучит позже, вне жеста пользователя — браузер его
+  // заблокирует, если контекст не разбужен прямо в обработчике касания.
+  unlockRingAudio()
 }
 
 const currency = computed(() => settings.value?.currency ?? '₴')
@@ -1046,6 +1050,7 @@ function armLabelCap() {
     // следующий покупатель встанет к прибору с чужим грузом на чаше.
     if (weight.reading.net_g >= minWeight.value) {
       showToast(t('kiosk.takeGoods'), true, settings.value?.kiosk_take_goods_center ?? false)
+      playTakeGoodsRing(settings.value?.kiosk_take_goods_ring_s ?? 1.5)
       // Реальный принтер не отдаёт статус бумаги и крышки (проверено на приборе —
       // протокол молчит), поэтому единственный доступный признак беды — сам
       // покупатель раз за разом не забирает то, для чего пришёл. Один случай ничего
